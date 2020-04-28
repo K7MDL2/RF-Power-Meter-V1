@@ -201,7 +201,7 @@ class Serial_RX(Thread):
                 tempstr =  str(s_data).split('\r')
                 #print("1  DATA HERE {}" .format(tempstr))
                 meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
-                print("2 TMP raw str   = {}" .format(meter_data_tmp))
+                #print("2 TMP raw str   = {}" .format(meter_data_tmp))
                 if len(meter_data_tmp) == 8:
                     if meter_data_tmp[0] == myRig_meter_ID:        
                         meter_data = meter_data_tmp          
@@ -214,17 +214,17 @@ class Serial_RX(Thread):
                         if meter_data_fl[5] == 0:
                             meter_data[3] = "0.0"          #  zero out the dBm values when F watts is zero
                             meter_data[4] = "0.0"
-                        print("{0:}    = {1:}" .format("3 ID Match Data ", meter_data))
-                        print("{0:} FLT= {1:}" .format("3 ID Match Data ", meter_data_fl))
+                        #print("{0:}    = {1:}" .format("3 ID Match Data ", meter_data))
+                        #print("{0:} FLT= {1:}" .format("3 ID Match Data ", meter_data_fl))
                     else:  # No ID Match
-                        self.debug_meter_string("4 No ID Match   ")
+                        #self.debug_meter_string("4 No ID Match   ")
                         meter_data[0] = "NA"          # no meter ID match so tell the UI  
                 else:   # Not 8 Elements
                     s_data = ""
-                    self.debug_meter_string("5 Not 8 Elements")                    
+                    #self.debug_meter_string("5 Not 8 Elements")                    
                     meter_data[0] = "NA"          # no meter ID match so tell the UI  
             else:
-                self.debug_meter_string("6 Empty String  ")
+                #self.debug_meter_string("6 Empty String  ")
                 meter_data[0] = "NA"          # no meter ID match so tell the UI  
         except:
                 pass
