@@ -19,7 +19,9 @@ Components of the system:
 The CPU reads a pair of log power detectors connected to a dual directional coupler commonly found in the surplus market.  This could be for any frequency up to your chosen RF Log Power detector’s limits. With the AD8318 I am using today, that is 6Ghz to maybe even 10GHz. The Grpahics display has a analog meter face for power i Watts with selectable scales and a digial data bar below the meter face with digital values for Forward, Refelected and the SWR.  The power levels are also displayed in dBm.
  
 RF Power Meter hardware:
-The RF Power Meter is a Arduino CPU module with built in small TFT graphics screen with 3 buttons, and features Wi-Fi, Bluetooth, SD card, and a USB C port.  
+The RF Power Meter is a Arduino CPU module with built in small TFT graphics screen with 3 buttons, and features Wi-Fi, Bluetooth, SD card, and a USB C port.   
+
+See picture files in the files section
 
 I plan to enable wireless data connection in a future version.  With the recent changes to support remote commands the requirement for a graphics screen is mostly removed so I am looking at enabling a headless mode to enable running this on simple inexpensive Arduino boards to enable lower cost, simpler packaging and remote placement of the detector and CPU.  Enabling wireless will be that more compelling for remote placements.  
 
