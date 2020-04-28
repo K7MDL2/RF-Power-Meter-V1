@@ -194,34 +194,50 @@ class Serial_RX(Thread):
     def get_power_data(self, s_data):
         global meter_data
         global comms
+        #meter_data_tmp = {}
 
         try:
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
-                meter_data = tempstr[0].split(",")  # break comma separated values into a list
-
-                if len(meter_data) == 8:
-                    if meter_data[0] == myRig_meter_ID:                  
+                #print("1  DATA HERE {}" .format(tempstr))
+                meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
+                print("2 TMP raw str   = {}" .format(meter_data_tmp))
+                if len(meter_data_tmp) == 8:
+                    if meter_data_tmp[0] == myRig_meter_ID:        
+                        meter_data = meter_data_tmp          
                         for i in range(len(meter_data)):                    
                             if isfloat(meter_data[i]):                                                                    
                                 meter_data_fl[i] = float(meter_data[i])
-                            else:
+                            else: # Not a float so zero fill the field
                                 meter_data_fl[i] = 0.0
-                        meter_data_fl[2] = float(meter_data[2][:-3])    # convert band label to a number.  Ideally woudl use a RegEx to split at teh end of the numbers
+                        meter_data_fl[2] = float(meter_data[2][:-3])    # convert band label to a number.  Ideally would use a RegEx to split at teh end of the numbers
                         if meter_data_fl[5] == 0:
-                            meter_data[3] = ""          #  zero out teh dBm values when F watts is zero
-                            meter_data[4] = ""
-                        #print(meter_data)  
-                        #print(meter_data_fl)                                                                
-                    else:
-                        meter_data[0] = "NA"                            
-                s_data = ""
+                            meter_data[3] = "0.0"          #  zero out the dBm values when F watts is zero
+                            meter_data[4] = "0.0"
+                        print("{0:}    = {1:}" .format("3 ID Match Data ", meter_data))
+                        print("{0:} FLT= {1:}" .format("3 ID Match Data ", meter_data_fl))
+                    else:  # No ID Match
+                        self.debug_meter_string("4 No ID Match   ")
+                        meter_data[0] = "NA"          # no meter ID match so tell the UI  
+                else:   # Not 8 Elements
+                    s_data = ""
+                    self.debug_meter_string("5 Not 8 Elements")                    
+                    meter_data[0] = "NA"          # no meter ID match so tell the UI  
             else:
-                pass
-
+                self.debug_meter_string("6 Empty String  ")
+                meter_data[0] = "NA"          # no meter ID match so tell the UI  
         except:
                 pass
-        self.ser_meter_cmd() # use period of no RX input to call cmd sender which wil check a flag set by tehg UDP thread to see if any commands are wating to send out.
+        self.ser_meter_cmd() # use period of no RX input to call cmd sender which will check a flag set by the UDP thread to see if any commands are wating to send out.
+
+
+    def debug_meter_string(self, debug_msg):
+        for i in range(len(meter_data)):
+            meter_data[i] = ""
+            meter_data_fl[i] = 0.0
+        print("{0:}    = {1:}" .format(debug_msg, meter_data))
+        print("{0:} FLT= {1:}" .format(debug_msg, meter_data_fl))
+
 
 
 #__________  Network handler in its own thread.  ________________________________________________________________
@@ -703,7 +719,7 @@ if __name__ == '__main__':
         print(sys.argv[1])
     else:
         port_name = input("Enter a port name: ")  # Python > 2.7
-        # port_name = "COM6"   uncomment and set this for rapid testing onm a known port]
+        #port_name = "COM6"   #uncomment and set this for rapid testing onm a known port]
 
     ser = serial.Serial(
         port=port_name,
