@@ -495,11 +495,11 @@ class App(tk.Frame):
         self.SWR_f.pack({"side": "right"})
                          
         self.R_dBm_f = tk.Label(text='', font=('Helvetica', 9, 'bold'),anchor="w", pady=2, width=9)
-        self.R_dBm_f.configure(fg='black', bg="light blue")
+        self.R_dBm_f.configure(fg='cyan', bg="black")
         self.R_dBm_f.pack({"side": "right"})
 
         self.R_Watts_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),anchor="e",width=5)
-        self.R_Watts_a.configure(fg='black', bg="light blue", pady = 0)        
+        self.R_Watts_a.configure(fg='yellow', bg="black", pady = 0)        
         self.R_Watts_a.pack({"side": "right"})
 
         self.R_Watts_f = tk.Label(text='  REF:', font=('Helvetica', 12, 'bold'),anchor="e",width=6)
@@ -507,7 +507,7 @@ class App(tk.Frame):
         self.R_Watts_f.pack({"side": "right"})
 
         self.F_dBm_f = tk.Label(text='(%sdBm)', font=('Helvetica', 9, 'bold'),anchor="w", pady=2, width=9)
-        self.F_dBm_f.configure(fg='yellow', bg="black")
+        self.F_dBm_f.configure(fg='cyan', bg="black")
         self.F_dBm_f.pack({"side": "right"})  
         
         self.F_Watts_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),anchor="e", width=7)
