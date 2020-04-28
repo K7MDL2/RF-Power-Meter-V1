@@ -1,6 +1,34 @@
 # RF-Power-Meter-V1
 Arduino based RF wattmeter with Python desktop monitoring and control app
 
+Version 1.0 RF Power Meter code running on a M5Stack (http://M5Stack.com) Arduino CPU module. There is also an optional companion Remote Power Meter application written in Python and tested on Windows 10. Since it is simple Python it should also run in Linux and other supported OS versions. The app is a small GUI window for your PC desktop that displays the USB serial data from the power meter. 
+ 
+The CPU reads a pair of log power detectors connected to a dual directional coupler commonly found in the surplus market.  This could be for any frequency up to your chosen RF Log Power detector’s limits. With the AD8318 I am using today, that is 6Ghz to maybe even 10GHz.
+ 
+RF Power Meter hardware:
+The RF Power Meter is a Arduino CPU module with built in small TFT graphics screen with 3 buttons, and features Wi-Fi, Bluetooth, SD card, and a USB C port.  I plan to enable wireless data connection in a future version.  With the recent changes to support remote commands the requirement for a graphics screen is mostly removed so I am looking at enabling a headless mode to enable running this on simple inexpensive Arduino boards to enable lower cost, simpler packaging and remote placement of the detector and CPU.  Enabling wireless will be that more compelling for remote placements.  I think it would be interesting to place 2 identically calibrated units at each end of your coax and watch for the changes over time and measure the actual cable loss.  The meter features 10 “Bands” or sets of calibration values.  Each set contains Band Name, Forward and Reflected Port Coupling Factor.  The coupling factor is a value in dB representing the coupler port’s coupling factor at a given frequency plus any added attenuators and finally accounts for minor cabling and detector related variances (fudge factor).
+ 
+RF power detectors:
+2 Log Power Detectors are used with their outputs fed to the AD input of the Arduino. They connect to a coupler of your choice. You could likely also use RF detector outputs built into some transverters and amps, or diode based detector designs (such as from W6PQL or W1GHZ).
+
+I am using AD8318 based imported modules commonly found on Amazon.  They are under $10 each these days. It covers up to 8Gz, might work well enough to 10GHz, I have not checked yet.  You could use any Rf detector with a possible change to limit the voltage to your Arduino’s AD input voltage spec and likely modify some of the Arduino side calibration related code and constants for slope, offset and inversion.  The AD8318 outputs an inverted voltage curve bewtween 0.5 adn 2.3VDC compared to the AD8307 600MHz detector which outputs a normal rising voltage 0to 2.XVDC with rising power input. 
+
+I built a small metal box to house the the 2 detector modules, included 9V and 5V regulators, powered it from 12V.  The 5V is powered frm teh 9V to resduce heating and is used to supply the power to the Arduino via the USB port.  You could put the Arduino in the same box as the detector to save cabling and cost.  That will be the case for the headless version planned (future).
+ 
+ <insert pictures here>
+ 
+RF Remote Power Meter application:
+The RF Remote Power Meter companion application is a small GUI display app that monitors the Power Meter USB serial data information containing the Meter ID, a sequence number, Band Name, Forward Power, Reflected Power, an SWR value.  The data values for both forward and reflected power are sent out in dBm and Watts for convenience. One simple feature of the app is to turn the SWR value field background red for SWR value > 3.0 (or any number you want in the script).  If using WSJT-X the app will automatically change the Power Meter’s calibration set to match the current radio frequency band. Otherwise there are manual band buttons in the app to change the meter’s current calibration set. The Python script code contains lots of usage and configuration details in the comments at top of the file.
+ 
+Snapshot on 432Mhz with a well matched antenna
+
+ <insert pictures here>
+ 
+Sample on 1296 with a not so good antenna match.  Over 3.0 and SWR will turn to RED.
+
+ <insert pictures here> 
+ 
+
 Arduino side
 1.	On startup if the EEPROM is not marked as having valid cal and state data written to it, default cal data and current state data will be written to EEPROM
 2.	Factory Reset EEPROM
@@ -32,16 +60,7 @@ a.	Add a Menu system for advanced config and cal upload t a headless system
 6.	Headless version on Nano or other Arduino CPU – #2 makes this more complete but can be tested today as there are enough functions to be useful.  Things like EEPROM reset, serial toggle can be achieved by programming or adding new remote commands, same for  changing the cal data.  I see this as usefully to lower the cost and use the PC or a smartphone/tablet instead. A Nano sized CPU could fit in the same housing as the detectors easily and be located next to the detectors.  Use of the diode detectors would also shrink the total package size and cost, fewer cables, connectors and the relatively expensive coupler. 
 7.	Standardize button sizes in the GUI.  Change background color.
 8.	Play PC system alarm sound on high SWR value
-
-This major update includes a reworked Python GUI
-1.	Long thin format window to tuck away on the desktop easier. Not fancy but feels usable enough
-2.	Buttons for direct band changes
-a.	I future could read band data from the radio or a logging program (UDP, virtual serial port, WSJT-X UDP broadcast to loggers)
-3.	Easier reading font (size, color and bold)
-4.	Window title label you can customize
-5.	Command line argument for COM port option.  Makes it easy to use with a shortcut to launch with the cmd window minimized full time.
-
- Multiple meter monitor support – This is a PC app problem, only need to change the meter ID in the Arduino code for each unit to be unique.  Current Python app filters on meter ID field t permit multiple unit monitoring later.
+9.  Multiple meter support – This is a PC app side problem only. Just need to change the meter ID in the Arduino code for each unit to be unique. The Python side filters on the meter ID number. To support multiple meters on the Python side, the graphics need to be extended or jsut run several instances of the current version on their unique com ports with uniquew meter_id set.  This likely works now, I have not tested it yet.
 
 
 Button function summary
