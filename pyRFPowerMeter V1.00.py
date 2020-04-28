@@ -215,7 +215,7 @@ class Serial_RX(Thread):
                             meter_data[3] = "0.0"          #  zero out the dBm values when F watts is zero
                             meter_data[4] = "0.0"
                         #print("{0:}    = {1:}" .format("3 ID Match Data ", meter_data))
-                        #print("{0:} FLT= {1:}" .format("3 ID Match Data ", meter_data_fl))
+                        #print("{0:} FLT= {1:}" .format("3 ID Match Data ", meter_data_fl))   hnh
                     else:  # No ID Match
                         #self.debug_meter_string("4 No ID Match   ")
                         meter_data[0] = "NA"          # no meter ID match so tell the UI  
