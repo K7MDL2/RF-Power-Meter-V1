@@ -5,6 +5,8 @@ Version 1.0 RF Power Meter code running on a M5Stack (http://M5Stack.com) Arduin
 
 Optionally leverages WSJT-X status message UDP broadcasts to read the radio dial frequency and automatically command the meter to load the appropriate calibration values (10 bands supported). Using the awesome Python library to decode WSJT-X packets and is found at  https://github.com/bmo/py-wsjtx.
 
+Documentation and some pcitures and a screen shot are on this projects wikipages. Look thre for configuration instructions for Pythin setup and device file edits.
+
 
 I plan to enable wireless data connection in a future version.  With the recent changes to support remote commands the requirement for a graphics screen is mostly removed so I am looking at enabling a headless mode to enable running this on simple inexpensive Arduino boards to enable lower cost, simpler packaging and remote placement of the detector and CPU.  Enabling wireless will be that more compelling for remote placements.  
 
