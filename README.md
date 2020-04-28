@@ -10,10 +10,15 @@ Components of the system:
 2. A pair of Log Power detectors, one for forward power, one for relected power.  These are < $10 online.  AD8318 module is good to over 6GHz.  SWR is calculated and dispolay on the meter face and digitally.  House them in a suitable small metal box.
 3. RF dual directional coupler. Usually found surplus/used, pick one suitable for your power and frequency. Add additional SMA attenutors to handle higher power levels. Goal is to get full power at the detector input to be close to 0dBm (1mW), or the max input of your choice of detector.
 4. Optional companion Remote Power Meter application written in Python and tested on Windows 10. 
+
   a. The Arduino send out serial port data over USB. Has GUI with buttons to select one of 10 bands holding calibration values and display the power in watts and dBm and the SWR. 
+  
   b. Since it is simple Python it should also run in Linux and other supported OS versions. 
+  
   c. The app is a small GUI window for your PC desktop that displays the USB serial data from the power meter. 
+  
   d. Monitors WSJT-X (2.1.X tested) UDP broadcasts for the current radio frequewncy and automatically changes the meter calibration set via serial command.  Otherwise use one of the 10 buttons.
+  
   e. Can be configured to work with JTAlert by changing the UDP for JTAlert re-broadcasts.
  
 The CPU reads a pair of log power detectors connected to a dual directional coupler commonly found in the surplus market.  This could be for any frequency up to your chosen RF Log Power detector’s limits. With the AD8318 I am using today, that is 6Ghz to maybe even 10GHz. The Grpahics display has a analog meter face for power i Watts with selectable scales and a digial data bar below the meter face with digital values for Forward, Refelected and the SWR.  The power levels are also displayed in dBm.
