@@ -1,22 +1,38 @@
 {
     "configurations": [
         {
-            "name": "",
+            "name": "Win32",
             "includePath": [
-                "F:\\OneDrive\\Documents\\Arduino\\**",                
+                "F:\\OneDrive\\Documents\\Arduino\\**",
                 "D:\\Documents\\GitHub\\RF-Power-Meter-V1\\**",
                 "C:\\Program Files (x86)\\Arduino\\**",
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\**",
-                "${workspaceFolder}/**",
+                "D:\\Documents\\GitHub\\RF-Power-Meter-V1\\lib\\M5Stack\\**",
+                "${workspaceFolder}/lib",
+                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**",
+                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**",
+                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\tools\\sdk\\include\\newlib\\**",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\install-tools\\include\\**",
+                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**",
+                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**",
+                "F:\\OneDrive\\Documents\\Arduino\\hardware\\espressif\\esp32\\tools\\sdk\\include\\newlib\\**",
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**",
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": false,
                 "path": [
-                  "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\avr\\include",
-                  "D:\\Documents\\Arduino\\libraries\\hardware\\espressif\\esp32\tools\\sdk\\include",
-                  "${workspaceRoot}"
+                    "F:\\OneDrive\\Documents\\Arduino\\**",
+                    "D:\\Documents\\GitHub\\RF-Power-Meter-V1\\**",
+                    "C:\\Program Files (x86)\\Arduino\\**",
+                    "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\**",
+                    "${workspaceFolder}/**",
+                    "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4/**",
+                    "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools/**",
+                    "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\avr\\include",
+                    "D:\\Documents\\Arduino\\libraries\\**",
+                    "C:/Program Files (x86)/Arduino/hardware/tools/avr/lib/gcc/avr/7.3.0/install-tools/include/",
+                    "${workspaceRoot}"
                 ]
             },
             "defines": [
@@ -27,10 +43,9 @@
             ],
             "intelliSenseMode": "gcc-x86",
             "cStandard": "c11",
-            "cppStandard": "c++20",
-            "forcedInclude": [
-                "D:\\Documents\\Arduino\\libraries\\hardware\\espressif\\esp32\\cores\\esp32\\Arduino.h"
-            ]
+            "cppStandard": "c++17",
+            "forcedInclude": [ ],
+            "compilerPath": "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\bin\\avr-gcc-7.3.0"
         }
     ],
     "version": 4
