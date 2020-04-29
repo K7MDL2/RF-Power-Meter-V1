@@ -3,7 +3,7 @@
 /*
  * 
  *
- Watt meter by K7MDL 4/22/2020   
+ RF Power Meter by K7MDL 4/29/2020   
  *
  Displays Forward Power in Watts on analog scale, displays Forward and Reflected power in Watts and dBm
  in digital form, and calculates SWR and displays in digital and analog meter form
