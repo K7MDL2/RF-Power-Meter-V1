@@ -1,5 +1,5 @@
 # RF-Power-Meter-V1
-Arduino based RF wattmeter with optional Python based remote monitoring and control desktop app
+Arduino based RF wattmeter with optional Python based remote monitoring and control desktop app.
 
 Version 1.0 RF Power Meter code running on a M5Stack (http://M5Stack.com) Arduino CPU module. Build yuour own RF milli-watmeter for HF through microwave frequencies with low cost off-the-shelf modules and some glue wiring and a box. 
 
