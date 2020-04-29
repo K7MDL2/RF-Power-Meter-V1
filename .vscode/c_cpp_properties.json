@@ -24,7 +24,7 @@
                     "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools/**",
                     "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\avr\\include",
                     "C:/Program Files (x86)/Arduino/hardware/tools/avr/lib/gcc/avr/7.3.0/install-tools/include/",
-                    "${workspaceRoot}"
+                    "${workspaceRoot}" 
                 ]
             },
             "defines": [
