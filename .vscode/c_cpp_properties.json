@@ -3,34 +3,26 @@
         {
             "name": "Win32",
             "includePath": [
+                "${workspaceFolder}/lib",
                 "F:\\OneDrive\\Documents\\Arduino\\**",
                 "D:\\Documents\\GitHub\\RF-Power-Meter-V1\\**",
                 "C:\\Program Files (x86)\\Arduino\\**",
-                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\**",
-                "D:\\Documents\\GitHub\\RF-Power-Meter-V1\\lib\\M5Stack\\**",
-                "${workspaceFolder}/lib",
-                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**",
-                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**",
-                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\tools\\sdk\\include\\newlib\\**",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\install-tools\\include\\**",
-                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**",
-                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**",
-                "F:\\OneDrive\\Documents\\Arduino\\hardware\\espressif\\esp32\\tools\\sdk\\include\\newlib\\**",
+                "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\**",
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**",
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**"
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": false,
                 "path": [
+                    "${workspaceFolder}/**",
                     "F:\\OneDrive\\Documents\\Arduino\\**",
                     "D:\\Documents\\GitHub\\RF-Power-Meter-V1\\**",
                     "C:\\Program Files (x86)\\Arduino\\**",
                     "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\**",
-                    "${workspaceFolder}/**",
                     "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4/**",
                     "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools/**",
                     "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\avr\\include",
-                    "D:\\Documents\\Arduino\\libraries\\**",
                     "C:/Program Files (x86)/Arduino/hardware/tools/avr/lib/gcc/avr/7.3.0/install-tools/include/",
                     "${workspaceRoot}"
                 ]
