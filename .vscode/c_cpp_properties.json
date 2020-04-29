@@ -1,11 +1,9 @@
 {
     "configurations": [
         {
-            "name": "Win32",
+            "name": "",
             "includePath": [
-                "F:\\OneDrive\\Documents\\Arduino\\**",
-                "D:\\Documents\\Arduino\\libraries\\**",
-                "D:\\Documents\\Arduino\\libraries\\hardware\\espressif\\esp32\\tools\\sdk\\include\\newlib",
+                "F:\\OneDrive\\Documents\\Arduino\\**",                
                 "D:\\Documents\\GitHub\\RF-Power-Meter-V1\\**",
                 "C:\\Program Files (x86)\\Arduino\\**",
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\**",
@@ -13,15 +11,26 @@
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\hardware\\esp32\\1.0.4\\**",
                 "C:\\Users\\Mike\\AppData\\Local\\Arduino15\\packages\\esp32\\tools\\**"
             ],
+            "browse": {
+                "limitSymbolsToIncludedHeaders": false,
+                "path": [
+                  "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\avr\\include",
+                  "D:\\Documents\\Arduino\\libraries\\hardware\\espressif\\esp32\tools\\sdk\\include",
+                  "${workspaceRoot}"
+                ]
+            },
             "defines": [
                 "_DEBUG",
+                "USBCON",
                 "UNICODE",
                 "_UNICODE"
             ],
             "intelliSenseMode": "gcc-x86",
             "cStandard": "c11",
             "cppStandard": "c++20",
-            "forcedInclude": []
+            "forcedInclude": [
+                "D:\\Documents\\Arduino\\libraries\\hardware\\espressif\\esp32\\cores\\esp32\\Arduino.h"
+            ]
         }
     ],
     "version": 4
