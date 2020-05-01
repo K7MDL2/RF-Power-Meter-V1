@@ -93,7 +93,7 @@ int Inverted = 1;  // 0=no, 1=Yes.  Inverted output will have max V = no input, 
  *  AD8318 is an inverted with about 2.5V for no inoput and 0.5 for max input cover -65 to +5dBm range
  *  linear between -55 and 0dBm
 */ 
-const int numReadings = 10;   // adjust this for longer or shorter smooting period as AD noise requires
+const int numReadings = 12;   // adjust this for longer or shorter smooting period as AD noise requires
 int readings_Fwd[numReadings];      // the readings from the analog input
 int readings_Ref[numReadings];      // the readings from the analog input
 int readIndex_Fwd = 0;              // the index of the current reading
@@ -388,7 +388,7 @@ void sendSerialData()
     if (EEPROM.read(4) == 'Y'){
         counter1++;
         if (counter1 > 16000) counter1 = 0;
-        if ((counter1/Ser_Data_Rate % 4) == 1) {
+        if ((counter1/Ser_Data_Rate % 2)) {
             sprintf(tempbuf,"%d,%d,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, counter1, Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
             Serial.println(tempbuf);
         }

@@ -8,7 +8,7 @@ import tkinter as tk
 import tkinter.font as tkFont
 import pywsjtx.extra.simple_server
 
-# pyRFPowerMeter  Version 1.0  April 27 2020
+# pyRFPowerMeter  Version 1.0  May 1 2020
 # Author: M. Lewis K7MDL
 # 
 #   Uses the awesome WSJT-X python decoding package pyWSJTX 
@@ -193,8 +193,8 @@ class Serial_RX(Thread):
 
     def get_power_data(self, s_data):
         global meter_data
+        global meter_data_fl
         global comms
-        #meter_data_tmp = {}
 
         try:
             if s_data != '':
