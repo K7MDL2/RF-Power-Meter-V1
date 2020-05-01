@@ -1091,7 +1091,7 @@ void plotNeedle(float value, byte ms_delay)
   M5.Lcd.setTextColor(TFT_RED, TFT_BLACK);
 
   if (value < 0) value = 0; // Limit value to emulate needle end stops
-  if (value > 105) value = 105
+  if (value > 105) value = 105;
 
   // Move the needle until new value reached
   while (!(value == old_analog)) {
