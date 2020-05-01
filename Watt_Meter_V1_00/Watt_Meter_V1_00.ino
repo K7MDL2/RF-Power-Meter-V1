@@ -366,12 +366,12 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
       SWRVal *= 34;   // scale so 3.8 = 100
       needle_value = int(SWRVal);
       if (needle_value > 105) needle_value = 105;
-      if (needle_value < 1) needle_value = 1;
+      if (needle_value < -10) needle_value = -10;
     }
     else {
            needle_value = int(FwdVal/(scale_value_fwd/100));   // Use non-scaled value - must be between 0-100
            if (needle_value > 105) needle_value = 105;
-           if (needle_value < 1) needle_value = 1;
+           if (needle_value < -10) needle_value = -10;
          }
   }
   FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
@@ -388,7 +388,7 @@ void sendSerialData()
     if (EEPROM.read(4) == 'Y'){
         counter1++;
         if (counter1 > 16000) counter1 = 0;
-        if ((counter1/Ser_Data_Rate % 2) == 1) {
+        if ((counter1/Ser_Data_Rate % 4) == 1) {
             sprintf(tempbuf,"%d,%d,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, counter1, Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
             Serial.println(tempbuf);
         }
@@ -1091,7 +1091,7 @@ void plotNeedle(float value, byte ms_delay)
   M5.Lcd.setTextColor(TFT_RED, TFT_BLACK);
 
   if (value < 0) value = 0; // Limit value to emulate needle end stops
-  if (value > 105) value = 105;
+  if (value > 105) value = 105
 
   // Move the needle until new value reached
   while (!(value == old_analog)) {
@@ -1101,7 +1101,7 @@ void plotNeedle(float value, byte ms_delay)
     if (ms_delay == 0) old_analog = value; // Update immediately if delay is 0
 
     float sdeg = map(old_analog, -10, 110, -150, -30); // Map value to angle
-    // Calcualte tip of needle coords
+    // Calculate tip of needle coords
     float sx = cos(sdeg * 0.0174532925);
     float sy = sin(sdeg * 0.0174532925);
 
