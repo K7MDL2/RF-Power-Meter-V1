@@ -3,6 +3,7 @@ import time
 import socket
 import select
 import serial
+import serial.tools.list_ports as cports
 import sys
 import tkinter as tk
 import tkinter.font as tkFont
@@ -113,6 +114,7 @@ global s            # used to get nmetwork packet data
 last_freq = ""      # used for detecting band changes from network
 # This boolean variable will save the communications (comms) status
 comms = None   #  False is off.  App.comm wil then toggle to on state.
+restart_serial = 0
 send_meter_cmd_flag = False   # Boolean to gate Sreial thread to send cmd byte to meter.  Cmd comes from USB thread
 cmd_byte = b'0'
 meter_data = ["","","","","","","","","",""]
@@ -161,9 +163,9 @@ class Serial_RX(Thread):
             try:
                 ser.close()                
             except serial.SerialException:
-                print ("error communicating...: " + str(port_name))
+                print ("error communicating while closing serial port: " + str(port_name))
         else:
-            print("Serial port already closed "  + str(port_name))
+            print("Serial port already closed:  "  + str(port_name))
 
     def ser_meter_cmd(self):
         global send_meter_cmd_flag
@@ -177,21 +179,30 @@ class Serial_RX(Thread):
                         send_meter_cmd_flag = False     
                         cmd_byte = b'0'       
                     except serial.SerialException:
-                        print ("error communicating...: " + str(port_name))
+                        print ("error communicating while writing serial port: " + str(port_name))
                 else:
                     print("cannot access serial port to send commands")     
         
-    def meter_reader(self):        
+    def meter_reader(self):       
+        global restart_serial
+
         out = ""  # Preparing the out variable 
         if ser.isOpen():        
+           # if ser.inWaiting() > 0:
             try:
-                if ser.inWaiting() > 0:
-                    out = ser.readline().decode('ascii')
-                    self.get_power_data(out)
+                out = ser.readline().decode('ascii')
             except serial.SerialException:
-                print ("error communicating...: " + str(port_name))
+                # There is nothing
+                return None
+            except TypeError as e:
+                restart_serial = 1      # restart serial_Rx thread to recover
+                print ("error communicating while reading serial port: " + str(port_name))
+                print(e)
+            else:
+                self.get_power_data(out)
         else:
             print("cannot access serial port to read input data")
+            restart_serial = 1      # restart serial_Rx thread to recover
 
     def get_power_data(self, s_data):
         global meter_data
@@ -364,6 +375,7 @@ class App(tk.Frame):
         # It should close the serial port if it has not
         # been previously closed
         global comms
+
         if comms:
             if ser.isOpen() == True:                
                 if self.serial_rx:
@@ -377,6 +389,7 @@ class App(tk.Frame):
     def createWidgets(self):
         global meter_data
         global meter_data_fl
+        global restart_serial
 
         #self.configure(background='black')
 
@@ -386,12 +399,16 @@ class App(tk.Frame):
                                     text = format(" ON "),
                                     font = self.btn_font,
                                     relief = tk.RIDGE,
-                                    fg = "red",
+                                    fg = "blue",
                                     padx = 4,
                                     #state='disabled',
                                     command = self.comm)     # Will call the comms procedure to toggle all comms
-        self.QUIT.pack({"side": "left"})                                   
-
+        self.QUIT.pack({"side": "left"})    
+        if restart_serial:
+            self.QUIT.configure(fg='yellow', bg="light grey")
+        else:
+            self.QUIT.configure(fg='white', bg="red") 
+            
         self.band_f = tk.Button(self)
         self.band_f["text"] = "Band"
         self.band_f["command"] = self.change_band  # Change the band (cycle through them)
@@ -532,6 +549,7 @@ class App(tk.Frame):
 
         # Update GUI text fields with Serial Data from power meter and maybe other places later 
     def update_label(self):
+        global restart_serial        
         
         if myRig_meter_ID == meter_data[0]:     #  Assign myRig1 to ID 101.  Allow for future case to monitor multiple meters
             ID = myRig               
@@ -563,6 +581,12 @@ class App(tk.Frame):
                 self.SWR_a.configure(text='{0:4.1f}  ' .format(swr), font=('Helvetica', 12, 'bold'), bg="red", fg="black", width=4) 
             else:
                 self.SWR_a.configure(text='{0:4.1f}  ' .format(swr), font=('Helvetica', 12, 'bold'), bg="light green", fg="black", width=4) 
+
+        # check if the serial is open and update button to warn user if it is closed and not supposed to be
+        if restart_serial:
+            #self.comm()
+            #self.QUIT.configure(fg='white', bg="red")             
+            restart_serial = 0
 
         self.meter_id_f.after(800, self.update_label)  # refresh the live data display in the GUI window
                
@@ -661,10 +685,10 @@ class App(tk.Frame):
     def comm(self):
         global comms
         if comms == True:
-            # Closing comms   - do nto call this if they are already off!
+            # Closing comms   - do not call this if they are already off!
             comms = False
-            self.QUIT.configure(text = format(" Off "))
-            self.QUIT.configure(fg='black', bg="light grey")            
+            self.QUIT.configure(text = format("Off"))
+            self.QUIT.configure(fg='purple', bg="light grey")
             self.receiver.stop()
             self.receiver.join()
             self.receiver = None            
@@ -677,7 +701,7 @@ class App(tk.Frame):
                 meter_data_fl[i] = 0
         elif comms == False:
             comms = True
-            self.QUIT.configure(text = format(" On "))
+            self.QUIT.configure(text = format("On"))
             self.QUIT.configure(fg="black", bg="green")
             self.receiver = Receiver()
             self.receiver.start()
@@ -722,33 +746,118 @@ def main():
     h = 49    # height of our app window
     app.place_window(w, h)
     # app.master.geometry('720x49')
-    comms = False       #   currenmms are off at startup now.  
+    #comms = False       #   Com threads not started yet, turn them on.
                         #   If you set to true now that imolies the comms are already on and app.comm will then try to toggle and close alrewady closed ports.
-    app.comm()           # calling this here (with comms=false) will toggle comms to start up and run and comms will be = True
+    #app.comm()           # calling this here (with comms=false) will toggle comms to start up and run and comms will be = True
     app.mainloop()
 
-
 if __name__ == '__main__':
-    # Collect serial lport COMX from command line or terminal input
-    print("Arguments List: %s" % str(sys.argv))    # accept comm port via cmd line
 
+    def validate_provided_port_name(port_name):
+        #  List available ports for info
+        print("Scanning for USB serial device matching cmd line provided port name {} (if any)" .format(port_name))    
+        initial_serial_devices = set()
+        result = {"state":"stable","port_id":[]}
+        try:    
+            ports = cports.comports()
+            for port in ports:
+                print("Port found: " + str(port))  #print all ports, we only want a USB one though
+                if (port_name == str(port[0])) and ("USB" in port[1]): #check 'USB' string in device description
+                    #if self.DEBUG:
+                    #print("Found a USB Port Match: " + str(port[0]))
+                    #print("\r\nUSB device description: " + str(port[1]))
+                    if str(port[0]) not in initial_serial_devices:
+                        initial_serial_devices.add(str(port[0]))
+                    #print(port_name)
+                    print("Found a USB Port Match: " + str(port))
+                    return 1
+            else:
+                print("\r\nNo valid USB serial port name in the format \'COMX\' given on command line, choose one from the list below")
+                return 0
+        except Exception as e:
+            print("Error getting serial ports list: " + str(e))
+            return 0
+
+    def ask_for_input():
+        # Compare input arg against possible list and if not match, ask for a valid port from a list.
+        #if len(sys.argv) > 1:
+        #    port_name = sys.argv[1]
+        #    print(sys.argv[1])
+        #    if port_name  str(port[0])
+        #    # place holder for compare ports input vs list
+        #else:      #  No args so ask for a port from list.
+            
+        """
+        Show a list of ports and ask the user for a choice. To make selection
+        easier on systems with long device names, also allow the input of an
+        index.
+        """
+        sys.stderr.write('\n--- Available ports:\n')
+        ports = []
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):
+            sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(n, port, desc))
+            ports.append(port)
+        while True:
+            port = input('--- Enter port index or full name: ')
+            try:
+                index = int(port) - 1
+                if not 0 <= index < len(ports):
+                    sys.stderr.write('--- Invalid index!\n')
+                    continue
+                port_name = ports[index]
+                print(port_name)
+               # validate_provided_port_name()
+            except ValueError:
+                print("  Got here instead")
+                pass
+            else:
+                port = ports[index] 
+        print("**** Got here ****" + port)    
+        
+    #  Begin collection and validation of serial port
+    port_name = ""
     if len(sys.argv) > 1:
         port_name = sys.argv[1]
-        print(sys.argv[1])
+        print("COM port name provided: " + sys.argv[1]) # Collect serial port COMX from command line or terminal input
+        # print("\r\nArguments List: %s" % str(sys.argv))    # accept comm port via cmd line  
+        if validate_provided_port_name(port_name):            
+            print (" Port {} wil be used" .format(port_name))
+            comms = False
+        else:       # no valid port match
+            #print("No COM port specified, choose one below")
+            #print(" Go to Ask for input ")
+            ask_for_input()
     else:
-        port_name = input("Enter a port name: ")  # Python > 2.7
-        #port_name = "COM6"   #uncomment and set this for rapid testing onm a known port]
+        # Ask
+        ask_for_input()                
+        print ("  New Port Name = " + port_name)    
+        # if no valid com port add code here to skip comm port and start GUI with comms off.
+        comms = False
+        # Valid comm port chosen, continue on
+       
+    if comms == False:
+        print("Opening USB serial Port: " + port_name)
+        ser = serial.Serial(
+            port=port_name,
+            baudrate=115200,
+            parity=serial.PARITY_NONE,
+            bytesize=serial.EIGHTBITS,
+            stopbits=serial.STOPBITS_ONE,
+            xonxoff=0,
+            rtscts=0,
+            timeout=1
+        )
+        if ser: 
+            #print("Testing port by closing")
+            try:
+                ser.close()             
+            except:
+                print(" Cannot open serial port")   
 
-    ser = serial.Serial(
-        port=port_name,
-        baudrate=115200,
-        parity=serial.PARITY_NONE,
-        bytesize=serial.EIGHTBITS,
-        stopbits=serial.STOPBITS_ONE,
-        xonxoff=0,
-        rtscts=0,
-        timeout=1
-    )
-    ser.close()
+        app = App() 
+        app.comm()  # Turn on comm threads now
+        print("** Started up communication threads **")
 
-    main()
+#print("  Moving to Main ")
+  
+main()      # start main app with GUI
