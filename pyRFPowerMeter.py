@@ -111,6 +111,7 @@ UDP_PORT = 2334             # change to match your WSJTX source of data port num
 
 # Global Vars
 global s            # used to get nmetwork packet data
+own_call = ""       # used for meter ID in Radio field of GUI when only network is on.
 last_freq = ""      # used for detecting band changes from network
 # This boolean variable will save the communications (comms) status
 comms = None   #  False is off.  App.comm wil then toggle to on state.
@@ -288,6 +289,7 @@ class Receiver(Thread):
         wsjtx_id = None    
         global last_freq
         global meter_data
+        global own_call
 
         time.sleep(0.5)
         (pkt, addr_port) = s.rx_packet()
@@ -301,6 +303,7 @@ class Receiver(Thread):
                 wsjtx_id = the_packet.wsjtx_id
             if type(the_packet) == pywsjtx.StatusPacket:
                 wsjtx_id = the_packet.wsjtx_id
+                own_call = the_packet.de_call
                 if wsjtx_id == myWSJTX_ID:
                     print("Status message received from WSJT-X ID : " + wsjtx_id)
                     freq = str(the_packet.dial_frequency)
@@ -397,6 +400,7 @@ class App(tk.Frame):
         global meter_data
         global meter_data_fl
         global restart_serial
+        global own_call
 
         #self.configure(background='black')
 
@@ -558,10 +562,16 @@ class App(tk.Frame):
 
         # Update GUI text fields with Serial Data from power meter and maybe other places later 
     def update_label(self):
-        global restart_serial        
+        global restart_serial    
+        global own_call    
         
         if myRig_meter_ID == meter_data[0]:     #  Assign myRig1 to ID 101.  Allow for future case to monitor multiple meters
             ID = myRig               
+        elif comms == None:   # allow for running without serial port to meter connection, network still running 
+            if own_call == "":
+                ID = "NA"       # No ID available from any source
+            else:
+                ID = own_call   # put something interesting up if network on.
         else:
             ID = meter_data[0]
         self.meter_id_f.configure(text=' Radio: {0:11s}   Band:' .format(ID), width=21) 
@@ -719,7 +729,6 @@ class App(tk.Frame):
             self.serial_rx.start() 
             print(" Serial thread started ")
         else:
-
             pass
 
     # Place window in the upper right corner of the desktop display for now.  
@@ -761,7 +770,11 @@ def main():
     #comms = False       #   Com threads not started yet, turn them on.
                         #   If you set to true now that imolies the comms are already on and app.comm will then try to toggle and close alrewady closed ports.
     app.comm()           # calling this here (with comms=false) will toggle comms to start up and run and comms will be = True
-    app.mainloop()
+    if comms == None:
+        app.receiver = Receiver()
+        app.receiver.start()
+        print(" Starting network receiver thread ")
+    app.mainloop()      # start the GUI
 
 
 if __name__ == '__main__':
@@ -803,7 +816,7 @@ if __name__ == '__main__':
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         while True:
-            port = input('--- Enter port index number from list or any otehr key to continue without comms: ')
+            port = input('--- Enter port index number from list or any other key to continue without serial comms: ')
             try:                
                 index = int(port) - 1
                 if not 0 <= index < len(ports):
@@ -813,7 +826,7 @@ if __name__ == '__main__':
                 comms = False
                 return port_name
             except ValueError:
-                print("  Starting with Comms OFF ")        
+                print("  Starting with serial comms OFF ")        
                 comms = None        # continue with comms off.
                 return None
             else:
