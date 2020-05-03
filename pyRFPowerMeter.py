@@ -587,7 +587,6 @@ class App(tk.Frame):
             ID = meter_data[0]
         self.meter_id_f.configure(text=' Radio: {0:11s}   Band:' .format(ID), width=21) 
 
-        print(" -- Last known band = {} -- " .format(last_freq))
         curr_band = meter_data[2]
         if curr_band == "":         # if blank then the meter is disconefted or turned off.  Instead post up WSJTX data if avaialble            
             curr_band = last_freq  
