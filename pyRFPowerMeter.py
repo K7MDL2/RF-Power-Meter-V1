@@ -8,6 +8,7 @@ import tkinter as tk
 import tkinter.font as tkFont
 import pywsjtx.extra.simple_server
 
+PowerMeterVersionNum = "1.02"
 # pyRFPowerMeter  Version 1.02  May 2 2020
 # Author: M. Lewis K7MDL
 # 
@@ -43,7 +44,7 @@ import pywsjtx.extra.simple_server
 # You could also specify the "port_name" in the code at the bottom of this script
 
 # Change these 2 lines to suit your station
-myTitle = "K7MDL Remote Power Meter for VHF-UHF Bands"      # Windows Title Bar Text
+myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Title Bar Text
 
 # edit these to match your meter ID and Rig/Location text for this meter instance
 myRig = "K3 Florida"      # Rig name and location - about 10 characters max
