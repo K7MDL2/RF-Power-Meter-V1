@@ -116,6 +116,7 @@ last_freq = ""      # used for detecting band changes from network
 # This boolean variable will save the communications (comms) status
 comms = None   #  False is off.  App.comm wil then toggle to on state.
 restart_serial = 0
+heartbeat_timer = 0
 send_meter_cmd_flag = False   # Boolean to gate Sreial thread to send cmd byte to meter.  Cmd comes from USB thread
 cmd_byte = b'0'
 meter_data = ["","","","","","","","","",""]
@@ -292,6 +293,7 @@ class Receiver(Thread):
         global last_freq
         global meter_data
         global own_call
+        global heartbeat_timer
 
         time.sleep(0.5)
         (pkt, addr_port) = s.rx_packet()
@@ -303,6 +305,7 @@ class Receiver(Thread):
                 print("WSJT-X is detected, id is {}".format(the_packet.wsjtx_id))
                 print("--> HeartBeatPacket Received")
                 wsjtx_id = the_packet.wsjtx_id
+                heartbeat_timer = 0  # reset upcounter
             if type(the_packet) == pywsjtx.StatusPacket:
                 wsjtx_id = the_packet.wsjtx_id
                 own_call = the_packet.de_call
@@ -566,18 +569,31 @@ class App(tk.Frame):
     def update_label(self):
         global restart_serial    
         global own_call    
-        print(own_call)
-        if myRig_meter_ID == meter_data[0]:     #  Assign myRig1 to ID 101.  Allow for future case to monitor multiple meters
-            ID = myRig               
-        elif own_call == "":     # allow for running without serial port to meter connection, network still running 
+        global heartbeat_timer
+        global last_freq
+
+        if own_call == "":     # allow for running without serial port to meter connection, network still running 
             ID = "NA"       # No ID available from any source
-        else:
+        elif myRig_meter_ID == meter_data[0]:     #  Assign myRig1 to ID 101.  Allow for future case to monitor multiple meters
+            ID = myRig               
+        elif heartbeat_timer < 200:        # updates every update cycle per .after setpoint.  Typical every 1/4 second.
             ID = own_call   # put something interesting up if network on.
-        #else:
-        #    ID = meter_data[0]
+            if heartbeat_timer == 199:      # set to at least 1 less than the if test above
+                print(" * WSJ-TX Heartbeat_timer expiring at {}" .format(heartbeat_timer))     # post up the event for FYI
+                own_call = ""
+                last_freq = ""          # reset when no valid data arriving
+            heartbeat_timer += 1        # increment Watchdog counter. Itis reset with every heartbeat received message in Receiver thread.
+        else:
+            ID = meter_data[0]
         self.meter_id_f.configure(text=' Radio: {0:11s}   Band:' .format(ID), width=21) 
 
-        self.band_f.configure(text='%7s' % meter_data[2], anchor="e", fg="white",bg="grey", pady=1, width=7)  # band Value
+        print(" -- Last known band = {} -- " .format(last_freq))
+        curr_band = meter_data[2]
+        if curr_band == "":         # if blank then the meter is disconefted or turned off.  Instead post up WSJTX data if avaialble            
+            curr_band = last_freq  
+            self.band_f.configure(text='%7s Net' % curr_band, anchor="e", fg="blue",bg="grey", pady=1, width=7)  # band Value
+        else:
+            self.band_f.configure(text='%7s' % curr_band, anchor="e", fg="white",bg="grey", pady=1, width=7)  # band Value
         
         if (meter_data_fl[5]) > 9999:   # limit to under 10KW (9999.1W)
             meter_data[5] = "*OVER* "
@@ -608,7 +624,7 @@ class App(tk.Frame):
             self.QUIT.configure(fg='white', bg="red")             
             restart_serial = 0
 
-        self.meter_id_f.after(800, self.update_label)  # refresh the live data display in the GUI window
+        self.meter_id_f.after(250, self.update_label)  # refresh the live data display in the GUI window
                
     # These functions are called by a button to do something with the power nter such as change cal sets for a new band
 
