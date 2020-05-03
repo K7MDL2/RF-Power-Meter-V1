@@ -584,8 +584,8 @@ class App(tk.Frame):
 
         # check if the serial is open and update button to warn user if it is closed and not supposed to be
         if restart_serial:
-            #self.comm()
-            #self.QUIT.configure(fg='white', bg="red")             
+            self.comm()
+            self.QUIT.configure(fg='white', bg="red")             
             restart_serial = 0
 
         self.meter_id_f.after(800, self.update_label)  # refresh the live data display in the GUI window
