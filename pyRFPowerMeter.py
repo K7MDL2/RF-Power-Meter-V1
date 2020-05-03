@@ -403,7 +403,7 @@ class App(tk.Frame):
         self.btn_font = tkFont.Font(family="Helvetica", size=10, weight='bold')
         
         self.QUIT = tk.Button(self,
-                                    text = format(" ON "),
+                                    text = format("ON"),
                                     font = self.btn_font,
                                     relief = tk.RIDGE,
                                     fg = "black",
@@ -412,10 +412,12 @@ class App(tk.Frame):
                                     command = self.comm)     # Will call the comms procedure to toggle all comms
         self.QUIT.pack({"side": "left"})    
         if restart_serial:
-            self.QUIT.configure(fg='yellow', bg="light grey")
+            self.QUIT.configure(fg='black', bg="light grey")
         else:
             self.QUIT.configure(fg='white', bg="red") 
-            
+        if comms == None:
+            self.QUIT.configure(text = format("OFF"), fg='grey', bg="light grey")
+
         self.band_f = tk.Button(self)
         self.band_f["text"] = "Band"
         self.band_f["command"] = self.change_band  # Change the band (cycle through them)
@@ -689,7 +691,7 @@ class App(tk.Frame):
         # Write command to jump to band 0
         rx.send_meter_cmd(b'240', True)
 
-    def comm(self):
+    def comm(self):         # toggle if on or off, do noting if neither (started up with out a serial port for example)
         global comms
         if comms == True:
             # Closing comms   - do not call this if they are already off!
@@ -717,6 +719,7 @@ class App(tk.Frame):
             self.serial_rx.start() 
             print(" Serial thread started ")
         else:
+
             pass
 
     # Place window in the upper right corner of the desktop display for now.  
@@ -800,20 +803,22 @@ if __name__ == '__main__':
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         while True:
-            port = input('--- Enter port index or full name: ')
-            try:
+            port = input('--- Enter port index number from list or any otehr key to continue without comms: ')
+            try:                
                 index = int(port) - 1
                 if not 0 <= index < len(ports):
                     sys.stderr.write('--- Invalid index!\n')
                     continue
                 port_name = ports[index]
+                comms = False
                 return port_name
             except ValueError:
-                print("  Got here instead")
-                pass
+                print("  Starting with Comms OFF ")        
+                comms = None        # continue with comms off.
+                return None
             else:
                 port = ports[index] 
-        print("**** Got here ****" + port)    
+        print("**** Missing condition if you got here! ****" + port)    
         
     #  Begin collection and validation of serial port
     port_name = ""
@@ -826,14 +831,11 @@ if __name__ == '__main__':
         else:       # no valid port match
             port_name = ask_for_input()     # No valid COMM port match found              
     else:
-        port_name = ask_for_input()      #  No COM port supplied omn the command line          
-
-    print (" Port {} will be used" .format(port_name))   
-        # if no valid com port add code here to skip comm port and start GUI with comms off.
-    comms = False
-        # Valid comm port chosen, continue on
-       
+        port_name = ask_for_input()      #  No COM port supplied on the command line
+   
+    #comms = False
     if comms == False:
+        print (" Port {} will be used" .format(port_name))
         print("Opening USB serial Port: " + port_name)
         ser = serial.Serial(
             port=port_name,
@@ -853,5 +855,5 @@ if __name__ == '__main__':
                 print(" Cannot open serial port")   
 
         print("** Started up communication threads **")
-  
+        
 main()      # start main app with GUI
