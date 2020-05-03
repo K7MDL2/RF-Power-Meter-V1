@@ -748,11 +748,12 @@ def main():
     # app.master.geometry('720x49')
     #comms = False       #   Com threads not started yet, turn them on.
                         #   If you set to true now that imolies the comms are already on and app.comm will then try to toggle and close alrewady closed ports.
-    #app.comm()           # calling this here (with comms=false) will toggle comms to start up and run and comms will be = True
+    app.comm()           # calling this here (with comms=false) will toggle comms to start up and run and comms will be = True
     app.mainloop()
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
+    comms = None
     def validate_provided_port_name(port_name):
         #  List available ports for info
         print("Scanning for USB serial device matching cmd line provided port name {} (if any)" .format(port_name))    
@@ -763,40 +764,32 @@ if __name__ == '__main__':
             for port in ports:
                 print("Port found: " + str(port))  #print all ports, we only want a USB one though
                 if (port_name == str(port[0])) and ("USB" in port[1]): #check 'USB' string in device description
-                    #if self.DEBUG:
-                    #print("Found a USB Port Match: " + str(port[0]))
-                    #print("\r\nUSB device description: " + str(port[1]))
                     if str(port[0]) not in initial_serial_devices:
                         initial_serial_devices.add(str(port[0]))
-                    #print(port_name)
                     print("Found a USB Port Match: " + str(port))
                     return 1
             else:
-                print("\r\nNo valid USB serial port name in the format \'COMX\' given on command line, choose one from the list below")
+                print("\r\nNo valid matching USB serial port on command line (use format \'COMX\')")
                 return 0
         except Exception as e:
             print("Error getting serial ports list: " + str(e))
             return 0
 
     def ask_for_input():
-        # Compare input arg against possible list and if not match, ask for a valid port from a list.
-        #if len(sys.argv) > 1:
-        #    port_name = sys.argv[1]
-        #    print(sys.argv[1])
-        #    if port_name  str(port[0])
-        #    # place holder for compare ports input vs list
-        #else:      #  No args so ask for a port from list.
-            
+        global comms            
         """
         Show a list of ports and ask the user for a choice. To make selection
         easier on systems with long device names, also allow the input of an
         index.
         """
-        sys.stderr.write('\n--- Available ports:\n')
+        sys.stderr.write('\n--- Choose an available USB port to connect to yor RF Power Meter:\n')
         ports = []
-        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):
-            sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(n, port, desc))
-            ports.append(port)
+        i = 0
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
+            if "USB" in desc:   #  Only expecting USB serial ports for our Arduino
+                i = i + 1
+                ports.append(port)           
+                sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         while True:
             port = input('--- Enter port index or full name: ')
             try:
@@ -805,8 +798,7 @@ if __name__ == '__main__':
                     sys.stderr.write('--- Invalid index!\n')
                     continue
                 port_name = ports[index]
-                print(port_name)
-               # validate_provided_port_name()
+                return port_name
             except ValueError:
                 print("  Got here instead")
                 pass
@@ -821,18 +813,15 @@ if __name__ == '__main__':
         print("COM port name provided: " + sys.argv[1]) # Collect serial port COMX from command line or terminal input
         # print("\r\nArguments List: %s" % str(sys.argv))    # accept comm port via cmd line  
         if validate_provided_port_name(port_name):            
-            print (" Port {} wil be used" .format(port_name))
             comms = False
         else:       # no valid port match
-            #print("No COM port specified, choose one below")
-            #print(" Go to Ask for input ")
-            ask_for_input()
+            port_name = ask_for_input()     # No valid COMM port match found              
     else:
-        # Ask
-        ask_for_input()                
-        print ("  New Port Name = " + port_name)    
+        port_name = ask_for_input()      #  No COM port supplied omn the command line          
+
+    print (" Port {} will be used" .format(port_name))   
         # if no valid com port add code here to skip comm port and start GUI with comms off.
-        comms = False
+    comms = False
         # Valid comm port chosen, continue on
        
     if comms == False:
@@ -854,10 +843,6 @@ if __name__ == '__main__':
             except:
                 print(" Cannot open serial port")   
 
-        app = App() 
-        app.comm()  # Turn on comm threads now
         print("** Started up communication threads **")
-
-#print("  Moving to Main ")
   
 main()      # start main app with GUI
