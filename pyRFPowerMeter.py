@@ -8,13 +8,14 @@ import tkinter as tk
 import tkinter.font as tkFont
 import pywsjtx.extra.simple_server
 
-# pyRFPowerMeter  Version 1.0  May 1 2020
+# pyRFPowerMeter  Version 1.02  May 2 2020
 # Author: M. Lewis K7MDL
 # 
-#   Uses the awesome WSJT-X python decoding package pyWSJTX 
+#   Uses the awesome WSJT-X python decoding package py-WSJTX 
 #       https://github.com/bmo/py-wsjtx
 #
-#   For pyWSJTX download the files and extract into the same folder where you locate this script
+#   The files are included in this release package. For original py-WSJTX download the files and extract into
+#        the same folder where you locate this script.
 #           for example this script uses the path to import the module from   
 #                   pywsjtx.extra.simple_server.SimpleServer     
 #           which is the same as ".\pywsjtx\extra\" on Windows OS so keep these pathname structures in sync
@@ -39,7 +40,7 @@ import pywsjtx.extra.simple_server
 
 # This app accepts 1 command line argument --  The serial port to use.  It will prompt for one if not supplied in a text command window
 # In normal usage you would specify the com port to be used on the command line in a desktop shortcut or a batch file.  
-# Yo could also specify the "port_name" in the code at the bottom of this script
+# You could also specify the "port_name" in the code at the bottom of this script
 
 # Change these 2 lines to suit your station
 myTitle = "K7MDL Remote Power Meter for VHF-UHF Bands"      # Windows Title Bar Text
@@ -684,6 +685,8 @@ class App(tk.Frame):
         else:
             pass
 
+    # Place window in the upper right corner of the desktop display for now.  
+    #   Later improve to save config file and remember the last position 
     def place_window(self, width, height):
         # get screen width and height
         screen_width = self.winfo_screenwidth()
