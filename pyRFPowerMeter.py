@@ -271,14 +271,16 @@ class Receiver(Thread):
         self.keep_running = True
         global s
         s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
+        print(" Starting network thread")
 
     def stop(self):
         # Call this from another thread to stop the receiver
         self.keep_running = False
+        print(" Stopping network thread")
 
     def run(self):
         # This will run when you call .start method
-        while self.keep_running:
+        while self.keep_running:          
             self.wsjt_reader()
 
     def wsjt_reader(self):
@@ -564,16 +566,15 @@ class App(tk.Frame):
     def update_label(self):
         global restart_serial    
         global own_call    
-        
+        print(own_call)
         if myRig_meter_ID == meter_data[0]:     #  Assign myRig1 to ID 101.  Allow for future case to monitor multiple meters
             ID = myRig               
-        elif comms == None:   # allow for running without serial port to meter connection, network still running 
-            if own_call == "":
-                ID = "NA"       # No ID available from any source
-            else:
-                ID = own_call   # put something interesting up if network on.
+        elif own_call == "":     # allow for running without serial port to meter connection, network still running 
+            ID = "NA"       # No ID available from any source
         else:
-            ID = meter_data[0]
+            ID = own_call   # put something interesting up if network on.
+        #else:
+        #    ID = meter_data[0]
         self.meter_id_f.configure(text=' Radio: {0:11s}   Band:' .format(ID), width=21) 
 
         self.band_f.configure(text='%7s' % meter_data[2], anchor="e", fg="white",bg="grey", pady=1, width=7)  # band Value
@@ -708,9 +709,9 @@ class App(tk.Frame):
             comms = False
             self.QUIT.configure(text = format("Off"))
             self.QUIT.configure(fg='black', bg="light grey")
-            self.receiver.stop()
-            self.receiver.join()
-            self.receiver = None            
+            #self.receiver.stop()
+            #self.receiver.join()
+            #self.receiver = None            
             self.serial_rx.stop()
             self.serial_rx.join()
             self.serial_rx = None
@@ -723,8 +724,8 @@ class App(tk.Frame):
             comms = True
             self.QUIT.configure(text = format("On"))
             self.QUIT.configure(fg="black", bg="green")
-            self.receiver = Receiver()
-            self.receiver.start()
+            #self.receiver = Receiver()
+            #self.receiver.start()
             self.serial_rx = Serial_RX()
             self.serial_rx.start() 
             print(" Serial thread started ")
@@ -766,14 +767,12 @@ def main():
     w = 720   # width of our app window
     h = 49    # height of our app window
     app.place_window(w, h)
-    # app.master.geometry('720x49')
-    #comms = False       #   Com threads not started yet, turn them on.
-                        #   If you set to true now that imolies the comms are already on and app.comm will then try to toggle and close alrewady closed ports.
-    app.comm()           # calling this here (with comms=false) will toggle comms to start up and run and comms will be = True
-    if comms == None:
-        app.receiver = Receiver()
-        app.receiver.start()
-        print(" Starting network receiver thread ")
+
+    app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
+     
+    app.receiver = Receiver()
+    app.receiver.start()
+    
     app.mainloop()      # start the GUI
 
 
