@@ -187,22 +187,29 @@ class Serial_RX(Thread):
         global restart_serial
 
         out = ""  # Preparing the out variable 
-        if ser.isOpen():        
-           # if ser.inWaiting() > 0:
-            try:
-                out = ser.readline().decode('ascii')
-            except serial.SerialException:
-                # There is nothing
-                return None
-            except TypeError as e:
-                restart_serial = 1      # restart serial_Rx thread to recover
-                print ("error communicating while reading serial port: " + str(port_name))
-                print(e)
-            else:
-                self.get_power_data(out)
-        else:
-            print("cannot access serial port to read input data")
-            restart_serial = 1      # restart serial_Rx thread to recover
+        try:
+            if restart_serial == 0:
+                if ser.isOpen():        
+                    if ser.inWaiting() > 0:
+                        try:
+                            out = ser.readline().decode('ascii')
+                        except serial.SerialException:
+                            # There is nothing
+                            return None
+                        except TypeError as e:
+                            restart_serial = 1      # restart serial_Rx thread to recover
+                            print ("Error communicating while reading serial port: " + str(port_name))
+                            print(e)
+                        else:
+                            self.get_power_data(out)
+                else:
+                    print("Cannot access serial port to read input data")
+                    restart_serial = 1      # restart serial_Rx thread to recover
+        except serial.SerialException as e:
+            print(" Error: Port access issue detected. Possibly disconnected USB cable.")
+            print(" --> Shutting off comms. Hit \'On\' button to resume once problem is resolved. Actual error below:")                
+            print(e)
+            restart_serial = 1
 
     def get_power_data(self, s_data):
         global meter_data
@@ -399,7 +406,7 @@ class App(tk.Frame):
                                     text = format(" ON "),
                                     font = self.btn_font,
                                     relief = tk.RIDGE,
-                                    fg = "blue",
+                                    fg = "black",
                                     padx = 4,
                                     #state='disabled',
                                     command = self.comm)     # Will call the comms procedure to toggle all comms
@@ -688,7 +695,7 @@ class App(tk.Frame):
             # Closing comms   - do not call this if they are already off!
             comms = False
             self.QUIT.configure(text = format("Off"))
-            self.QUIT.configure(fg='purple', bg="light grey")
+            self.QUIT.configure(fg='black', bg="light grey")
             self.receiver.stop()
             self.receiver.join()
             self.receiver = None            
@@ -699,6 +706,7 @@ class App(tk.Frame):
             for i in range(len(meter_data)):
                 meter_data[i] = ""
                 meter_data_fl[i] = 0
+            print(" Serial thread stopped ")
         elif comms == False:
             comms = True
             self.QUIT.configure(text = format("On"))
@@ -707,6 +715,7 @@ class App(tk.Frame):
             self.receiver.start()
             self.serial_rx = Serial_RX()
             self.serial_rx.start() 
+            print(" Serial thread started ")
         else:
             pass
 
