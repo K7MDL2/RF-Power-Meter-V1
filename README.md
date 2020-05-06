@@ -7,10 +7,16 @@ DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector mo
 
 1.01 - Some version control housekeeping, typo and a few small bug fixes.  Fixed meter needle disappearing at 0 input.
 
-1.02 - Under dev -
+1.02 - Under dev in branch 1.02 as of May 5, 2020
    1. Place the window in the upper right corner of screen on app open. Plan to create a config file to remember placement position later.
    2. Changed the name of pyRFPowerMeter.py removing the Version number in the name.
-   3. Added more serial port error handling. For example, if usb is unplugged, the comms the ON/OFF button turns off and red.  When problem is fixed turn on again and it will gracefully resume. Also attempting to handle startup error in case specified port is not there. Plan to offer list of ports and hide the raw exception text.
+   3. Added more serial port error handling. For example, if usb is unplugged, the comms the ON/OFF button turns off and red and shutsdown teh serial thread.  When problem is fixed turn on again and it will gracefully resume. Also added startup error in case specified port is not there. Offers a list of USB ports.  Also you can now run without any serial port (has limited use but good for the curious without a meter. 
+   4. The network thread is now decoupled from the ON/Off button and is always running.  
+   5. Using network data and heartbeat from WSJTX to implement a failover on data source form Band and Radio ID.  Color and ID name changes to UI fields show data source changed.  Using the WSJTX heartbeat message to timeout the netowrk sourced data.
+   6. Experimenting with A/D linearity correction on the Arduino (ESP32 CPU). Found a self-calibrate A/D function for ESP32 AD to try next.
+   7. Sped up the sample rate in the Arduino and in the GUI update rate for faster meter response.  
+   8. Bug fix - Scale on wattmeter shou;ld return to the last used scale however the scale is incremented after a reset and the needle does not know it so is pegged out until you hit the scale button (local or remote) which syncs things back up. Fix tries to make the scale stay put as it was last.  Awaits further testing.
+   
 
 ### Info:
 Version 1.0 RF Power Meter code running on a M5Stack (http://M5Stack.com) Arduino Basic Core CPU module.  No extra core modules required.  You will need 2 AD8318 based RF log power detector modules, or suitable alternatives with some code minor adjustments to adapt the calculation for different output V slope and offset and if no slope inversion.
