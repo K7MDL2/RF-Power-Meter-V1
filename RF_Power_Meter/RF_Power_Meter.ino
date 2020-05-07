@@ -501,7 +501,7 @@ void loop() {
       //break;
     }  
     
-    // Save to EEPROM 
+    // Save to EEPROM s
     Band_Cal_Table[CouplerSetNum].sc_P_Fwd = scale_PWR_Fwd;
     Band_Cal_Table[CouplerSetNum].sc_P_Ref = scale_PWR_Ref;
     save_config_EEPROM();   
@@ -514,7 +514,7 @@ void loop() {
     save_config_EEPROM();
     op_mode = MENU;
     M5.Lcd.fillScreen(TFT_BLACK);
-    M5.Lcd.setTextColor(TFT_WHITE);  // Text colour
+    M5.Lcd.setTextColor(TFT_WHITE);  // Text color
     Menu_Nav();
   }
   if (M5.BtnB.wasReleased() || Button_B == YES) {      // Select Cal Band
