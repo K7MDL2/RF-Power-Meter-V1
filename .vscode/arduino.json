@@ -1,7 +1,7 @@
 {
     "board": "esp32:esp32:m5stack-core-esp32",
     "configuration": "FlashMode=qio,FlashFreq=80,PartitionScheme=default,UploadSpeed=115200,DebugLevel=none",
-    "sketch": "Watt_Meter_V1_00\\Watt_Meter_V1_00.ino",
+    "sketch": "RF_Power_Meter\\RF_Power_Meter.ino",
     "port": "COM6",
     "programmer": "AVRISP mkII",
     "output": "..\\build"
