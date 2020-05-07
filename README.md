@@ -13,9 +13,9 @@ DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector mo
    3. Added more serial port error handling. For example, if usb is unplugged, the comms the ON/OFF button turns off and red and shutsdown teh serial thread.  When problem is fixed turn on again and it will gracefully resume. Also added startup error in case specified port is not there. Offers a list of USB ports.  Also you can now run without any serial port (has limited use but good for the curious without a meter. 
    4. The network thread is now decoupled from the ON/Off button and is always running.  
    5. Using network data and heartbeat from WSJTX to implement a failover on data source form Band and Radio ID.  Color and ID name changes to UI fields show data source changed.  Using the WSJTX heartbeat message to timeout the netowrk sourced data.
-   6. Experimenting with A/D linearity correction on the Arduino (ESP32 CPU). Found a self-calibrate A/D function for ESP32 AD to try next.
+   6. Applied factory A/D correction library functions or A/D non-linearity on the Arduino (ESP32 CPU).
    7. Sped up the sample rate in the Arduino and in the GUI update rate for faster meter response.  
-   8. Bug fix - Scale on wattmeter shou;ld return to the last used scale however the scale is incremented after a reset and the needle does not know it so is pegged out until you hit the scale button (local or remote) which syncs things back up. Fix tries to make the scale stay put as it was last.  Awaits further testing.
+   8. Bug fix - Scale on wattmeter should return to the last used scale however the scale is incremented after a reset and the needle does not know it so is pegged out until you hit the scale button (local or remote) which syncs things back up. Fix tries to make the scale stay put as it was last.  Awaits further testing - still an open issue as of 5/7
    
 
 ### Info:
