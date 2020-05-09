@@ -10,12 +10,13 @@ DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector mo
 1.02 - Under dev in branch 1.02 as of May 5, 2020
    1. Place the window in the upper right corner of screen on app open. Plan to create a config file to remember placement position later.
    2. Changed the name of pyRFPowerMeter.py removing the Version number in the name.
-   3. Added more serial port error handling. For example, if usb is unplugged, the comms the ON/OFF button turns off and red and shutsdown teh serial thread.  When problem is fixed turn on again and it will gracefully resume. Also added startup error in case specified port is not there. Offers a list of USB ports.  Also you can now run without any serial port (has limited use but good for the curious without a meter. 
-   4. The network thread is now decoupled from the ON/Off button and is always running.  
+   3. Added more serial port error handling. For example, if usb is unplugged, the comms the ON/OFF button turns off and red and shuts down the serial thread.  When problem is fixed turn on again and it will gracefully resume. Also added startup error in case specified port is not there. Offers a list of USB ports.  Also you can now run without any serial port (has limited use but good for the curious without a meter. 
+   4. The network thread is now decoupled from the On/Off button and is always running.  
    5. Using network data and heartbeat from WSJTX to implement a failover on data source form Band and Radio ID.  Color and ID name changes to UI fields show data source changed.  Using the WSJTX heartbeat message to timeout the netowrk sourced data.
    6. Applied factory A/D correction library functions or A/D non-linearity on the Arduino (ESP32 CPU).
    7. Sped up the sample rate in the Arduino and in the GUI update rate for faster meter response.  
    8. Bug fix - Scale on wattmeter should return to the last used scale however the scale is incremented after a reset and the needle does not know it so is pegged out until you hit the scale button (local or remote) which syncs things back up. Fix tries to make the scale stay put as it was last.  Awaits further testing - still an open issue as of 5/7
+   9. Created RF Wattmeter.ino as a headless version of Arduino code. Most fo the screen draws are removed. As of 5/8/2020 it can take remote commands to edit any of the 20 calibration values. The Python app is updated to send some test comamnds using the previous scale, speed and SWR buttons. The previous scale button now dumps the meter's curent cal values (Cal table).  Changed to a multibyte command message formate similar to the meter data power level out messages.  Changed the sequence number (2nd field) tto now be a msg_type field to enable future expansion of cammon categoaries and for more protection against random data looking like a legit message.  Noticed just recently a new behavior in using the Arduino IDE serial monitor to manually send command bytes, it now causes the CPU to reboot. Commands sent via the Python app have no problem.  Possibly a difference in handling different terminating characters, TBI.
    
 
 ### Info:
