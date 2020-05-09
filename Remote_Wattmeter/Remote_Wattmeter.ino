@@ -1,35 +1,32 @@
 #include <M5Stack.h>
 #include <EEPROM.h>
+#include <ESP32AnalogRead.h>
 /*
  * 
  *
- RF Power Meter by K7MDL 4/29/2020   
+ RF Power Meter by K7MDL 5/8/2020   - Remote (Headless) Edition
  *
- Displays Forward Power in Watts on analog scale, displays Forward and Reflected power in Watts and dBm
- in digital form, and calculates SWR and displays in digital and analog meter form
- * 
- Has user edited Calibration sets.  Make one set for each coupler (with extra atenuators), and make 
- several sets for each coupler with couling factor and any attenuation fudge factor to bring it into cal 
- for a given frequency band.   --- For now only 1 set with 10 "bands" for frequency correction is created
- and used with values that can be edited via the UI ---
+ * 5/8/2020 - Expanded remote commands to support dumping the cal table and writing to individual coupling
+ *    factor cal values and saving to EEPROM.  Switch from a one byte command to a string with similar structure
+ *    as the power level out.  Changed sequence number to msg_type fo future expansion and to help validate the 
+ *    incoming message better from random data/noise/CPU status messages.
+ *    Thre is still some screen drawing mostly in the cal area yet to be removed.  Considering leaving the digital
+ *    values screen writing in for adaption to a 2x16/4x20 LCD or small graphics OLED embedded in an RFampifier as
+ *    the main meter with SWR shutdowna nd other feature (including remote monitoring).
+ *    One concern for getting Wi-Fi to work is the possibility the ESP32 int eh M5stack I am using may take over ADC2 pins 
+ *    which would be a problem.  Also the internal noise coudl be improved using an external I2C connected A/D.
+
+ * 5/7/2020 -  Builds on RF Power Meter dated 5/7.  
+ *    Begin strippoing the Display  and M5 specific components to allow for 
+ *      standard Arduino and headless operation
+ *
+ Has user edited Calibration sets. Have 10 "bands" for frequency correction used with values that can be edited via the UI ---
 
  In this code example I use a RLC .05-1000MHz coupler and created 10 cal bands toi cover 50M to 10G.
  A value for each dual directional coupler port combines the coupler facxtor, added attenuators, and any cal correction fudge factor.
  The values are edited via the device UI and stored in EEPROM.
- 
- Based on an M5Stack code example for an analogue meter using a ILI9341 TFT LCD screen
+*/
 
- Needs Font 2 (also Font 4 if using large scale label
-
- Make sure all the display driver and pin comnenctions are correct by
- editing the User_Setup.h file in the TFT_eSPI library folder.
-
- #########################################################################
- ###### DON'T FORGET TO UPDATE THE User_Setup.h FILE IN THE LIBRARY ######
- #########################################################################
- 
-Example meter scale code updated by Bodmer for variable meter size
- */
 
 // Define meter size as 1 for M5.Lcd.rotation(0) or 1.3333 for M5.Lcd.rotation(1)
 #define M_SIZE 1.3333
@@ -59,7 +56,6 @@ uint16_t osx = M_SIZE*120, osy = M_SIZE*120; // Saved x & y coords
 uint32_t updateTime = 0;       // time for next update
 const int ad_Fwd = 35; // Analog 35 pin for channel 0
 const int ad_Ref = 36; // Analog 36 pin for channel 1
-const long VREF[] = { 250, 500, 1250, 2500, 5000 };
 int old_analog =  -999; // Value last displayed
 float Fwd_dBm = 0;
 float Ref_dBm = 0;
@@ -81,11 +77,12 @@ int counter1 = 0;
 int Button_A = 0;
 int Button_B = 0;
 int Button_C = 0;
+int NewBand;
 int Ser_Data_Rate = METER_RATE;
 float CouplingFactor_Fwd = 0;
 float CouplingFactor_Ref = 0;
-float Offset_0V = 0.615; // 0.570 = -2.0dBm, at 24mV per dB, 0.520 = 0dBm
-float Slope = 0.025;  // AD8318 is 24-25mV per dB   
+float Offset = 0.500;  // AD8318 is 0.5 offset.  0.5 to about 2.1 volts for range.
+float Slope = 0.025;  // AD8318 is 25mV per dB with temp compensation
 char Coupler_friendly_name[80] {"Default\0"};
 float FwdPwr_last = 0;
 int Inverted = 1;  // 0=no, 1=Yes.  Inverted output will have max V = no input, min volt at max power input.
@@ -94,12 +91,12 @@ int Inverted = 1;  // 0=no, 1=Yes.  Inverted output will have max V = no input, 
  *  linear between -55 and 0dBm
 */ 
 const int numReadings = 12;   // adjust this for longer or shorter smooting period as AD noise requires
-int readings_Fwd[numReadings];      // the readings from the analog input
-int readings_Ref[numReadings];      // the readings from the analog input
+float readings_Fwd[numReadings];      // the readings from the analog input
+float readings_Ref[numReadings];      // the readings from the analog input
 int readIndex_Fwd = 0;              // the index of the current reading
 int readIndex_Ref = 0;              // the index of the current reading
-int total_Fwd = 0;                  // the running total
-int total_Ref = 0;                  // the running total
+float total_Fwd = 0;                  // the running total
+float total_Ref = 0;                  // the running total
 
 #define EEPROM_SIZE 3000
 
@@ -110,19 +107,30 @@ struct Band_Cal {
   int sc_P_Fwd;
   int sc_P_Ref;
 } Band_Cal_Table_Def[10] = {
-      {"50MHz", 71.2, 47.7, 5, 4},
-     {"144MHz", 63.5, 43.5, 5, 4},
-     {"222MHz", 60.6, 40.6, 5, 4},
-     {"432MHz", 59.1, 39.1, 5, 4},
-     {"902MHz", 59.1, 38.9, 5, 4},
-    {"1296MHz", 68.7, 51.5, 5, 4},
+      {"50MHz", 74.3, 54.6, 5, 4},
+     {"144MHz", 64.1, 44.9, 5, 4},
+     {"222MHz", 61.4, 41.8, 5, 4},
+     {"432MHz", 59.5, 39.8, 5, 4},
+     {"902MHz", 58.6, 40.2, 5, 4},
+    {"1296MHz", 72.6, 52.4, 5, 4},
      {"2.3GHz", 60.1, 40.1, 5, 4},
      {"3.4GHz", 60.2, 40.2, 5, 4},
      {"5.7GHz", 60.3, 40.3, 5, 4},
       {"10GHz", 60.4, 40.4, 5, 4}
     };
+/*   Original calibration values dumped on remot ecommand as an example before remotely issuing value changes.  
+101-1,50MHz,74.3,54.599895.2
+101-1,144MHz,64.099991.2,44.899979.2
+101-1,222MHz,61.399986.2,41.799980.2
+101-1,432MHz,59.499992.2,39.799988.2
+101-1,902MHz,58.600006.2,40.199982.2
+101-1,1296MHz,72.599937.2,52.399986.2
+*/
 
 struct Band_Cal Band_Cal_Table[10];
+
+ESP32AnalogRead adc1;    // Class to correct A/D read values against factory cal data burned to chip
+ESP32AnalogRead adc2;    // for second A/D channel
 
 void setup(void) {
   
@@ -155,15 +163,17 @@ void setup(void) {
   read_Cal_Table_from_EEPROM();   // read cal data from EEPROM into memory
   
   Cal_Table();   // Load current Band values from Table
-  init_screen();
-  analogMeter();
+  //init_screen();
+  //analogMeter();
   updateTime = millis(); // Next update time
-  // initialize all the readings to 0:
+  // initialize all the readings to 0:  Used to smooth AD values
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     readings_Fwd[thisReading] = 0;
     readings_Ref[thisReading] = 0;
   }
   //Serial.println(op_mode);
+   adc1.attach(ad_Fwd);
+   adc2.attach(ad_Ref);
   delay(1000);
 }
 
@@ -171,7 +181,9 @@ void init_screen(void)
 {
   M5.Lcd.fillScreen(TFT_BLACK);
   //needle_value = 1;
-  analogMeter(); // Draw analog meter
+ 
+ return;
+  //analogMeter(); // Draw analog meter
 
   M5.Lcd.setTextColor(TFT_WHITE);  // Text colour
   M5.Lcd.drawLine(0, int(M_SIZE*159), int(M_SIZE*239), int(M_SIZE*159), TFT_GREY);
@@ -196,63 +208,43 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
   float b;
   int c;
   char buf[12];
-  float temp;
+  float tmp;
   
   M5.Lcd.setTextColor(TFT_BLACK, TFT_WHITE);  // Text colour
 
-/* +5dBm = ~0.5V, -65dBm = 2.3V.
-   3.3V / 4096 = 0.8mV per count.  AD8318 is 24mV per dB.
-   29.79 counts per 24mV (per 1dB).  Test with 30 counts per 24mV (1dB)
-   Calibrate with 0dBm input - 100% full scale
-   Allow for custom coupling factor
-   Allow for fixed attenuator 
-   At 100W with 30dB coupling factor --> 0.1W = 100mW or 20dBm.  Add extra 20dBm for 50dB total atten.  
-   100W = 0dBm, 10W = -10dBm, 1W = -20dBm, 0.1W = -30dBm.   
-   0dBm = ~0.5V.  0.1W = 30*29.79 = 894mV --> 0.9+0.5 = 1.4V.  1.4/2.8 = 50%
-   100W = 0.5V.   (0.438/3.3)*4096 = 543 counts == full scale  
-   0V = 2.3V (2.3/3.3)*4096 = 2855 counts
-   At 1296.1 source is -2.2dBm at output of Narda coupler
-   0.576 at -2.2
-   2.07 @ -20
-   0.671 @-3.9dBm
-   2.25 open  --- 2793 range
-*/
   // subtract the last reading:
-  total_Fwd = total_Fwd - readings_Fwd[readIndex_Fwd];
+  total_Fwd -= readings_Fwd[readIndex_Fwd];
   // read from the sensor:
-  // if (a > (readings_Fwd[readIndex_Fwd-2] + 100)) readings_Fwd[readIndex_Fwd-2] = readings_Fwd[readIndex_Fwd-1];
-  // if (a > (readings_Fwd[readIndex_Fwd-2] - 100)) readings_Fwd[readIndex_Fwd-2] = readings_Fwd[readIndex_Fwd-1];
   c = 10;
   a = 0;
-  for (int i = 0; i < c; ++i)  {
-      a1 = analogRead(ad_Fwd);   //Get AD value
-      constrain(a1, Offset_0V, 2800);
-      //if (a1 < Offset_0V) a1 = Offset_0V;
-      //if (a1 > 3000) a1 = 3000;
+  adc1.attach(ad_Fwd);
+  for (int i = 0; i < c; ++i) {
+      // correction for AD non-linearity using factory data and correction library call for ESP32 AD
+      a1 = adc1.readVoltage();
+      a1 = constrain(a1, Offset, 2.200);      
       a += a1;
-      delay(1);
+      delay(3);
   }
   a /= c; // calculate the average then use result in a running average
   readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this runnign average
   // add the reading to the total:
-  total_Fwd = total_Fwd + readings_Fwd[readIndex_Fwd];
+  total_Fwd += readings_Fwd[readIndex_Fwd];
   // advance to the next position in the array:
-  readIndex_Fwd = readIndex_Fwd + 1;   
+  readIndex_Fwd += 1;   
   // if we're at the end of the array...
   if (readIndex_Fwd >= numReadings) {
     // ...wrap around to the beginning:
     readIndex_Fwd = 0;
   }     
   // calculate the average:
-  a = total_Fwd / numReadings;
-  
+  b = total_Fwd / numReadings;
+
   // caclulate dB value for digital display section
-  b = (a * 3.3/4096);  // 3.3V ref and 4096 ADC counts for M5 stack
-  b -= Offset_0V;   // adjust to 0V reference point
+  b -= Offset;   // adjust to 0V reference point
   b /= Slope;
   b *= -1; // less than 0dBm so sign negative
   b += CouplingFactor_Fwd;
-  b += -6; // dBm value for Offset_0V value
+  b += 1.5; // Fudge factor for frequency independent factors like cabling
 
   // Now have calibrated Forward Value in dBm.
   Fwd_dBm = b;
@@ -265,47 +257,45 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
   
   dtostrf(Fwd_dBm, 4, 1, buf);
   strncat(buf, "dBm", 3);
-  M5.Lcd.drawRightString("          ", (M_SIZE*50), (M_SIZE*105), 2); // Clear Field
-  M5.Lcd.drawRightString(buf, M_SIZE*(60), M_SIZE*(105), 2); // Test 
+  //M5.Lcd.drawRightString("          ", (M_SIZE*50), (M_SIZE*105), 2); // Clear Field
+  //M5.Lcd.drawRightString(buf, M_SIZE*(60), M_SIZE*(105), 2); // Test 
   // Serial.println(buf);
  
   // Now get Reflected Power 
   // subtract the last reading:
-  total_Ref = total_Ref - readings_Ref[readIndex_Ref];
+  total_Ref -= readings_Ref[readIndex_Ref];
   // read from the sensor:
-  // if (a > (readings_Ref[readIndex_Ref-2] + 100)) readings_Ref[readIndex_Ref-2] = readings_Ref[readIndex_Ref-1];
-  // if (a > (readings_Ref[readIndex_Ref-2] - 100)) readings_Ref[readIndex_Ref-2] = readings_Ref[readIndex_Ref-1];
   c = 10;
   a = 0;
+  adc2.attach(ad_Ref);
   for (int i = 0; i < c; ++i)  {
-      a1 = analogRead(ad_Ref);   //Get AD value
-      constrain(a1, Offset_0V, 2800);
-      //if (a1 < Offset_0V) a1 = Offset_0V;
-      //if (a1 > 3000) a1 = 3000;
+      // correction for AD non-linearity using factory data and correction library call for ESP32 AD
+      a1 = adc2.readVoltage();
+      a1 = constrain(a1, Offset, 2.200);
       a += a1;
-      delay(1);
+      delay(3);
   }
   a /= c; // calculate the average then use result in a running average
   readings_Ref[readIndex_Ref] = a;   // get from the latest average above and track in this runnign average
   // add the reading to the total:
-  total_Ref = total_Ref + readings_Ref[readIndex_Ref];
+  total_Ref += readings_Ref[readIndex_Ref];
   // advance to the next position in the array:
-  readIndex_Ref = readIndex_Ref + 1;   
+  readIndex_Ref += 1;   
   // if we're at the end of the array...
   if (readIndex_Ref >= numReadings) {
     // ...wrap around to the beginning:
     readIndex_Ref = 0;
   }  
   // calculate the average:
-  a = total_Ref / numReadings;
+  b = total_Ref / numReadings;
   
   // caclulate dB value for digital display section
-  b = (a * 3.3/4096);  // 3.3V ref and 4096 ADC counts for M5 stack
-  b -= Offset_0V;   // adjust to 0V reference point
+  b -= Offset;   // adjust to 0V reference point
   b /= Slope;
   b *= -1;
   b += CouplingFactor_Ref;
-  b += -6; // dBm value for Offset_0V value
+  b += 1.5; // fudge factor for frequency independent factors like cabling
+  
   Ref_dBm = b;
   // 0dBm is max. = 1W fullscale on 1W scale.
   // convert to linear value for meter using 1KW @ 0dBm as reference 
@@ -316,8 +306,8 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
       
   dtostrf(Ref_dBm, 4, 1, buf);
   strncat(buf, "dBm", 3);
-  M5.Lcd.drawRightString("        ", M_SIZE*(210), M_SIZE*(105), 2); // Clear Field
-  M5.Lcd.drawRightString(buf, (M_SIZE*220), (M_SIZE*105), 2); // Rev Pwr
+  //M5.Lcd.drawRightString("        ", M_SIZE*(210), M_SIZE*(105), 2); // Clear Field
+  //M5.Lcd.drawRightString(buf, (M_SIZE*220), (M_SIZE*105), 2); // Rev Pwr
   // Serial.println(buf);
 
    //M5.Lcd.setTextColor(TFT_BLACK,TFT_WHITE);  // Text colour
@@ -327,38 +317,38 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
    // M5.Lcd.drawString(buf, int(M_SIZE*10), int(M_SIZE*20), 2); 
   
   // Write our Digital Values to Sreen here in dBm and SWR ratio
-  M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
+  //M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
   
   if (FwdPwr != FwdPwr_last) {
     if (FwdPwr >= 9999) strcpy(buf, "OVR ");
     else if (FwdPwr < 100) dtostrf(FwdPwr, 4, 1, buf);
     else dtostrf(FwdPwr, 4, 0, buf);   // remove decimal for larger values
     strncat(buf, "W\r", 2);  // write out the value in W on digital display zone
-    M5.Lcd.fillRect(0, M_SIZE*138, M_SIZE*75, M_SIZE*18, TFT_BLACK);
-    M5.Lcd.drawString(buf, M_SIZE*(39), M_SIZE*(149), 4); // Fwd Pwr write toe digital display zone
+    //M5.Lcd.fillRect(0, M_SIZE*138, M_SIZE*75, M_SIZE*18, TFT_BLACK);
+    //M5.Lcd.drawString(buf, M_SIZE*(39), M_SIZE*(149), 4); // Fwd Pwr write toe digital display zone
 
     if (RefPwr >= 999) strcpy(buf, "OVR ");
     else if (RefPwr < 100) dtostrf(RefPwr, 4, 1, buf);   // same as for forward power, remove decimal for large vcalues and display result
     else dtostrf(RefPwr, 4, 0, buf);
     strncat(buf, "W\r", 2);
-    M5.Lcd.fillRect(M_SIZE*85, M_SIZE*138, M_SIZE*70, M_SIZE*18, TFT_BLACK);
-    M5.Lcd.drawString(buf, M_SIZE*(119), M_SIZE*(149), 4); // Rev Pwr
+    //M5.Lcd.fillRect(M_SIZE*85, M_SIZE*138, M_SIZE*70, M_SIZE*18, TFT_BLACK);
+    //M5.Lcd.drawString(buf, M_SIZE*(119), M_SIZE*(149), 4); // Rev Pwr
     
     //VSWR = 1+sqrt of Pr/Pf  / 1-sqrt of Pr/Pf
-    if (RefPwr > FwdPwr) RefPwr = FwdPwr; 
-    temp = sqrt(RefPwr/FwdPwr);
-    SWRVal = ((1 + temp) / (1 - temp));  // now have SWR in range of 1.0 to infinity.  
+    //if (RefPwr > FwdPwr) RefPwr = FwdPwr; 
+    tmp = sqrt(RefPwr/FwdPwr);
+    SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
     if (FwdPwr <= 0.1)
         SWRVal = 0;   // remove misleading SWR numbers when inpout are floating around in RX mode.
     if (SWRVal > 9.9)
         SWRVal = 10;
     SWR_Serial_Val = SWRVal;
-    M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
+    //M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
     if (SWRVal == 0) strcpy(buf, "NA"); 
     else if (SWRVal < 4) dtostrf(SWRVal, 1, 1, buf);
     else if (SWRVal > 9.9) strcpy(buf, "inf");
-    M5.Lcd.fillRect(M_SIZE*165, M_SIZE*138, M_SIZE*65, M_SIZE*18, TFT_BLACK);
-    M5.Lcd.drawString(buf, M_SIZE*(199), M_SIZE*(149), 4); // SWR
+    //M5.Lcd.fillRect(M_SIZE*165, M_SIZE*138, M_SIZE*65, M_SIZE*18, TFT_BLACK);
+    //M5.Lcd.drawString(buf, M_SIZE*(199), M_SIZE*(149), 4); // SWR
     // Serial.println(buf);
     if (op_mode == SWR) {
       // scale to make SWR 1.0  to 4 == 0 to 100%
@@ -376,7 +366,7 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
   }
   FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
   sendSerialData();   // send this data to the serial port for remote monitoring
-  plotNeedle(needle_value, 6); // It takes between 2 and 12ms to replot the needle with zero delay
+  //plotNeedle(needle_value, 6); // It takes between 2 and 12ms to replot the needle with zero delay
 }
 
 /*
@@ -385,100 +375,219 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
 void sendSerialData()
 {
     char tempbuf[80];
-    if (EEPROM.read(4) == 'Y'){
-        counter1++;
-        if (counter1 > 16000) counter1 = 0;
-        if ((counter1/Ser_Data_Rate % 2)) {
-            sprintf(tempbuf,"%d,%d,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, counter1, Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
+
+    if ((counter1/10) % 10 == 0) {   // slow down the data rate.  Ideally do at at the AD read command
+        if (EEPROM.read(4) == 'Y'){
+            sprintf(tempbuf,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
             Serial.println(tempbuf);
-        }
-    }
+        }    
+    }    
 }
+
+#define BUF_LEN 30
+
+void get_remote_cmd(){
+  static char sdata[BUF_LEN], *pSdata=sdata;
+  char ch;
+  int cmd1;
+  float cmd2;
+  int cmd_str_len;
+  int i = 0; 
+  int j = 0;   
+  char cmd_str[BUF_LEN] = {};
+  
+  while (Serial.available() > 0)  { 
+          
+      ch = Serial.read();  // read one at a time looking for start of command
+                                // amid a sea of possible other data incoming from anywhere
+      if ((pSdata - sdata) >= BUF_LEN-1) {
+          pSdata == sdata;
+          sdata[0] = '\0';
+          Serial.print("BUFFER OVERRRUN\n");
+          Serial.flush();
+          break;
+      }
+
+      // filter out unwanted characters             
+      int x = isAlphaNumeric(ch);   // located on own line as a workaround:  Including this test with the other OR tests below teh result becomes inverted.
+      if (x == 1 || ch == ',' || ch == '.' || ch=='\r' || ch == '\n') {      
+           *pSdata++ = (char)ch;
+           //Serial.println(sdata);   //  echo back what we heard 
+          if (ch=='\r' || ch == '\n') {       // Command received and ready.
+              pSdata --;       // Don't add \r and the last comma if any to string.
+              *pSdata = '\0';  // Null terminate the string.       
+              //Serial.println(sdata);   //  echo back what we heard
+              cmd_str_len = strlen(sdata);
+   
+    // Now we have a full comma delimited command string - validate and break it down
+              pSdata = sdata;
+        
+              j = 0;
+              i = 0;
+              for (i; sdata[i] != ','; i++) {
+                  cmd_str[j++] = sdata[i];                 
+              }    
+              cmd_str[j] = '\0';  
+              Serial.print(" Meter ID  ");
+              Serial.println(cmd_str);
+              
+              if (atoi(cmd_str) == METERID) {                                 
+                  if (i < cmd_str_len) {
+                      j = 0;
+                      i += 1;    // Look for Msg_Type now
+                      for (i; sdata[i] != ','; i++) {   // i+1 to skip over the comma the var 'i' was left pointing at
+                          cmd_str[j++] = sdata[i];                 
+                      }
+                      cmd_str[j] = '\0';
+                      Serial.print(" Msg Type:  ");
+                      Serial.println(cmd_str);
+                  
+                      if (atoi(cmd_str) == 120)  {   // Vaidate this message type for commands.  120 = coammand, 170 is data output                              
+                          j = 0;
+                          if (i < cmd_str_len) {
+                              i += 1;
+                              for (i; sdata[i] != ','; i++) {
+                                  cmd_str[j++] = sdata[i];
+                              }  
+                              cmd_str[j] = '\0';
+                              Serial.print(" CMD1:  ");
+                              Serial.println(cmd_str);
+                              cmd1 = atoi(cmd_str);
+                          }
+                          else 
+                              cmd1 = 1;
+                          
+                          j = 0;
+                          if (i < cmd_str_len) {
+                              i += 1;                    
+                              for (i; sdata[i] != ','; i++) {
+                                  cmd_str[j++] = sdata[i];                          
+                              }
+                              cmd_str[j] = '\0';
+                              Serial.print(" CMD2:  ");
+                              Serial.println(cmd_str);
+                              cmd2 = atof(cmd_str);
+                          }
+                          else 
+                              cmd2 = 1.0;
+                      
+                 // Now do the commands     
+                          // Process received commands
+                          // add code to limit variables received to allowed range
+                          if (cmd1 == 255) Button_A = YES;   // switch scale - not really useful if you cannot see the meter face, data is not changed
+                          if (cmd1 == 254) {
+                              Button_B = YES;   // switch bands
+                              CouplerSetNum = constrain(CouplerSetNum, 0, NUM_SETS);  
+                              NewBand = CouplerSetNum +1;    // Update Newband to current value.  Will be incrmented in button function                          
+                              if (NewBand > NUM_SETS) 
+                                NewBand = 0;  // cycle back to lowest band
+                          }
+                          if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
+                          if (cmd1 == 252) ++Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
+                          if (cmd1 == 251) --Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
+                          if (cmd1 == 250) print_cal_table();   // dump current cal table to remote  (Was Scale GUI button)
+                
+                          if (cmd1 == 249) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 9;  
+                          }
+                          if (cmd1 == 248) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 8;  
+                          }
+                          if (cmd1 == 247) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 7;  
+                          }
+                          if (cmd1 == 246) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 6;  
+                          }
+                          if (cmd1 == 245) {     // Jump to Band 1296
+                            Button_B = YES;
+                            NewBand = 5;  
+                          }
+                          if (cmd1 == 244) {     // Jump to Band 902
+                            Button_B = YES;
+                            NewBand = 4;  
+                          }
+                          if (cmd1 == 243) {     // Jump to Band 432
+                            Button_B = YES;
+                            NewBand = 3;  
+                          }
+                          if (cmd1 == 242) {     // Jump to Band 222
+                            Button_B = YES;
+                            NewBand = 2;  
+                          }
+                          if (cmd1 == 241) {     // Jump to Band 144
+                            Button_B = YES;
+                            NewBand = 1;  
+                          }
+                          if (cmd1 == 240) {     // Jump to Band 50
+                            Button_B = YES;
+                            NewBand = 0;  
+                          }
+                          
+                          // Handle remote command to change stored coupling factor to support headless ops.
+                          // TODO: Need to write into EEPROM, either here or by changing bands.                          
+                          if (cmd1 >= 100 && cmd1 < 110) {     // Change Fwd coupling factor for Port X
+                              int index;
+                              index = cmd1 - 100;
+                              Serial.print("Band: ");
+                              Serial.print(Band_Cal_Table[index].BandName);
+                              Serial.print(" --- Old Fwd Value: ");
+                              Serial.print(Band_Cal_Table[index].Cpl_Fwd);
+                              Band_Cal_Table[index].Cpl_Fwd = cmd2;       // cmd2 is second byte in 2 byte payload.                              
+                              Serial.print(" +++ New Fwd Value: ");
+                              Serial.println(Band_Cal_Table[index].Cpl_Fwd);
+                              write_Cal_Table_to_EEPROM();  // save to eeprom
+                          }
+                          if (cmd1 >= 110 && cmd1 < 120) {     // Change Ref coupling factor for Port X
+                              int index;
+                              index = cmd1 - 110;
+                              Serial.print("Band: ");
+                              Serial.print(Band_Cal_Table[index].BandName);
+                              Serial.print(" --- Old Ref Value: ");
+                              Serial.print(Band_Cal_Table[index].Cpl_Ref);
+                              Band_Cal_Table[index].Cpl_Ref = cmd2;       // cmd2 is second byte in 2 byte payload.                              
+                              Serial.print(" +++ New Ref Value: ");
+                              Serial.println(Band_Cal_Table[index].Cpl_Ref);
+                              write_Cal_Table_to_EEPROM();   // save to eeprom on changes.  
+                          }
+ 
+                          // validate to acceptable range of values
+                          Ser_Data_Rate = constrain(Ser_Data_Rate, 1, 20);
+                          Button_A = constrain(Button_A, 0, 1);
+                          Button_B = constrain(Button_B, 0, 1);
+                          Button_C = constrain(Button_C, 0, 1);
+                          NewBand = constrain(NewBand, 0, NUM_SETS);                                          
+                      } // end of msg_type 120                                      
+                  } // end of msg_type length check
+              } // end of meter ID OK    
+              //pSdata = sdata; // Reset pointer to start of string. 
+          } // end '/r'  
+      } // end if valid characters
+      else {
+        Serial.print(" Bad Character -  Reset Buffer = ");
+        pSdata = sdata;
+        sdata[0] = '\0';
+        Serial.println(ch);
+        Serial.flush();
+      } // end else not valid characters
+   } //while serial available
+} // end get_remote_cmd function
 
 void loop() { 
   
-  char buf[50];
-  char buf1[12];
-  int tmp;
-  int NewBand;
-
   // Listen for remote computer commands
-  while (Serial.available() > 0)  {
-      int cmd1 = Serial.parseInt();
-      if (Serial.read() == '\n') {
-          cmd1 = constrain(cmd1, 240, 255);
-      }
-      
-      // Process received commands
-      // add code to limit variables received to allowed range
-      if (cmd1 == 255) Button_A = YES;   // switch scale - not really useful if you cannot see the meter face, data is not changed
-      if (cmd1 == 254) {
-          Button_B = YES;   // switch bands
-          NewBand = CouplerSetNum +1;    // Update Newband to current value.  Will be incrmented in button function
-          if (NewBand > NUM_SETS) 
-            NewBand = 0;  // cycle back to lowest band
-      }
-      if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
-      if (cmd1 == 252) ++Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
-      if (cmd1 == 251) --Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
-      if (cmd1 == 249) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 9;  
-      }
-      if (cmd1 == 248) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 8;  
-      }
-      if (cmd1 == 247) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 7;  
-      }
-      if (cmd1 == 246) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 6;  
-      }
-      if (cmd1 == 245) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 5;  
-      }
-      if (cmd1 == 244) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 4;  
-      }
-      if (cmd1 == 243) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 3;  
-      }
-      if (cmd1 == 242) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 2;  
-      }
-      if (cmd1 == 241) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 1;  
-      }
-      if (cmd1 == 240) {     // Jump to BandX
-        Button_B = YES;
-        NewBand = 0;  
-      }
-      
-      // validate to acceptable range of values
-      Ser_Data_Rate = constrain(Ser_Data_Rate, 1, 20);
-      Button_A = constrain(Button_A, 0, 1);
-      Button_B = constrain(Button_B, 0, 1);
-      Button_C = constrain(Button_C, 0, 1);
-      NewBand = constrain(NewBand, 0, NUM_SETS);
-      CouplerSetNum = constrain(CouplerSetNum, 0, NUM_SETS);
-  }
- 
+  get_remote_cmd();
+
   M5.update();
   if (M5.BtnA.wasReleased() || Button_A == YES) {   // Do a press and hold to display reflected power on analog meter. 
     Button_A = NO; //reset flag
     if (op_mode != PWR) {
       // coming from some other op_mode, redraw the screen for PWR op_mode
       op_mode = PWR;  
-      init_screen();
-      analogMeter();
     }
     else {
       scale_PWR_Fwd += 1;   // If already in PWR op_mode, increment scale. Otherwise leave scale as it was.
@@ -486,46 +595,17 @@ void loop() {
     }
     op_mode= PWR;
     
-    if (scale_PWR_Fwd > 7 || scale_PWR_Fwd < 1) scale_PWR_Fwd = 1;
-    switch (scale_PWR_Fwd) {
-      case 1: scale_value_fwd = 1;     break;
-      case 2: scale_value_fwd = 5;     break;
-      case 3: scale_value_fwd = 10;    break;
-      case 4: scale_value_fwd = 50;    break;
-      case 5: scale_value_fwd = 100;   break;
-      case 6: scale_value_fwd = 500;   break;
-      case 7: scale_value_fwd = 1000;  break;
-      default: scale_value_fwd = 100;  break;
-      //break;
-    }   
-    
-    if (scale_PWR_Ref > 7 || scale_PWR_Ref < 1) scale_PWR_Ref = 1;
-    switch (scale_PWR_Ref) {
-      case 1: scale_value_ref =1;     break;
-      case 2: scale_value_ref =5;     break;
-      case 3: scale_value_ref =10;    break;
-      case 4: scale_value_ref =50;    break;
-      case 5: scale_value_ref =100;   break;
-      case 6: scale_value_ref =500;   break;
-      case 7: scale_value_ref =1000;  break;
-      default: scale_value_ref = 100; break;
-      //break;
-    }  
     
     // Save to EEPROM 
     Band_Cal_Table[CouplerSetNum].sc_P_Fwd = scale_PWR_Fwd;
     Band_Cal_Table[CouplerSetNum].sc_P_Ref = scale_PWR_Ref;
     save_config_EEPROM();   
     write_Cal_Table_to_EEPROM();
-    
-    analogMeter(); // Draw analog meter
-    //plotNeedle(1,0); // It takes between 2 and 12ms to replot the needle with zero delay
   }
   if (M5.BtnB.wasReleasefor(700)){
     save_config_EEPROM();
     op_mode = MENU;
-    M5.Lcd.fillScreen(TFT_BLACK);
-    M5.Lcd.setTextColor(TFT_WHITE);  // Text colour
+ 
     Menu_Nav();
   }
   if (M5.BtnB.wasReleased() || Button_B == YES) {      // Select Cal Band
@@ -536,22 +616,14 @@ void loop() {
     if (Button_B == YES)
       CouplerSetNum = NewBand;    // set to commanded band.  If a Button B remote cmd, NewBand wil lbe incremented before here
     Button_B = NO; //reset flag
-    
-    M5.Lcd.fillScreen(TFT_BLACK);
-    M5.Lcd.setTextColor(TFT_WHITE);  // Text colour
     Cal_Table();
     save_config_EEPROM();
-    init_screen();
-    analogMeter();
   }
   if (M5.BtnC.wasReleased() || Button_C == YES) {
     Button_C = NO; //reset flag
     if (op_mode != SWR)  {
     op_mode = SWR;
     save_config_EEPROM();
-    init_screen();
-    analogMeter(); // Draw analogue meter
-    //plotNeedle(1,0); // It takes between 2 and 12ms to replot the needle with zero delay
     }
   } 
   if (M5.BtnA.wasReleasefor(5000)){
@@ -611,7 +683,7 @@ void Menu_Nav()
        choose another band if desired with short center button press
        long press to exit cal op_mode and default to PWR screen
 */
-// Draw list of bands (Predefined to 10 bands - customize teh BandName lable in code only - Att values are editiable)
+// Draw list of bands (Predefined to 10 bands - customize the BandName label in code only - Att values are editable)
     M5.Lcd.drawString("Calibration Menu", int(M_SIZE*10), int(M_SIZE*10), 2); 
     M5.Lcd.drawRightString("Hold Menu Button 1 Sec to EXIT", int(M_SIZE*10), int(M_SIZE*160), 2);
     M5.Lcd.drawRightString(" BAND             FWD           REF    ", int(M_SIZE*230), int(M_SIZE*30), 2);
@@ -645,7 +717,7 @@ void Menu_Nav()
       if (M5.BtnB.wasReleasefor(700)) {
           get_config_EEPROM();
           init_screen();
-          analogMeter(); // Draw analogue meter
+          //analogMeter(); // Draw analogue meter
           return;   // All done inb Edit mode, exit this funtion
       }
     } while (1);  // end forever while loop.  Exit when Button B is long pressed
@@ -815,7 +887,6 @@ void reset_EEPROM()
     }
 }
 
-
 // Toggle USB serial output data
 void toggle_ser_data_output()
 {
@@ -832,6 +903,7 @@ void toggle_ser_data_output()
      }
 }
 
+// Cursors for Editing Cal Table on screen
 void Draw_Cursor(int Index, int Direction)
 {
   int Selection;
@@ -875,13 +947,11 @@ void Draw_Cursor(int Index, int Direction)
 void Cal_Table()
 {
   //
-  // Each coupler has unique coupling factor.  The program assumes all math relative to 0dBm (1mW).  
-  // So these values will slide the refence pioint up or down based on the net total of attenuator
-  // and coupling factor for fwd and ref ports, per frequency band.  
+  // Each coupler has unique coupling factor. 
   // The more frequency bands in the table the better but at more effort to code and to enter cal data.
-  // The AD8318 detector is fairly linear over frequency and power betwen 0 and -60 so trying to
-  // operate there and no correction required for that end of things, just hte coupler itself plus added attenuators.
-  //
+  // The AD8318 detector is fairly linear over frequency, temperature, and power betwen 0 and -60dBm so goal
+  // is to land the attenuated coupler port output levels below 1mW at full power. 
+  
   // Copy Selected Band Cal Data from Table to working variables  
   strcpy(Coupler_friendly_name, Band_Cal_Table[CouplerSetNum].BandName);
   CouplingFactor_Fwd = Band_Cal_Table[CouplerSetNum].Cpl_Fwd;  // value in dB from coupler specs.  
@@ -894,251 +964,22 @@ void Cal_Table()
   scale_PWR_Ref = Band_Cal_Table[CouplerSetNum].sc_P_Ref;  // Use 10W scale for now - program automaitcally set to 1 less than the fwd scale for now
 }
 
-// #########################################################################
-//  Draw the analogue SWR meter on the screen
-// #########################################################################
-void analogMeter() {
-
-  char  buf[11];
- 
-  // Meter outline
-  M5.Lcd.fillRect(0, 0, M_SIZE*239, M_SIZE*126, TFT_GREY);
-  M5.Lcd.fillRect(5, 3, M_SIZE*230, M_SIZE*119, TFT_WHITE);
-  M5.Lcd.setTextColor(TFT_BLACK);  // Text colour
-
-  // Draw ticks every 5 degrees from -50 to +50 degrees (100 deg. FSD swing)
-  for (int i = -50; i < 51; i += 5) {
-    // Long scale tick length
-    int tl = 15;
-
-    // Coodinates of tick to draw
-    float sx = cos((i - 90) * 0.0174532925);
-    float sy = sin((i - 90) * 0.0174532925);
-    uint16_t x0 = sx * (M_SIZE*100 + tl) + M_SIZE*120;
-    uint16_t y0 = sy * (M_SIZE*100 + tl) + M_SIZE*140;
-    uint16_t x1 = sx * M_SIZE*100 + M_SIZE*120;
-    uint16_t y1 = sy * M_SIZE*100 + M_SIZE*140;
-
-    // Coordinates of next tick for zone fill
-    float sx2 = cos((i + 5 - 90) * 0.0174532925);
-    float sy2 = sin((i + 5 - 90) * 0.0174532925);
-    int x2 = sx2 * (M_SIZE*100 + tl) + M_SIZE*120;
-    int y2 = sy2 * (M_SIZE*100 + tl) + M_SIZE*140;
-    int x3 = sx2 * M_SIZE*100 + M_SIZE*120;
-    int y3 = sy2 * M_SIZE*100 + M_SIZE*140;
-
-    // Choose SWR or Watts Display with L and R buttons in Run mode
-
-    // Draw SWR  meter face and fixed scale
-    // SWR is fixed at 5.  Adjust orange and red zones.
-      if (op_mode == SWR) {  
-        // Yellow zone limits
-        if (i >= -25 && i < 20) {
-          M5.Lcd.fillTriangle(x0, y0, x1, y1, x2, y2, TFT_YELLOW);
-          M5.Lcd.fillTriangle(x1, y1, x2, y2, x3, y3, TFT_YELLOW);
-        }
-        
-        // Green zone limitsforward or backward 
-        //if (i >= -50 && i < 0) {
-        //  M5.Lcd.fillTriangle(x0, y0, x1, y1, x2, y2, TFT_GREEN);
-        //  M5.Lcd.fillTriangle(x1, y1, x2, y2, x3, y3, TFT_GREEN);
-        //}
-        
-        // Red zone limits
-        if (i >= 20 && i < 50) {
-          M5.Lcd.fillTriangle(x0, y0, x1, y1, x2, y2, TFT_RED);
-          M5.Lcd.fillTriangle(x1, y1, x2, y2, x3, y3, TFT_RED);
-        }
-      }
-      
-      // Short scale tick length
-      if (i % 25 != 0) tl = 8;
-      
-      // Recalculate coords incase tick length changed
-      x0 = sx * (M_SIZE*100 + tl) + M_SIZE*120;
-      y0 = sy * (M_SIZE*100 + tl) + M_SIZE*140;
-      x1 = sx * M_SIZE*100 + M_SIZE*120;
-      y1 = sy * M_SIZE*100 + M_SIZE*140;
-      
-      // Draw tick
-      M5.Lcd.drawLine(x0, y0, x1, y1, TFT_BLACK);
-      
-      // Check if labels should be drawn, with position tweaks
-      if (i % 25 == 0) {
-        // Calculate label positions
-        x0 = sx * (M_SIZE*100 + tl + 10) + M_SIZE*120;
-        y0 = sy * (M_SIZE*100 + tl + 10) + M_SIZE*140;
-        if (op_mode == PWR)  {
-            switch (scale_PWR_Fwd) { 
-              case 1: {   // 1W scale
-                switch (i / 25) {
-                  case -2:  M5.Lcd.drawString("0", x0, y0 - 12, 2); break;
-                  case -1:  M5.Lcd.drawString("0.25", x0, y0 - 9, 2); break;
-                  case 0:   M5.Lcd.drawString("0.5", x0, y0 - 7, 2); break;
-                  case 1:   M5.Lcd.drawString("0.75", x0, y0 - 9, 2); break;
-                  case 2:   M5.Lcd.drawString("1", x0, y0 - 12, 2); break;           
-                }  
-                break;
-              }   
-              case 2: {   // 5W scale
-                switch (i / 25) {
-                  case -2:  M5.Lcd.drawString("0", x0, y0 - 12, 2); break;
-                  case -1:  M5.Lcd.drawString("1.25", x0, y0 - 9, 2); break;
-                  case 0:   M5.Lcd.drawString("2.5", x0, y0 - 7, 2); break;
-                  case 1:   M5.Lcd.drawString("3.75", x0, y0 - 9, 2); break;
-                  case 2:   M5.Lcd.drawString("5", x0, y0 - 12, 2); break;              
-                }   
-                break;
-              } 
-              case 3: {   // 10W scale
-                switch (i / 25) {
-                  case -2:  M5.Lcd.drawString("0", x0, y0 - 12, 2); break;
-                  case -1:  M5.Lcd.drawString("2.5", x0, y0 - 9, 2); break;
-                  case 0:   M5.Lcd.drawString("5", x0, y0 - 7, 2); break;
-                  case 1:   M5.Lcd.drawString("7.5", x0, y0 - 9, 2); break;
-                  case 2:   M5.Lcd.drawString("10", x0, y0 - 12, 2); break;                  
-                }    
-                break;           
-              } 
-              case 4: {   // 50W scale
-                switch (i / 25) {
-                  case -2:  M5.Lcd.drawString("0", x0, y0 - 12, 2); break;
-                  case -1:  M5.Lcd.drawString("12.5", x0, y0 - 9, 2); break;
-                  case 0:   M5.Lcd.drawString("25", x0, y0 - 7, 2); break;
-                  case 1:   M5.Lcd.drawString("37.5", x0, y0 - 9, 2); break;
-                  case 2:   M5.Lcd.drawString("50", x0, y0 - 12, 2); break;
-                }
-                break;
-              }                
-              case 5: {   // 100W scale
-                switch (i / 25) {
-                  case -2:  M5.Lcd.drawString("0", x0, y0 - 12, 2); break;
-                  case -1:  M5.Lcd.drawString("25", x0, y0 - 9, 2); break;
-                  case 0:   M5.Lcd.drawString("50", x0, y0 - 7, 2); break;
-                  case 1:   M5.Lcd.drawString("75", x0, y0 - 9, 2); break;
-                  case 2:   M5.Lcd.drawString("100", x0, y0 - 12, 2); break;
-                }
-                break;
-              }     
-              case 6: {   // 500W scale
-                switch (i / 25) {
-                  case -2:  M5.Lcd.drawString("0", x0, y0 - 12, 2); break;
-                  case -1:  M5.Lcd.drawString("125", x0, y0 - 9, 2); break;
-                  case 0:   M5.Lcd.drawString("250", x0, y0 - 7, 2); break;
-                  case 1:   M5.Lcd.drawString("375", x0, y0 - 9, 2); break;
-                  case 2:   M5.Lcd.drawString("500", x0, y0 - 12, 2); break;
-                }
-                break;
-              }            
-              case 7: {   // 1000W scale
-                switch (i / 25) {
-                  case -2:  M5.Lcd.drawString("0", x0, y0 - 12, 2); break;
-                  case -1:  M5.Lcd.drawString("250", x0, y0 - 9, 2); break;
-                  case 0:   M5.Lcd.drawString("500", x0, y0 - 7, 2); break;
-                  case 1:   M5.Lcd.drawString("750", x0, y0 - 9, 2); break;
-                  case 2:   M5.Lcd.drawString("1000", x0, y0 - 12, 2); break;
-                }
-                break;                         
-              } 
-            } 
-        }
-        if (op_mode == SWR)  {   
-            switch (i / 25) {
-              case -2:  M5.Lcd.drawCentreString("1", x0, y0 - 12, 2);  break;
-              case -1:  M5.Lcd.drawCentreString("1.8", x0, y0 - 9, 2); break;
-              case 0:   M5.Lcd.drawString("2.4", x0, y0 - 7, 2); break;
-              case 1:   M5.Lcd.drawString("3.2", x0, y0 - 9, 2); break;
-              case 2:   M5.Lcd.drawString("~", x0, y0 - 12, 2); break;
-              }            
-        }
-      }
-
-      // Now draw the arc of the scale
-      sx = cos((i + 5 - 90) * 0.0174532925);
-      sy = sin((i + 5 - 90) * 0.0174532925);
-      x0 = sx * M_SIZE*100 + M_SIZE*120;
-      y0 = sy * M_SIZE*100 + M_SIZE*140;
-      // Draw scale arc, don't draw the last part
-      if (i < 50) M5.Lcd.drawLine(x0, y0, x1, y1, TFT_BLACK);
-  }
-     
-  if (op_mode == PWR) M5.Lcd.drawString("Watts", M_SIZE*120, M_SIZE*70, 4); // Comment out to avoid font 4
-  if (op_mode == SWR) M5.Lcd.drawString("SWR", M_SIZE*119, M_SIZE*70, 4); // Comment out to avoid font 4
-  
-  // Show Band/Cal Set Selected on the display meter face 
-  if (op_mode == SWR || op_mode == PWR) {
-    strncpy(buf, Coupler_friendly_name, 10);
-    buf[10] = '\0';
-    M5.Lcd.drawString(buf, int(M_SIZE*130), int(M_SIZE*90), 2);  
-  }
-    
-  M5.Lcd.drawRect(5, 3, M_SIZE*230, M_SIZE*119, TFT_BLACK); // Draw bezel line
-
-  plotNeedle(1, 0); // Put meter needle at 0
-}
-
-// #########################################################################
-// Update needle position
-// This function is blocking while needle moves, time depends on ms_delay
-// 10ms minimises needle flicker if text is drawn within needle sweep area
-// Smaller values OK if text not in sweep area, zero for instant movement but
-// does not look realistic... (note: 100 increments for full scale deflection)
-// #########################################################################
-void plotNeedle(float value, byte ms_delay)
+void print_cal_table()
 {
-  char  buf[11];
-  
-  M5.Lcd.setTextColor(TFT_RED, TFT_BLACK);
+  int i;
+  char buf[80];
 
-  if (value < 0) value = 0; // Limit value to emulate needle end stops
-  if (value > 105) value = 105;
-
-  // Move the needle until new value reached
-  while (!(value == old_analog)) {
-    if (old_analog < value) old_analog++;
-    else old_analog--;
-
-    if (ms_delay == 0) old_analog = value; // Update immediately if delay is 0
-
-    float sdeg = map(old_analog, -10, 110, -150, -30); // Map value to angle
-    // Calculate tip of needle coords
-    float sx = cos(sdeg * 0.0174532925);
-    float sy = sin(sdeg * 0.0174532925);
-
-    // Calculate x delta of needle start (does not start at pivot point)
-    float tx = tan((sdeg + 90) * 0.0174532925);
-
-    // Erase old needle image
-    M5.Lcd.drawLine(M_SIZE*(120 + 20 * ltx - 1), M_SIZE*(140-20), osx - 1, osy, TFT_WHITE);
-    M5.Lcd.drawLine(M_SIZE*(120 + 20 * ltx), M_SIZE*(140-20), osx, osy, TFT_WHITE);
-    M5.Lcd.drawLine(M_SIZE*(120 + 20 * ltx + 1), M_SIZE*(140-20), osx + 1, osy, TFT_WHITE);
-
-    // Re-plot text under needle
-    M5.Lcd.setTextColor(TFT_BLACK);
-    if (op_mode == PWR) M5.Lcd.drawString("Watts", M_SIZE*120, M_SIZE*70, 4); // // Comment out to avoid font 4
-    if (op_mode == SWR) M5.Lcd.drawString("SWR", M_SIZE*120, M_SIZE*70, 4); // // Comment out to avoid font 4
-    // Show Band/Cal Set Selected on the display meter face 
-    if (op_mode == SWR || op_mode == PWR) {
-      strncpy(buf, Coupler_friendly_name, 10);
-      buf[10] = '\0';
-      M5.Lcd.drawString(buf, int(M_SIZE*130), int(M_SIZE*90), 2);  
-    }
+  // example ouput format : "101,150,TEXT,55.4,35.4,3.3,2.2"
+  // #150 for msg_type field to signal this is data dump, not power levels or other type messages.
+  for (i=0; i <= NUM_SETS; i++) {
+    sprintf(buf, "%d,%s,%s,%f.2,%f.2",    // meterid with msg_type = 150 to signal different data set than the normal output. 120 inbound cmd, 170, power out
+      METERID,
+      "150",  //msg_tyope for cmd reply
+      Band_Cal_Table[i].BandName,
+      Band_Cal_Table[i].Cpl_Fwd,  // value in dB from coupler specs.  
+      Band_Cal_Table[i].Cpl_Ref
+    );
+   Serial.println(buf);   // Output table text to serial port
     
-    // Store new needle end coords for next erase
-    ltx = tx;
-    osx = M_SIZE*(sx * 98 + 120);
-    osy = M_SIZE*(sy * 98 + 140);
-
-    // Draw the needle in the new postion, magenta makes needle a bit bolder
-    // draws 3 lines to thicken needle
-    M5.Lcd.drawLine(M_SIZE*(120 + 20 * ltx - 1), M_SIZE*(140-20), osx - 1, osy, TFT_RED);
-    M5.Lcd.drawLine(M_SIZE*(120 + 20 * ltx), M_SIZE*(140-20), osx, osy, TFT_MAGENTA);
-    M5.Lcd.drawLine(M_SIZE*(120 + 20 * ltx + 1), M_SIZE*(140-20), osx + 1, osy, TFT_RED);
-
-    // Slow needle down slightly as it approaches new postion
-    if (abs(old_analog - value) < 10) ms_delay += ms_delay / 5;
-
-    // Wait before next update
-    delay(ms_delay);
   }
 }
