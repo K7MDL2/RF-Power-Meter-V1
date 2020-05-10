@@ -210,17 +210,21 @@ class Serial_RX(Thread):
                 if ser.isOpen():        
                     if ser.inWaiting() > 0:
                         try:
-                            out = ser.readline().decode()   # problems in decode when CPU is reset
+                            out = ser.readline().decode() 
+                        except UnicodeDecodeError: # catch error and ignore it
+                            print("Unicode decode error caught")  # will get this on CPU resets
                         except serial.SerialException:
                             # There is nothing
-                            print ("No Data waiting at serial port: " + str(port_name))
+                            print("No Data waiting at serial port: " + str(port_name))
                             return None
                         except TypeError as e:
                             restart_serial = 1      # restart serial_Rx thread to recover
-                            print ("Error communicating while reading serial port: " + str(port_name))
+                            print("Error communicating while reading serial port: " + str(port_name))
                             print(e)
                         else:
                             self.get_power_data(out)
+                    else:
+                        pass
                 else:
                     print("Cannot access serial port to read input data")
                     restart_serial = 1      # restart serial_Rx thread to recover
