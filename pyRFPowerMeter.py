@@ -13,19 +13,19 @@ PowerMeterVersionNum = "1.02"
 # pyRFPowerMeter  Version 1.02  May 8 2020
 # Author: M. Lewis K7MDL
 # 
-#   1.02 dev copy for testing headless and remote calibration command protocal
-#      Working as of 5/8/2020 though entering commands manually from Arduino Serial Monitor
-#        has started causing unexplained Arduino CPU reboots.  Works fine with same commands from this app.
-#         Suspect it has something to do with string handling for certain termination chars.
-
+#   1.02 dev copy for testing headless and remote calibration command protocol and run on Ardiuno Nano
+#       This now runs on Arduino Nano with no screens or buttons required.  
+#       All capabilities are controlled by serial port commands. 
 #       Renamed some buttons to send test commands to alter some coupling factor values for Fewd and Rev.  
 #           BF2+ sets a test value in Band 2 Fwd, BF2- button set  sit back.  Changes are saved in EEPROM.
 #           BR- resets a ref port back, no button curently assigned to set a test value right now.
-#       With this complete, and most of the screen drawing removed, what is left is create commands for reset to 
-#           default (btn A 10sec then Btn C 10 sec), Serial transmit frm CPU off/on (Btn C 5 sec).
-#       Leaving some screen test in place for now as I am thinnkg of enabling display to a 16x2 or 20x4 
-#           LCD char display or small OLED for embedding in a larger RF amplifier.  Can add features like High
-#           SWR cutoff signal to amp[ controller and remote power monitoring using the amp's internal couplers
+#           3.4G = Meter CPU reset - needed to follow a factory reset commands
+#           5.7G followed by 10G will mark the meter EEPROM as Invalid.
+#           Serial transmit frm CPU off/on (Btn C 5 sec).#       
+#       Added cmd line argument #2 to collect custom MeterID with changes to use it.
+#       Can now run multiple instances of meters (each on their own USB port) and Desktop monior apps 
+#           by specifying correct MeterID and Comm port# at startup. Easiest done on the command line in a desktop shortcut file
+#       Catches unicode serial errors that happens when the CPU resets
 #
 #
 #   Uses the awesome WSJT-X python decoding package py-WSJTX 
@@ -194,7 +194,7 @@ class Serial_RX(Thread):
                 if ser.isOpen():
                     try:              
                         #print("---> Write Cmd : " + str(cmd))
-                        ser.write("101,120,{},{},{}" .format(cmd,cmd_data,'\n').encode())
+                        ser.write("{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode())
                         send_meter_cmd_flag = False                             
                     except serial.SerialException:
                         print ("error communicating while writing serial port: " + str(port_name))
@@ -903,6 +903,12 @@ if __name__ == '__main__':
             port_name = ask_for_input()     # No valid COMM port match found              
     else:
         port_name = ask_for_input()      #  No COM port supplied on the command line
+
+    if len(sys.argv) > 2:
+        myRig_meter_ID = sys.argv[2]    
+        print("Meter ID now set to : " + myRig_meter_ID)
+    if myRig_meter_ID == "":
+        myRig_meter_ID = 101
    
     #comms = False
     if comms == False:

@@ -4,21 +4,26 @@
  *
  * RF Power Meter by K7MDL 5/8/2020   - Remote (Headless) Edition for Testing on Arduino Nano 
  *
- * 5/10/2020 - Stripped out physical button tests (kept code as virtual buttons).  Removed rest of M5/ESP32 dependencies,
- *        added standard Arduino replacements where needed.
+ * 5/10/2020 -  Stripped out physical button tests (kept code as virtual buttons).  
+ *              Removed rest of M5/ESP32 dependencies,
+ *              Using standard Arduino functions (vs original M5Stack/esp32).  
+ *              Added CPU reset and default EEPROM commands. 
+ *              Trying out read_vcc() to measure VCC folowing each AD read to increase accuracy since
+ *                  the Default is bus power (from USB or external).  Internal Vref is too low at 1.1V to use
+ *                  Without adding an external voltage divider.
  *
  * 5/8/2020 - Expanded remote commands to support dumping the cal table and writing to individual coupling
  *    factor cal values and saving to EEPROM.  Switch from a one byte command to a string with similar structure
  *    as the power level out.  Changed sequence number to msg_type fo future expansion and to help validate the 
  *    incoming message better from random data/noise/CPU status messages.
- *    Thre is still some screen drawing mostly in the cal area yet to be removed.  Considering leaving the digital
+ *    There is still some screen drawing mostly in the cal area yet to be removed.  Considering leaving the digital
  *    values screen writing in for adaption to a 2x16/4x20 LCD or small graphics OLED embedded in an RFampifier as
  *    the main meter with SWR shutdowna nd other feature (including remote monitoring).
- *    One concern for getting Wi-Fi to work is the possibility the ESP32 int eh M5stack I am using may take over ADC2 pins 
+ *    One concern for getting Wi-Fi to work is the possibility the ESP32 in the M5stack I am using may take over ADC2 pins 
  *    which would be a problem.  Also the internal noise coudl be improved using an external I2C connected A/D.
  *
  * 5/7/2020 -  Builds on RF Power Meter dated 5/7.  
- *    Begin strippoing the Display  and M5 specific components to allow for 
+ *    Begin stripping the Display and M5 specific components to allow for 
  *      standard Arduino and headless operation
  *
  Has user edited Calibration sets. Have 10 "bands" for frequency correction used with values that can be edited via the UI ---
@@ -31,7 +36,7 @@
 // Define meter size as 1 for M5.Lcd.rotation(0) or 1.3333 for M5.Lcd.rotation(1)
 #define M_SIZE 1.3333
 
-#define METERID 101 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
+#define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 #define METER_RATE 2   // used to skip serial data output to a lower rate
 #define TEST_EEPROM 0  // change to 1 and reprogram, then set back to 0 to reset EEPROM data to default
 #define SWR 2
@@ -40,18 +45,17 @@
 #define EEADDR 16 // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
 #define NO 0
 #define YES 1
-
+#define ADC_COUNTS 1024    // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
+#define ad_Fwd "A1"    // Analog 35 pin for channel 0
+#define ad_Ref "A2"   // Analog 36 pin for channel 1
 // Edit the Coupler Set data inb teh Cal_Table function.  Set the max number of sets here, and the default to load at startup
 #define NUM_SETS 5 // 10 bands, 0 through 9 for example
-int CouplerSetNum = 0;   // 0 is the default set on power up.  
-float Vref = 5.0;           // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP32 also has calibrated Vref curve
-int adc_counts = 1024;      // 4095 for ESP32 12bit, 1023 for 10 bit ESP32 and Nano.
 
+float Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP32 also has calibrated Vref curve
+int CouplerSetNum = 0;   // 0 is the default set on power up.  
 int ser_data_out = 0;
 int Reset_Flag = 0;
 uint32_t updateTime = 0;       // time for next update
-const int ad_Fwd = A1; // Analog 35 pin for channel 0
-const int ad_Ref = A2; // Analog 36 pin for channel 1
 float Fwd_dBm = 0;
 float Ref_dBm = 0;
 float FwdPwr = 0;
@@ -60,7 +64,7 @@ float SWRVal = 0;
 float SWR_Serial_Val = 0;
 float FwdVal = 0;
 float RefVal = 0;
-int d = 0;
+//int d = 0;
 int Edit_Atten = 0;
 int op_mode = SWR;
 int counter1 = 0;
@@ -195,11 +199,10 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
     a = 0;
     for (int i = 0; i < c; ++i) {
             a1 = analogRead(ad_Fwd);
-            //Serial.print(a1);
             Vref = read_vcc();
             //Serial.print("  VCC = ");
             //Serial.print(Vref);
-            a1 = a1 * (4.65/adc_counts);           // convert to voltage
+            a1 = a1 * (4.65/ADC_COUNTS);           // convert to voltage
             //Serial.print("  Fwd: ");
             //Serial.println(a1);
             a1 = constrain(a1, Offset, 2.200);      
@@ -251,10 +254,10 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
             Vref = read_vcc();
             //Serial.print("VCC = ");
             //Serial.println(Vref);
-            a1 = a1 * (Vref/adc_counts);  // 10bit wit 3.3 Vref on Nano
+            a1 = a1 * (Vref/ADC_COUNTS);  // 10bit wit 3.3 Vref on Nano
             //Serial.print("Ref: ");
             //Serial.println(a1);
-            //a1 = constrain(a1, Offset, 2.200);
+            a1 = constrain(a1, Offset, 2.200);
             a += a1;
             delay(30);
     }
