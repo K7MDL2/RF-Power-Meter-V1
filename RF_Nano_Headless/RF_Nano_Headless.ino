@@ -33,9 +33,6 @@
  The values are edited via the device UI and stored in EEPROM.
 */
 
-// Define meter size as 1 for M5.Lcd.rotation(0) or 1.3333 for M5.Lcd.rotation(1)
-#define M_SIZE 1.3333
-
 #define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 #define METER_RATE 2   // used to skip serial data output to a lower rate
 #define TEST_EEPROM 0  // change to 1 and reprogram, then set back to 0 to reset EEPROM data to default
