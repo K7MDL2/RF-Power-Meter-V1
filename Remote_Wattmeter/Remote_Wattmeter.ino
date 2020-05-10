@@ -2,9 +2,8 @@
 #include <EEPROM.h>
 #include <ESP32AnalogRead.h>
 /*
- * 
  *
- RF Power Meter by K7MDL 5/8/2020   - Remote (Headless) Edition
+ * RF Power Meter by K7MDL 5/8/2020   - Remote (Headless) Edition
  *
  * 5/8/2020 - Expanded remote commands to support dumping the cal table and writing to individual coupling
  *    factor cal values and saving to EEPROM.  Switch from a one byte command to a string with similar structure
@@ -15,7 +14,7 @@
  *    the main meter with SWR shutdowna nd other feature (including remote monitoring).
  *    One concern for getting Wi-Fi to work is the possibility the ESP32 int eh M5stack I am using may take over ADC2 pins 
  *    which would be a problem.  Also the internal noise coudl be improved using an external I2C connected A/D.
-
+ *
  * 5/7/2020 -  Builds on RF Power Meter dated 5/7.  
  *    Begin strippoing the Display  and M5 specific components to allow for 
  *      standard Arduino and headless operation
@@ -26,7 +25,6 @@
  A value for each dual directional coupler port combines the coupler facxtor, added attenuators, and any cal correction fudge factor.
  The values are edited via the device UI and stored in EEPROM.
 */
-
 
 // Define meter size as 1 for M5.Lcd.rotation(0) or 1.3333 for M5.Lcd.rotation(1)
 #define M_SIZE 1.3333
@@ -134,11 +132,10 @@ ESP32AnalogRead adc2;    // for second A/D channel
 
 void setup(void) {
   
-  M5.begin(true, false, true); // Init LCD, not SD cArd, not Serial
-  M5.Lcd.setBrightness(60);
-  M5.Lcd.setTextDatum(CC_DATUM);
+  M5.begin(false, false, true); // Init not LCD, not SD cArd, Serial for headless version
+
   dacWrite (25,0); // silence speaker interference
-  // M5.Lcd.setRotation(0);
+  
   if (EEPROM.read(4) =='Y')
       Serial.begin(115200); // For debug or data output
   char buf[80];
@@ -163,42 +160,16 @@ void setup(void) {
   read_Cal_Table_from_EEPROM();   // read cal data from EEPROM into memory
   
   Cal_Table();   // Load current Band values from Table
-  //init_screen();
-  //analogMeter();
+ 
   updateTime = millis(); // Next update time
   // initialize all the readings to 0:  Used to smooth AD values
   for (int thisReading = 0; thisReading < numReadings; thisReading++) {
     readings_Fwd[thisReading] = 0;
     readings_Ref[thisReading] = 0;
   }
-  //Serial.println(op_mode);
-   adc1.attach(ad_Fwd);
-   adc2.attach(ad_Ref);
+  adc1.attach(ad_Fwd);
+  adc2.attach(ad_Ref);
   delay(1000);
-}
-
-void init_screen(void) 
-{
-  M5.Lcd.fillScreen(TFT_BLACK);
-  //needle_value = 1;
- 
- return;
-  //analogMeter(); // Draw analog meter
-
-  M5.Lcd.setTextColor(TFT_WHITE);  // Text colour
-  M5.Lcd.drawLine(0, int(M_SIZE*159), int(M_SIZE*239), int(M_SIZE*159), TFT_GREY);
-  M5.Lcd.drawLine(int(M_SIZE*79), int(M_SIZE*159), int(M_SIZE*79), int(M_SIZE*119), TFT_GREY);
-  M5.Lcd.drawLine(int(M_SIZE*161), int(M_SIZE*159), int(M_SIZE*161), int(M_SIZE*119), TFT_GREY);
-
-  M5.Lcd.drawString("Forward", int(M_SIZE*39), int(M_SIZE*132), 2); // Fwd Pwr
-  M5.Lcd.drawString("Reflected", int(M_SIZE*120), int(M_SIZE*132), 2); // Rev Pwr
-  M5.Lcd.drawString("SWR", int(M_SIZE*199), int(M_SIZE*132), 2); // SWR
-  
-  M5.Lcd.drawString("PWR", int(M_SIZE*50), int(M_SIZE*170), 2); // Button A label
-  M5.Lcd.drawString("Menu", int(M_SIZE*120), int(M_SIZE*170), 2); // Button B label
-  M5.Lcd.drawString("SWR", int(M_SIZE*190), int(M_SIZE*170), 2); // Button C label
-
-  //plotNeedle(1,0); // It takes between 2 and 12ms to replot the needle with zero delay
 }
 
 float adRead()   // A/D converer read function.  Normalize the AD output to 100%.
@@ -209,8 +180,6 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
   int c;
   char buf[12];
   float tmp;
-  
-  M5.Lcd.setTextColor(TFT_BLACK, TFT_WHITE);  // Text colour
 
   // subtract the last reading:
   total_Fwd -= readings_Fwd[readIndex_Fwd];
@@ -255,10 +224,8 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
       FwdPwr = 9999;
   FwdVal = FwdPwr;
   
-  dtostrf(Fwd_dBm, 4, 1, buf);
-  strncat(buf, "dBm", 3);
-  //M5.Lcd.drawRightString("          ", (M_SIZE*50), (M_SIZE*105), 2); // Clear Field
-  //M5.Lcd.drawRightString(buf, M_SIZE*(60), M_SIZE*(105), 2); // Test 
+  //dtostrf(Fwd_dBm, 4, 1, buf);
+  //strncat(buf, "dBm", 3);
   // Serial.println(buf);
  
   // Now get Reflected Power 
@@ -304,35 +271,27 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
       RefPwr = 999;
   RefVal = RefPwr;
       
-  dtostrf(Ref_dBm, 4, 1, buf);
-  strncat(buf, "dBm", 3);
-  //M5.Lcd.drawRightString("        ", M_SIZE*(210), M_SIZE*(105), 2); // Clear Field
-  //M5.Lcd.drawRightString(buf, (M_SIZE*220), (M_SIZE*105), 2); // Rev Pwr
+  //dtostrf(Ref_dBm, 4, 1, buf);
+  //strncat(buf, "dBm", 3);
   // Serial.println(buf);
 
-   //M5.Lcd.setTextColor(TFT_BLACK,TFT_WHITE);  // Text colour
-   // dtostrf(RefPwr, 1, 0, buf1);
-   // strcpy(buf, "Ref PWR");
-   // strcat(buf, buf1);
-   // M5.Lcd.drawString(buf, int(M_SIZE*10), int(M_SIZE*20), 2); 
+  // dtostrf(RefPwr, 1, 0, buf1);
+  // strcpy(buf, "Ref PWR");
+  // strcat(buf, buf1);
+  // Serial.println(buf);
   
   // Write our Digital Values to Sreen here in dBm and SWR ratio
-  //M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
   
-  if (FwdPwr != FwdPwr_last) {
-    if (FwdPwr >= 9999) strcpy(buf, "OVR ");
-    else if (FwdPwr < 100) dtostrf(FwdPwr, 4, 1, buf);
-    else dtostrf(FwdPwr, 4, 0, buf);   // remove decimal for larger values
-    strncat(buf, "W\r", 2);  // write out the value in W on digital display zone
-    //M5.Lcd.fillRect(0, M_SIZE*138, M_SIZE*75, M_SIZE*18, TFT_BLACK);
-    //M5.Lcd.drawString(buf, M_SIZE*(39), M_SIZE*(149), 4); // Fwd Pwr write toe digital display zone
-
-    if (RefPwr >= 999) strcpy(buf, "OVR ");
-    else if (RefPwr < 100) dtostrf(RefPwr, 4, 1, buf);   // same as for forward power, remove decimal for large vcalues and display result
-    else dtostrf(RefPwr, 4, 0, buf);
-    strncat(buf, "W\r", 2);
-    //M5.Lcd.fillRect(M_SIZE*85, M_SIZE*138, M_SIZE*70, M_SIZE*18, TFT_BLACK);
-    //M5.Lcd.drawString(buf, M_SIZE*(119), M_SIZE*(149), 4); // Rev Pwr
+  //if (FwdPwr != FwdPwr_last) {
+    //if (FwdPwr >= 9999) strcpy(buf, "OVR ");
+    //else if (FwdPwr < 100) dtostrf(FwdPwr, 4, 1, buf);
+    //else dtostrf(FwdPwr, 4, 0, buf);   // remove decimal for larger values
+    //strncat(buf, "W\r", 2);  // write out the value in W on digital display zone
+    
+    //if (RefPwr >= 999) strcpy(buf, "OVR ");
+    //else if (RefPwr < 100) dtostrf(RefPwr, 4, 1, buf);   // same as for forward power, remove decimal for large vcalues and display result
+    //else dtostrf(RefPwr, 4, 0, buf);
+    //strncat(buf, "W\r", 2);
     
     //VSWR = 1+sqrt of Pr/Pf  / 1-sqrt of Pr/Pf
     //if (RefPwr > FwdPwr) RefPwr = FwdPwr; 
@@ -344,29 +303,29 @@ float adRead()   // A/D converer read function.  Normalize the AD output to 100%
         SWRVal = 10;
     SWR_Serial_Val = SWRVal;
     //M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
-    if (SWRVal == 0) strcpy(buf, "NA"); 
-    else if (SWRVal < 4) dtostrf(SWRVal, 1, 1, buf);
-    else if (SWRVal > 9.9) strcpy(buf, "inf");
+    //if (SWRVal == 0) strcpy(buf, "NA"); 
+    //else if (SWRVal < 4) dtostrf(SWRVal, 1, 1, buf);
+    //else if (SWRVal > 9.9) strcpy(buf, "inf");
     //M5.Lcd.fillRect(M_SIZE*165, M_SIZE*138, M_SIZE*65, M_SIZE*18, TFT_BLACK);
     //M5.Lcd.drawString(buf, M_SIZE*(199), M_SIZE*(149), 4); // SWR
     // Serial.println(buf);
-    if (op_mode == SWR) {
+    //if (op_mode == SWR) {
       // scale to make SWR 1.0  to 4 == 0 to 100%
-      SWRVal -=1;
-      SWRVal *= 34;   // scale so 3.8 = 100
-      needle_value = int(SWRVal);
-      if (needle_value > 105) needle_value = 105;
-      if (needle_value < -10) needle_value = -10;
-    }
-    else {
-           needle_value = int(FwdVal/(scale_value_fwd/100));   // Use non-scaled value - must be between 0-100
-           if (needle_value > 105) needle_value = 105;
-           if (needle_value < -10) needle_value = -10;
-         }
-  }
+      //SWRVal -=1;
+      //SWRVal *= 34;   // scale so 3.8 = 100
+      //needle_value = int(SWRVal);   // needle value coudl be useful as sreial data sent out if 
+                                        // remote app wantst o do a analog meter
+      //if (needle_value > 105) needle_value = 105;
+      //if (needle_value < -10) needle_value = -10;
+    //}
+    //else {
+           //needle_value = int(FwdVal/(scale_value_fwd/100));   // Use non-scaled value - must be between 0-100
+           //if (needle_value > 105) needle_value = 105;
+           //if (needle_value < -10) needle_value = -10;
+         //}
+  //}
   FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
   sendSerialData();   // send this data to the serial port for remote monitoring
-  //plotNeedle(needle_value, 6); // It takes between 2 and 12ms to replot the needle with zero delay
 }
 
 /*
@@ -606,7 +565,7 @@ void loop() {
     save_config_EEPROM();
     op_mode = MENU;
  
-    Menu_Nav();
+    //Menu_Nav();
   }
   if (M5.BtnB.wasReleased() || Button_B == YES) {      // Select Cal Band
     ++CouplerSetNum;   // increment for manual button pushes
@@ -645,7 +604,7 @@ void loop() {
   if (op_mode != MENU && updateTime <= millis()) {
     updateTime = millis() + 45; // Update timer every 35 milliseconds
  
-    // Create a Sine wave for testing
+    // Create a Sine wave for testing the AD
     //d += 1; if (d >= 360) d = 0;
     //FwdPwr = 50 + 50 * sin((d + 0) * 0.0174532925);
     
@@ -653,142 +612,9 @@ void loop() {
   }
 }
 
-/*  
-  Main Menu to handle calibration data entry and choosing saved couple sets.  Start with one then ad more sets once working good.
-  Need to have multiple frequency points stored for each coupler port.
-*/
-void Menu_Nav()
-{
-    char buf1[80]; 
-    char buf[80];
-    int scale_FS_fwd;
-    int scale_FS_ref;
-    int Cal_Band = 0;
-    int Selection = 0;    
-    int i;
-  
-/*     
-  Use right and left buttons to dial in calibration values basd on kown power levels.
-       Example:
-       long press press center button to enter Cal screen starting with list of bands
-       Choose Band from list using up and down buttons - bands are predefined
-       Press Center button to accept band selection and move to cal screen for that band
-       Display Current values for Fwd adn Ref Attenuation.  Initially read from default in code
-       Highlight Fwd Value
-       Press up or down and increment value
-       press center button to accept and move to other field
-       press up or down to change value
-       press center to accept and move to other field
-       long press center to data entry fo rthe band and display list of bands
-       choose another band if desired with short center button press
-       long press to exit cal op_mode and default to PWR screen
-*/
-// Draw list of bands (Predefined to 10 bands - customize the BandName label in code only - Att values are editable)
-    M5.Lcd.drawString("Calibration Menu", int(M_SIZE*10), int(M_SIZE*10), 2); 
-    M5.Lcd.drawRightString("Hold Menu Button 1 Sec to EXIT", int(M_SIZE*10), int(M_SIZE*160), 2);
-    M5.Lcd.drawRightString(" BAND             FWD           REF    ", int(M_SIZE*230), int(M_SIZE*30), 2);
-    for (i=0; i<10; i++) {
-      sprintf(buf, "%12s          %3.1f          %3.1f", Band_Cal_Table[i].BandName, Band_Cal_Table[i].Cpl_Fwd, Band_Cal_Table[i].Cpl_Ref);
-      M5.Lcd.drawRightString(buf, int(M_SIZE*210), int(M_SIZE*(40+(i*10))), 2);
-    }
-
-    // Highlight field to edit
-    Cal_Band = CouplerSetNum*2;  // Set highlight to current band
-    Draw_Cursor(Cal_Band, 1);
-
-  // Loop around acting on edit op_mode navigation buttons until long press detected to exit edit op_mode
-  do {
-      M5.update();   //Scan for button presses
-      if (M5.BtnC.wasReleased()) { 
-          if (!Edit_Atten & Cal_Band < (NUM_SETS*2)+1) ++Cal_Band;
-          Draw_Cursor(Cal_Band, 1);           
-      }
-      if (M5.BtnA.wasReleased()) { 
-          if (!Edit_Atten & (Cal_Band > 0)) --Cal_Band;
-          Draw_Cursor(Cal_Band, -1);
-      }
-      if (M5.BtnB.wasReleased()) { 
-          if (!Edit_Atten) {
-            Edit_Atten = 1;
-            edit_ATT(Cal_Band);
-          }
-          else Edit_Atten = 0;
-      }
-      if (M5.BtnB.wasReleasefor(700)) {
-          get_config_EEPROM();
-          init_screen();
-          //analogMeter(); // Draw analogue meter
-          return;   // All done inb Edit mode, exit this funtion
-      }
-    } while (1);  // end forever while loop.  Exit when Button B is long pressed
-}
-
 /*
  * While in Edit mode, this function makes the actual field change and stores whole structure in EEPROM at end
 */
-void edit_ATT(int field)
-{
-  float new_Val;
-  char buf[80];
-    // Use the cursor keys to dial up and down the selected attennuation value.
-    // Press button B (Center) to accept displayed value.
-    // Use the current value as the starting point. 
-
-    CouplerSetNum = field/2;
-    if (field % 2){
-       new_Val = Band_Cal_Table[CouplerSetNum].Cpl_Ref;
-       M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour 
-       sprintf(buf, "Edit New Value: %3.1f", new_Val);
-       M5.Lcd.drawRightString(buf, M_SIZE*(220), M_SIZE*(4), 2);
-    }
-    else {
-       new_Val = Band_Cal_Table[CouplerSetNum].Cpl_Fwd;
-       M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour 
-       sprintf(buf, "Edit New Value: %3.1f", new_Val);
-       M5.Lcd.drawRightString(buf, M_SIZE*(220), M_SIZE*(4), 2);
-    }
-    
-    do {   // While in Edit mode, edit actual values here
-         M5.update();   //Scan for button presses
-         if (M5.BtnC.wasReleased()) { 
-            new_Val += 0.1;
-            sprintf(buf, "Edit New Value: %3.1f", new_Val);
-            M5.Lcd.drawRightString(buf, M_SIZE*(220), M_SIZE*(4), 2);                 
-         }
-          
-         if (M5.BtnA.wasReleased()) { 
-            new_Val -= 0.1;
-            sprintf(buf, "Edit New Value: %3.1f", new_Val);
-            M5.Lcd.drawRightString(buf, M_SIZE*(220), M_SIZE*(4), 2);
-         }
-          
-         if (M5.BtnB.wasReleased()) { 
-            if (field % 2) {
-              Band_Cal_Table[CouplerSetNum].Cpl_Ref = new_Val;
-            }
-            else {
-              Band_Cal_Table[CouplerSetNum].Cpl_Fwd = new_Val;
-            }
-            // Store Updated Cal Table Structure in EEPROM
-            //Serial.println(Band_Cal_Table[CouplerSetNum].BandName);
-            //Serial.println(Band_Cal_Table[CouplerSetNum].Cpl_Fwd);
-            //Serial.println(Band_Cal_Table[CouplerSetNum].Cpl_Ref);
-            write_Cal_Table_to_EEPROM();
-            // Update Table of displayed values
-            sprintf(buf, "%12s          %3.1f          %3.1f", Band_Cal_Table[CouplerSetNum].BandName, Band_Cal_Table[CouplerSetNum].Cpl_Fwd, Band_Cal_Table[CouplerSetNum].Cpl_Ref);
-            M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
-            M5.Lcd.drawRightString(buf, int(M_SIZE*210), int(M_SIZE*(40+(CouplerSetNum*10))), 2);
-            Draw_Cursor(field, 1); 
-            M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
-            M5.Lcd.drawRightString("              ACCEPT    ", M_SIZE*(220), M_SIZE*(4), 2);
-            Edit_Atten = 0;   
-            return;         
-         }
-         if (M5.BtnB.wasReleasefor(700)) {
-            return;
-         }
-    } while (1);
-}
 
 // read cal data from EEPROM (state is another function)
 void read_Cal_Table_from_EEPROM()
@@ -901,47 +727,6 @@ void toggle_ser_data_output()
         EEPROM.commit();
         Serial.println("Disabled Serial Data Output");
      }
-}
-
-// Cursors for Editing Cal Table on screen
-void Draw_Cursor(int Index, int Direction)
-{
-  int Selection;
-  
-  if (Index % 2) {  
-      Selection = (((Index/2))*10) + 40;
-      M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
-      M5.Lcd.drawRightString("[", int(M_SIZE*10), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString("]", int(M_SIZE*85), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString("<", int(M_SIZE*186), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*215), int(M_SIZE*Selection), 2);
-      M5.Lcd.setTextColor(TFT_BLACK,TFT_BLACK);  // Text colour
-      M5.Lcd.drawRightString("<", int(M_SIZE*120), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*150), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString("[", int(M_SIZE*10), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString("]", int(M_SIZE*85), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString("<", int(M_SIZE*186), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*215), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString("<", int(M_SIZE*120), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*150), int(M_SIZE*(Selection-(Direction*10))), 2);
-  }       
-  else {   
-      Selection = ((Index/2)*10) + 40;
-      M5.Lcd.setTextColor(TFT_WHITE,TFT_BLACK);  // Text colour
-      M5.Lcd.drawRightString("[", int(M_SIZE*10), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString("]", int(M_SIZE*85), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString("<", int(M_SIZE*120), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*150), int(M_SIZE*Selection), 2);
-      M5.Lcd.setTextColor(TFT_BLACK,TFT_BLACK);  // Text colour
-      M5.Lcd.drawRightString("<", int(M_SIZE*186), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*215), int(M_SIZE*Selection), 2);
-      M5.Lcd.drawRightString("[", int(M_SIZE*10), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString("]", int(M_SIZE*85), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString("<", int(M_SIZE*120), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*150), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString("<", int(M_SIZE*186), int(M_SIZE*(Selection-(Direction*10))), 2);
-      M5.Lcd.drawRightString(">", int(M_SIZE*215), int(M_SIZE*(Selection-(Direction*10))), 2);
-  }
 }
 
 void Cal_Table()

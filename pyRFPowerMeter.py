@@ -210,9 +210,10 @@ class Serial_RX(Thread):
                 if ser.isOpen():        
                     if ser.inWaiting() > 0:
                         try:
-                            out = ser.readline().decode('ascii')
+                            out = ser.readline().decode()   # problems in decode when CPU is reset
                         except serial.SerialException:
                             # There is nothing
+                            print ("No Data waiting at serial port: " + str(port_name))
                             return None
                         except TypeError as e:
                             restart_serial = 1      # restart serial_Rx thread to recover
@@ -241,9 +242,9 @@ class Serial_RX(Thread):
                 meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
                 #print("2 TMP raw str   = {}" .format(meter_data_tmp))
                 if len(meter_data_tmp) >= 4:
-                    if meter_data_tmp[0] == myRig_meter_ID:        
-                        meter_data = meter_data_tmp        
-                        if meter_data[1] == "170":   # normal power data                        
+                    if meter_data_tmp[0] == myRig_meter_ID:                                
+                        if meter_data_tmp[1] == "170":   # normal power data                        
+                            meter_data = meter_data_tmp        
                             for i in range(len(meter_data)):                    
                                 if isfloat(meter_data[i]):                                                                    
                                     meter_data_fl[i] = float(meter_data[i])
@@ -256,7 +257,10 @@ class Serial_RX(Thread):
                             #print("{0:}    = {1:}" .format("3 ID Match Data ", meter_data))
                             #print("{0:} FLT= {1:}" .format("3 ID Match Data ", meter_data_fl))
                         else:                            
-                            print(" CMD message as received by the meter = {}" .format(meter_data))
+                            print(" CMD message as received by the meter = {}" .format(meter_data_tmp))
+                            for i in len(meter_data):
+                                meter_data[i] = ""
+                                meter_data_fl[i] = 0.0
                     else:  # No ID Match
                         #print(meter_data[0])
                         #self.debug_meter_string("4 No ID Match   ")
@@ -481,19 +485,19 @@ class App(tk.Frame):
         self.band_10G = tk.Button(self)
         self.band_10G["text"] = "10G"
         self.band_10G["command"] = self.band_10g  # Jump to Band X
-        self.band_10G.configure(fg='grey',font=self.btn_font, padx=3, state='disabled')
+        self.band_10G.configure(fg='grey',font=self.btn_font, padx=3, state='normal')
         self.band_10G.pack({"side": "right"})
 
         self.band_57G = tk.Button(self)
         self.band_57G["text"] = "5.7G"
         self.band_57G["command"] = self.band_5700  # Jump to Band X
-        self.band_57G.configure(fg='grey',font=self.btn_font, padx=1, state='disabled')
+        self.band_57G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
         self.band_57G.pack({"side": "right"})
 
         self.band_34G = tk.Button(self)
         self.band_34G["text"] = "3.4G"
         self.band_34G["command"] = self.band_3400  # Jump to Band X
-        self.band_34G.configure(fg='grey',font=self.btn_font, padx=1, state='disabled')
+        self.band_34G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
         self.band_34G.pack({"side": "right"})
 
         self.band_23G = tk.Button(self)
@@ -652,7 +656,7 @@ class App(tk.Frame):
         rx = Receiver()
         print("Get the meter's calibation table")
         # Write command to change meter scale and change meter face to Watts
-        rx.send_meter_cmd("250", "", True)
+        rx.send_meter_cmd("250", "", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
        
 
     def change_band(self):
@@ -686,21 +690,21 @@ class App(tk.Frame):
         rx = Receiver()
         print("Jump to 10GHz Band ")
         # Write command to jump to band 9
-        rx.send_meter_cmd("249","", True)
+        rx.send_meter_cmd("194","", True)
 
         
     def band_5700(self):
         rx = Receiver()
         print("Jump to 5.7GHz Band ")
         # Write command to jump to band 8
-        rx.send_meter_cmd("248","", True)
+        rx.send_meter_cmd("193","", True)
 
         
     def band_3400(self):
         rx = Receiver()
         print("Jump to 3.4GHz Band ")
         # Write command to jump to band 7
-        rx.send_meter_cmd("247","", True)
+        rx.send_meter_cmd("195","", True)
 
         
     def band_2300(self):
@@ -721,8 +725,6 @@ class App(tk.Frame):
         rx = Receiver()
         print("Jump to 902MHz Band ")
         # Write command to jump to band 4
-        cmd = "244" # command goven to meter
-        cmd_data = ""   # "" if not used.  Typically new coupling factor value
         rx.send_meter_cmd("244","", True)
 
 
