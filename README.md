@@ -5,7 +5,9 @@ DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector mo
 
 1.00 - Original release
 
-1.01 - Some version control housekeeping, typo and a few small bug fixes.  Fixed meter needle disappearing at 0 input.
+1.01 - Current Release (see Release Page or zip file)
+   1. Some version control housekeeping, typo and a few small bug fixes.  
+   2. Fixed meter needle disappearing at 0 input.
 
 1.02 - Under dev in branch 1.02 as of May 5, 2020
    1. Place the window in the upper right corner of screen on app open. Plan to create a config file to remember placement position later.
