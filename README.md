@@ -10,6 +10,11 @@ DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector mo
    2. Fixed meter needle disappearing at 0 input.
 
 1.02 - Under dev in branch 1.02 as of May 5, 2020
+
+** NOTE ** 
+The remote data protocol has changed for RX and TX to both be string based with comma separated values and have similar structure.  This means you cannot mix previous versions of Arduino or Python code (1.000/1.01) with this or later code (1.02+).  Ths was done to support full headless operation with expanded command messages and to support multipe meter instances (each on their own serial port).
+
+Key changes:
    1. Place the window in the upper right corner of screen on app open. Plan to create a config file to remember placement position later.
    2. Changed the name of pyRFPowerMeter.py removing the Version number in the name.
    3. Added more serial port error handling. For example, if usb is unplugged, the comms the ON/OFF button turns off and red and shuts down the serial thread.  When problem is fixed turn on again and it will gracefully resume. Also added startup error in case specified port is not there. Offers a list of USB ports.  Also you can now run without any serial port (has limited use but good for the curious without a meter. 
