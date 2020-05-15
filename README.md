@@ -12,7 +12,7 @@ DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector mo
 1.02 - Under dev in branch 1.02 as of May 5, 2020
 
 ** NOTE ** 
-The remote data protocol has changed for RX and TX to both be string based with comma separated values and have similar structure.  This means you cannot mix previous versions of Arduino or Python code (1.000/1.01) with this or later code (1.02+).  Ths was done to support full headless operation with expanded command messages and to support multipe meter instances (each on their own serial port).
+The remote data protocol has changed for RX and TX to both be string based with comma separated values and have similar structure.  This means you cannot mix previous versions of Arduino or Python code (1.00/1.01) with this or later code (1.02+).  Ths was done to support full headless operation with expanded command messages and to support multipe meter instances (each on their own serial port).
 
 Key changes:
    1. Place the window in the upper right corner of screen on app open. Plan to create a config file to remember placement position later.
