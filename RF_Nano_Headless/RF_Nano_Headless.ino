@@ -47,7 +47,6 @@
 #define ad_Ref "A2"   // Analog 36 pin for channel 1
 // Edit the Coupler Set data inb teh Cal_Table function.  Set the max number of sets here, and the default to load at startup
 #define NUM_SETS 5 // 10 bands, 0 through 9 for example
-
 float Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP32 also has calibrated Vref curve
 int CouplerSetNum = 0;   // 0 is the default set on power up.  
 int ser_data_out = 0;
@@ -61,7 +60,6 @@ float SWRVal = 0;
 float SWR_Serial_Val = 0;
 float FwdVal = 0;
 float RefVal = 0;
-//int d = 0;
 int Edit_Atten = 0;
 int op_mode = SWR;
 int counter1 = 0;
@@ -124,9 +122,7 @@ void setup(void) {
   pinMode(13,OUTPUT);
   //pinMode(A1,INPUT_PULLUP);
   //pinMode(A2,INPUT_PULLUP);
-// Test tone to create voltage for testing on my Nano
-  tone(13,1000);
-  
+// Test tone to create voltage for testing on my Nano  
   //write_Cal_Table_from_Default();  // Copy default values into memory
   //write_Cal_Table_to_EEPROM();
   //save_config_EEPROM();
@@ -135,7 +131,7 @@ void setup(void) {
 
   Serial.begin(115200); // For debug or data output
   if (EEPROM.read(4*2) =='Y') {
-     ser_data_out == 1;
+     ser_data_out = 1;
      toggle_ser_data_output();   // set data output on
   }
   char buf[80];
@@ -330,6 +326,8 @@ void sendSerialData()
 {
     char tempbuf[50];
 
+    counter1++; 
+    if (counter1 > 16000) counter1 = 0;
     if ((counter1/1000) % 100 == 0) {   // slow down the data rate.  Ideally do at at the AD read command
         //if (EEPROM.read(4*2) == 'Y'){   // only print if allowed
             Serial.print(METERID);
@@ -344,8 +342,8 @@ void sendSerialData()
             Serial.print(",");
             Serial.print(RefPwr);
             Serial.print(",");                       
-            Serial.println(SWR_Serial_Val);
-                        
+            Serial.println(SWR_Serial_Val); 
+                      
             //sprintf(tempbuf,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
             //Serial.println(tempbuf);
         //}    
@@ -369,7 +367,7 @@ void get_remote_cmd(){
       ch = Serial.read();  // read one at a time looking for start of command
                                 // amid a sea of possible other data incoming from anywhere
       if ((pSdata - sdata) >= BUF_LEN-1) {
-          pSdata == sdata;
+          pSdata = sdata;
           sdata[0] = '\0';
           Serial.print("BUFFER OVERRRUN\n");
           Serial.flush();

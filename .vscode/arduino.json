@@ -1,8 +1,8 @@
 {
-    "board": "arduino:avr:nano",
-    "configuration": "cpu=atmega328",
-    "sketch": "RF_Nano_Headless\\RF_Nano_Headless.ino",
-    "port": "COM5",
+    "board": "esp32:esp32:m5stack-core-esp32",
+    "configuration": "FlashMode=qio,FlashFreq=80,PartitionScheme=default,UploadSpeed=115200,DebugLevel=none",
+    "sketch": "RF_Power_Meter\\RF_Power_Meter.ino",
+    "port": "COM6",
     "programmer": "AVRISP mkII",
     "output": "..\\build"
 }

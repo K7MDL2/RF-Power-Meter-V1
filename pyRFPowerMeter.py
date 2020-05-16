@@ -673,7 +673,7 @@ class App(tk.Frame):
         rx = Receiver()
         print("Change to SWR mode ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("101","222.222", True)
+        rx.send_meter_cmd("101","222", True)
 
 
     def slower(self):
