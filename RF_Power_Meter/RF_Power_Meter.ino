@@ -418,7 +418,7 @@ void get_remote_cmd(){
   int j = 0;   
   char cmd_str[BUF_LEN] = {};
   
-  while (Serial.available() > 0)  { 
+  if (Serial.available() > 0)  { 
           
       ch = Serial.read();  // read one at a time looking for start of command
                                 // amid a sea of possible other data incoming from anywhere
@@ -427,7 +427,8 @@ void get_remote_cmd(){
           sdata[0] = '\0';
           Serial.print("BUFFER OVERRRUN\n");
           Serial.flush();
-          break;
+          //break;
+          return;
       }
 
       // filter out unwanted characters             
@@ -446,7 +447,7 @@ void get_remote_cmd(){
         
               j = 0;
               i = 0;
-              for (i; sdata[i] != ','; i++) {
+              for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
                   cmd_str[j++] = sdata[i];                 
               }    
               cmd_str[j] = '\0';  
@@ -457,7 +458,7 @@ void get_remote_cmd(){
                   if (i < cmd_str_len) {
                       j = 0;
                       i += 1;    // Look for Msg_Type now
-                      for (i; sdata[i] != ','; i++) {   // i+1 to skip over the comma the var 'i' was left pointing at
+                      for (i; sdata[i] != ',' && i < cmd_str_len; i++) {   // i+1 to skip over the comma the var 'i' was left pointing at
                             cmd_str[j++] = sdata[i];                 
                       }
                       cmd_str[j] = '\0';
@@ -468,7 +469,7 @@ void get_remote_cmd(){
                             j = 0;
                             if (i < cmd_str_len) {
                                 i += 1;
-                                for (i; sdata[i] != ','; i++) {
+                                for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
                                     cmd_str[j++] = sdata[i];
                                 }  
                                 cmd_str[j] = '\0';
@@ -482,7 +483,7 @@ void get_remote_cmd(){
                             j = 0;
                             if (i < cmd_str_len) {
                                 i += 1;                    
-                                for (i; sdata[i] != ','; i++) {
+                                for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
                                     cmd_str[j++] = sdata[i];                          
                                 }
                                 cmd_str[j] = '\0';
