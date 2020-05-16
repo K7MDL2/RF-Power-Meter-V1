@@ -234,7 +234,7 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
   // subtract the last reading:
   total_Fwd -= readings_Fwd[readIndex_Fwd];
   // read from the sensor:
-  c = 10;   // short term smaples that feed into running average
+  c = 15;   // short term smaples that feed into running average
   a = 0;
   adc1.attach(ad_Fwd);
   for (int i = 0; i < c; ++i) {
@@ -243,7 +243,7 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
       //Vref = read_vcc();
       a1 = constrain(a1, Offset, 2.200);      
       a += a1;
-      delay(5);
+      delay(2);
   }
   a /= c; // calculate the average then use result in a running average
   readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this runnign average
@@ -285,7 +285,7 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
   // subtract the last reading:
   total_Ref -= readings_Ref[readIndex_Ref];
   // read from the sensor:
-  c = 10;
+  c = 12;
   a = 0;
   adc2.attach(ad_Ref);
   for (int i = 0; i < c; ++i)  {
