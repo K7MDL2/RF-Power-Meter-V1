@@ -397,12 +397,8 @@ void sendSerialData()
 {
     char tempbuf[80];
     if (EEPROM.read(4) == 'Y'){
-        counter1++;
-        if (counter1 > 16000) counter1 = 0;
-        if ((counter1/1000 % 100 == 0)) {
             sprintf(tempbuf,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
             Serial.println(tempbuf);
-        }
     }
 }
 
@@ -427,7 +423,6 @@ void get_remote_cmd(){
           sdata[0] = '\0';
           Serial.print("BUFFER OVERRRUN\n");
           Serial.flush();
-          //break;
           return;
       }
 
@@ -508,8 +503,11 @@ void get_remote_cmd(){
                                       NewBand = 0;  // cycle back to lowest band
                               }
                               if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
-                              if (cmd1 == 252) ++Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
-                              if (cmd1 == 251) --Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
+                              
+                              // Removed these commands
+                              //if (cmd1 == 252) ++Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
+                              //if (cmd1 == 251) --Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
+                              
                               if (cmd1 == 250) print_cal_table();   // dump current cal table to remote  (Was Scale GUI button)
                       
                               if (cmd1 == 249) {     // Jump to BandX
