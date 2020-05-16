@@ -347,7 +347,7 @@ class Receiver(Thread):
                             if band != freq or freq != last_freq:
                                 #print(" Meter band not matched to radio: Meter: {}  Radio: {}" .format(band, freq))                    
                                 self.send_meter_cmd(int(freq), "", False)
-                                print('{} {} {} {} {} {}' .format("Dial Drequency is : ", freq, "    Was : ", last_freq, "   Meter Band : ", band))                            
+                                print('{} {} {} {} {} {}' .format("Dial Frequency is : ", freq, "    Was : ", last_freq, "   Meter Band : ", band))                            
                                 last_freq = freq                                
                             else:
                                 print("Frequency Now " + freq)         

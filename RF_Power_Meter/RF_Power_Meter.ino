@@ -397,12 +397,8 @@ void sendSerialData()
 {
     char tempbuf[80];
     if (EEPROM.read(4) == 'Y'){
-        counter1++;
-        if (counter1 > 16000) counter1 = 0;
-        if ((counter1/1000 % 100 == 0)) {
-            sprintf(tempbuf,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
-            Serial.println(tempbuf);
-        }
+      sprintf(tempbuf,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
+      Serial.println(tempbuf);
     }
 }
 
@@ -420,196 +416,202 @@ void get_remote_cmd(){
   
   if (Serial.available() > 0)  { 
           
-      ch = Serial.read();  // read one at a time looking for start of command
-                                // amid a sea of possible other data incoming from anywhere
-      if ((pSdata - sdata) >= BUF_LEN-1) {
-          pSdata = sdata;
-          sdata[0] = '\0';
-          Serial.print("BUFFER OVERRRUN\n");
-          Serial.flush();
-          //break;
-          return;
-      }
+    ch = Serial.read();  // read one at a time looking for start of command
+                              // amid a sea of possible other data incoming from anywhere
+    if ((pSdata - sdata) >= BUF_LEN-1) {
+      pSdata = sdata;
+      sdata[0] = '\0';
+      Serial.print("BUFFER OVERRRUN\n");
+      Serial.flush();
+      //break;
+      return;
+    }
 
-      // filter out unwanted characters             
-      int x = isAlphaNumeric(ch);   // located on own line as a workaround:  Including this test with the other OR tests below teh result becomes inverted.
-      if (x == 1 || ch == ',' || ch == '.' || ch=='\r' || ch == '\n') {      
-           *pSdata++ = (char)ch;
-           //Serial.println(sdata);   //  echo back what we heard 
-          if (ch=='\r' || ch == '\n') {       // Command received and ready.
-              pSdata --;       // Don't add \r and the last comma if any to string.
-              *pSdata = '\0';  // Null terminate the string.       
-              //Serial.println(sdata);   //  echo back what we heard
-              cmd_str_len = strlen(sdata);
-   
-    // Now we have a full comma delimited command string - validate and break it down
-              pSdata = sdata;
-        
+    // filter out unwanted characters             
+    int x = isAlphaNumeric(ch);   // located on own line as a workaround:  Including this test with the other OR tests below teh result becomes inverted.
+    if (x == 1 || ch == ',' || ch == '.' || ch=='\r' || ch == '\n') {      
+      *pSdata++ = (char)ch;
+      //Serial.println(sdata);   //  echo back what we heard 
+      if (ch=='\r' || ch == '\n') {       // Command received and ready.
+        if (strlen(sdata) > 8) {   
+          pSdata --;       // Don't add \r and the last comma if any to string.
+          *pSdata = '\0';  // Null terminate the string.       
+          //Serial.println(sdata);   //  echo back what we heard
+          cmd_str_len = strlen(sdata);
+
+          // Now we have a full comma delimited command string - validate and break it down
+          pSdata = sdata;
+      
+          j = 0;
+          i = 0;
+          for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
+            cmd_str[j++] = sdata[i];                 
+          }    
+          cmd_str[j] = '\0';  
+          Serial.print(" Meter ID  ");
+          Serial.println(cmd_str);
+          
+          if (atoi(cmd_str) == METERID) {                                 
+            if (i < cmd_str_len) {
               j = 0;
-              i = 0;
-              for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
-                  cmd_str[j++] = sdata[i];                 
-              }    
-              cmd_str[j] = '\0';  
-              Serial.print(" Meter ID  ");
+              i += 1;    // Look for Msg_Type now
+              for (i; sdata[i] != ',' && i < cmd_str_len; i++) {   // i+1 to skip over the comma the var 'i' was left pointing at
+                cmd_str[j++] = sdata[i];                 
+              }
+              cmd_str[j] = '\0';
+              Serial.print(" Msg Type:  ");
               Serial.println(cmd_str);
-              
-              if (atoi(cmd_str) == METERID) {                                 
-                  if (i < cmd_str_len) {
-                      j = 0;
-                      i += 1;    // Look for Msg_Type now
-                      for (i; sdata[i] != ',' && i < cmd_str_len; i++) {   // i+1 to skip over the comma the var 'i' was left pointing at
-                            cmd_str[j++] = sdata[i];                 
-                      }
-                      cmd_str[j] = '\0';
-                      Serial.print(" Msg Type:  ");
-                      Serial.println(cmd_str);
-                  
-                      if (atoi(cmd_str) == 120)  {   // Vaidate this message type for commands.  120 = coammand, 170 is data output                              
-                            j = 0;
-                            if (i < cmd_str_len) {
-                                i += 1;
-                                for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
-                                    cmd_str[j++] = sdata[i];
-                                }  
-                                cmd_str[j] = '\0';
-                                Serial.print(" CMD1:  ");
-                                Serial.println(cmd_str);
-                                cmd1 = atoi(cmd_str);
-                            }
-                            else 
-                                cmd1 = 1;
-                            
-                            j = 0;
-                            if (i < cmd_str_len) {
-                                i += 1;                    
-                                for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
-                                    cmd_str[j++] = sdata[i];                          
-                                }
-                                cmd_str[j] = '\0';
-                                Serial.print(" CMD2:  ");
-                                Serial.println(cmd_str);
-                                cmd2 = atof(cmd_str);
-                            }
-                            else 
-                                cmd2 = 1.0;
-                      
-                 // Now do the commands     
-                            // Process received commands
-                            // add code to limit variables received to allowed range
-                            if (cmd1 == 255) Button_A = YES;   // switch scale - not really useful if you cannot see the meter face, data is not changed
-                            if (cmd1 == 254) {
-                                Button_B = YES;   // switch bands
-                                CouplerSetNum = constrain(CouplerSetNum, 0, NUM_SETS);  
-                                NewBand = CouplerSetNum +1;    // Update Newband to current value.  Will be incrmented in button function                          
-                                if (NewBand > NUM_SETS) 
-                                    NewBand = 0;  // cycle back to lowest band
-                            }
-                            if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
-                            if (cmd1 == 252) ++Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
-                            if (cmd1 == 251) --Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
-                            if (cmd1 == 250) print_cal_table();   // dump current cal table to remote  (Was Scale GUI button)
-                    
-                            if (cmd1 == 249) {     // Jump to BandX
-                                Button_B = YES;
-                                NewBand = 9;  
-                            }
-                            if (cmd1 == 248) {     // Jump to BandX
-                                Button_B = YES;
-                                NewBand = 8;  
-                            }
-                            if (cmd1 == 247) {     // Jump to BandX
-                                Button_B = YES;
-                                NewBand = 7;  
-                            }
-                            if (cmd1 == 246) {     // Jump to BandX
-                                Button_B = YES;
-                                NewBand = 6;  
-                            }
-                            if (cmd1 == 245) {     // Jump to Band 1296
-                                Button_B = YES;
-                                NewBand = 5;  
-                            }
-                            if (cmd1 == 244) {     // Jump to Band 902
-                                Button_B = YES;
-                                NewBand = 4;  
-                            }
-                            if (cmd1 == 243) {     // Jump to Band 432
-                                Button_B = YES;
-                                NewBand = 3;  
-                            }
-                            if (cmd1 == 242) {     // Jump to Band 222
-                                Button_B = YES;
-                                NewBand = 2;  
-                            }
-                            if (cmd1 == 241) {     // Jump to Band 144
-                                Button_B = YES;
-                                NewBand = 1;  
-                            }
-                            if (cmd1 == 240) {     // Jump to Band 50
-                                Button_B = YES;
-                                NewBand = 0;  
-                            }
-                            if (cmd1 == 239) {     // Toggle Serial power data outpout.  Other serial functions remain available.
-                                toggle_ser_data_output();
-                            }
-                            if (cmd1 == 193) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
-                                Reset_Flag = 1;
-                            }
-                            if (cmd1 == 194) {     // Set Reset EEPROM flag.  Will repopulate after CPU reset
-                                if (Reset_Flag == 1) 
-                                    reset_EEPROM();
-                                Reset_Flag = 0;   
-                            }
-                            if (cmd1 == 195) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
-                                resetFunc();  //call reset
-                            }                            
-                            // Handle remote command to change stored coupling factor to support headless ops.
-                            // TODO: Need to write into EEPROM, either here or by changing bands.                          
-                            if (cmd1 >= 100 && cmd1 < 110) {     // Change Fwd coupling factor for Port X
-                                int index;
-                                index = cmd1 - 100;
-                                Serial.print("Band: ");
-                                Serial.print(Band_Cal_Table[index].BandName);
-                                Serial.print(" --- Old Fwd Value: ");
-                                Serial.print(Band_Cal_Table[index].Cpl_Fwd);
-                                Band_Cal_Table[index].Cpl_Fwd = cmd2;       // cmd2 is second byte in 2 byte payload.                              
-                                Serial.print(" +++ New Fwd Value: ");
-                                Serial.println(Band_Cal_Table[index].Cpl_Fwd);
-                                write_Cal_Table_to_EEPROM();  // save to eeprom
-                            }
-                            if (cmd1 >= 110 && cmd1 < 120) {     // Change Ref coupling factor for Port X
-                                int index;
-                                index = cmd1 - 110;
-                                Serial.print("Band: ");
-                                Serial.print(Band_Cal_Table[index].BandName);
-                                Serial.print(" --- Old Ref Value: ");
-                                Serial.print(Band_Cal_Table[index].Cpl_Ref);
-                                Band_Cal_Table[index].Cpl_Ref = cmd2;       // cmd2 is second byte in 2 byte payload.                              
-                                Serial.print(" +++ New Ref Value: ");
-                                Serial.println(Band_Cal_Table[index].Cpl_Ref);
-                                write_Cal_Table_to_EEPROM();   // save to eeprom on changes.  
-                            }                        
-                            // validate to acceptable range of values
-                            Ser_Data_Rate = constrain(Ser_Data_Rate, 1, 20);
-                            Button_A = constrain(Button_A, 0, 1);
-                            Button_B = constrain(Button_B, 0, 1);
-                            Button_C = constrain(Button_C, 0, 1);
-                            NewBand = constrain(NewBand, 0, NUM_SETS);                                     
-                        } // end of msg_type 120                                      
-                    } // end of msg_type length check
-                } // end of meter ID OK    
-                //pSdata = sdata; // Reset pointer to start of string. 
-            } // end '/r'  
-        } // end if valid characters
-        else {
-            Serial.print(" Bad Character -  Reset Buffer = ");
-            pSdata = sdata;
-            sdata[0] = '\0';
-            Serial.println(ch);
-            Serial.flush();
-        } // end else not valid characters
-    } //while serial available
+            
+              if (atoi(cmd_str) == 120)  {   // Vaidate this message type for commands.  120 = coammand, 170 is data output                              
+                j = 0;
+                if (i < cmd_str_len) {
+                  i += 1;
+                  for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
+                      cmd_str[j++] = sdata[i];
+                  }  
+                  cmd_str[j] = '\0';
+                  Serial.print(" CMD1:  ");
+                  Serial.println(cmd_str);
+                  cmd1 = atoi(cmd_str);
+                }
+                else {
+                  cmd1 = 1;
+                }
+
+                j = 0;
+                if (i < cmd_str_len) {
+                  i += 1;                    
+                  for (i; sdata[i] != ',' && i < cmd_str_len; i++) {
+                      cmd_str[j++] = sdata[i];                          
+                  }
+                  cmd_str[j] = '\0';
+                  Serial.print(" CMD2:  ");
+                  Serial.println(cmd_str);
+                  cmd2 = atof(cmd_str);
+                }
+                else {
+                  cmd2 = 1.0;
+                }
+                // Now do the commands     
+                // Process received commands
+                // add code to limit variables received to allowed range
+                if (cmd1 == 255) Button_A = YES;   // switch scale - not really useful if you cannot see the meter face, data is not changed
+                if (cmd1 == 254) {
+                    Button_B = YES;   // switch bands
+                    CouplerSetNum = constrain(CouplerSetNum, 0, NUM_SETS);  
+                    NewBand = CouplerSetNum +1;    // Update Newband to current value.  Will be incrmented in button function                          
+                    if (NewBand > NUM_SETS) 
+                        NewBand = 0;  // cycle back to lowest band
+                }
+                if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
+                
+                //These are no longer used
+                //if (cmd1 == 252) ++Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
+                //if (cmd1 == 251) --Ser_Data_Rate;  //Speed up or slow down the Serial line output info rate
+                
+                if (cmd1 == 250) print_cal_table();   // dump current cal table to remote  (Was Scale GUI button)
+        
+                if (cmd1 == 249) {     // Jump to BandX
+                    Button_B = YES;
+                    NewBand = 9;  
+                }
+                if (cmd1 == 248) {     // Jump to BandX
+                    Button_B = YES;
+                    NewBand = 8;  
+                }
+                if (cmd1 == 247) {     // Jump to BandX
+                    Button_B = YES;
+                    NewBand = 7;  
+                }
+                if (cmd1 == 246) {     // Jump to BandX
+                    Button_B = YES;
+                    NewBand = 6;  
+                }
+                if (cmd1 == 245) {     // Jump to Band 1296
+                    Button_B = YES;
+                    NewBand = 5;  
+                }
+                if (cmd1 == 244) {     // Jump to Band 902
+                    Button_B = YES;
+                    NewBand = 4;  
+                }
+                if (cmd1 == 243) {     // Jump to Band 432
+                    Button_B = YES;
+                    NewBand = 3;  
+                }
+                if (cmd1 == 242) {     // Jump to Band 222
+                    Button_B = YES;
+                    NewBand = 2;  
+                }
+                if (cmd1 == 241) {     // Jump to Band 144
+                    Button_B = YES;
+                    NewBand = 1;  
+                }
+                if (cmd1 == 240) {     // Jump to Band 50
+                    Button_B = YES;
+                    NewBand = 0;  
+                }
+                if (cmd1 == 239) {     // Toggle Serial power data outpout.  Other serial functions remain available.
+                    toggle_ser_data_output();
+                }
+                if (cmd1 == 193) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
+                    Reset_Flag = 1;
+                }
+                if (cmd1 == 194) {     // Set Reset EEPROM flag.  Will repopulate after CPU reset
+                    if (Reset_Flag == 1) 
+                        reset_EEPROM();
+                    Reset_Flag = 0;   
+                }
+                if (cmd1 == 195) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
+                    resetFunc();  //call reset
+                }                            
+                // Handle remote command to change stored coupling factor to support headless ops.
+                // TODO: Need to write into EEPROM, either here or by changing bands.                          
+                if (cmd1 >= 100 && cmd1 < 110) {     // Change Fwd coupling factor for Port X
+                    int index;
+                    index = cmd1 - 100;
+                    Serial.print("Band: ");
+                    Serial.print(Band_Cal_Table[index].BandName);
+                    Serial.print(" --- Old Fwd Value: ");
+                    Serial.print(Band_Cal_Table[index].Cpl_Fwd);
+                    Band_Cal_Table[index].Cpl_Fwd = cmd2;       // cmd2 is second byte in 2 byte payload.                              
+                    Serial.print(" +++ New Fwd Value: ");
+                    Serial.println(Band_Cal_Table[index].Cpl_Fwd);
+                    write_Cal_Table_to_EEPROM();  // save to eeprom
+                }
+                if (cmd1 >= 110 && cmd1 < 120) {     // Change Ref coupling factor for Port X
+                    int index;
+                    index = cmd1 - 110;
+                    Serial.print("Band: ");
+                    Serial.print(Band_Cal_Table[index].BandName);
+                    Serial.print(" --- Old Ref Value: ");
+                    Serial.print(Band_Cal_Table[index].Cpl_Ref);
+                    Band_Cal_Table[index].Cpl_Ref = cmd2;       // cmd2 is second byte in 2 byte payload.                              
+                    Serial.print(" +++ New Ref Value: ");
+                    Serial.println(Band_Cal_Table[index].Cpl_Ref);
+                    write_Cal_Table_to_EEPROM();   // save to eeprom on changes.  
+                }                        
+                // validate to acceptable range of values
+                Ser_Data_Rate = constrain(Ser_Data_Rate, 1, 20);
+                Button_A = constrain(Button_A, 0, 1);
+                Button_B = constrain(Button_B, 0, 1);
+                Button_C = constrain(Button_C, 0, 1);
+                NewBand = constrain(NewBand, 0, NUM_SETS);                                     
+              } // end of msg_type 120                                                    
+            } // end of cmd_dtr_len check       
+          } // end of meter ID OK    
+        } // end of initial strlen check
+        pSdata = sdata; // Reset pointer to start of string. 
+      } // end '/r'        
+    } // end if valid characters
+    else {
+      Serial.print(" Bad Character -  Reset Buffer = ");
+      pSdata = sdata;
+      sdata[0] = '\0';
+      Serial.println(ch);
+      Serial.flush();
+    } // end else not valid characters    
+  } //end if serial available  
 } // end get_remote_cmd function
 
 void loop() { 
