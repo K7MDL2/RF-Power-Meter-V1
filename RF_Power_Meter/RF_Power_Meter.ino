@@ -437,7 +437,7 @@ void get_remote_cmd(){
            *pSdata++ = (char)ch;
            //Serial.println(sdata);   //  echo back what we heard 
           if (ch=='\r' || ch == '\n') {       // Command received and ready.
-              if (strlen(sdata) > 15) {             
+              if (strlen(sdata) > 8) {             
                 pSdata --;       // Don't add \r and the last comma if any to string.
                 
                 *pSdata = '\0';  // Null terminate the string.       
