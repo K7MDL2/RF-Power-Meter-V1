@@ -121,10 +121,10 @@ struct Band_Cal {
   int sc_P_Fwd;
   int sc_P_Ref;
 } Band_Cal_Table_Def[10] = {
-      {"50MHz", 70.8, 50.8, 5, 4},
-     {"144MHz", 63.9, 43.9, 5, 4},
+      {"50MHz", 72.6, 47.2, 5, 4},
+     {"144MHz", 65.6, 43.5, 5, 4},
      {"222MHz", 61.0, 41.0, 5, 4},
-     {"432MHz", 59.9, 39.9, 5, 4},
+     {"432MHz", 61.2, 41.5, 5, 4},
      {"902MHz", 58.1, 38.1, 5, 4},
     {"1296MHz", 71.4, 51.4, 5, 4},
      {"2.3GHz", 60.1, 40.1, 5, 4},
@@ -264,7 +264,7 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
   b /= Slope;
   b *= -1; // less than 0dBm so sign negative
   b += CouplingFactor_Fwd;
-  b += 3.0; // Fudge factor for frequency independent factors like cabling
+  b += 0.0; // Fudge factor for frequency independent factors like cabling
 
   // Now have calibrated Forward Value in dBm.
   Fwd_dBm = b;
@@ -285,7 +285,7 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
   // subtract the last reading:
   total_Ref -= readings_Ref[readIndex_Ref];
   // read from the sensor:
-  c = 12;
+  c = 15;
   a = 0;
   adc2.attach(ad_Ref);
   for (int i = 0; i < c; ++i)  {
@@ -294,7 +294,7 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
       //Vref = read_vcc();
       a1 = constrain(a1, Offset, 2.200);
       a += a1;
-      delay(5);
+      delay(2);
   }
   a /= c; // calculate the average then use result in a running average
   readings_Ref[readIndex_Ref] = a;   // get from the latest average above and track in this runnign average
@@ -315,7 +315,7 @@ float adRead()   // A/D converter read function.  Normalize the AD output to 100
   b /= Slope;
   b *= -1;
   b += CouplingFactor_Ref;
-  b += 3.0; // fudge factor for frequency independent factors like cabling
+  b += 0.0; // fudge factor for frequency independent factors like cabling
   
   Ref_dBm = b;
   // 0dBm is max. = 1W fullscale on 1W scale.

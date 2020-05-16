@@ -469,20 +469,20 @@ class App(tk.Frame):
         self.scale.pack({"side": "left"})
 
         self.swr = tk.Button(self)
-        self.swr["text"] = "BF2-"
-        self.swr["command"] = self.change_to_swr  # Send cmd to change to SWR meter face procedure
+        self.swr["text"] = " Fwd"
+        self.swr["command"] = self.cpl_Fwd  # Send cmd to change to SWR meter face procedure
         self.swr.configure(font=self.btn_font, padx = 3)
         self.swr.pack({"side": "left"})
 
         self.rate_p = tk.Button(self)
-        self.rate_p["text"] = "BF2+"
-        self.rate_p["command"] = self.faster  # Send cmd to change to slow data output rate
+        self.rate_p["text"] = " Ref"
+        self.rate_p["command"] = self.cpl_Ref  # Send cmd to change to slow data output rate
         self.rate_p.configure(font=self.btn_font)
         self.rate_p.pack({"side": "left"})
 
         self.rate_n = tk.Button(self)
-        self.rate_n["text"] = "BR-"
-        self.rate_n["command"] = self.slower  # Send cmd to change to slow data output rate
+        self.rate_n["text"] = "OTHR"
+        self.rate_n["command"] = self.cpl_other_Ref  # Send cmd to change to slow data output rate
         self.rate_n.configure(font=self.btn_font)
         self.rate_n.pack({"side": "left"})
 
@@ -669,23 +669,23 @@ class App(tk.Frame):
         # Write command to change Band
         rx.send_meter_cmd("254","", True)
 
-    def change_to_swr(self):
+    def cpl_Fwd(self):
         rx = Receiver()
-        print("Change 50MHz Fwd Port Coupling Value ")
+        print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("100","70.8", True)
+        rx.send_meter_cmd("101","65.6", True)
 
 
-    def slower(self):
+    def cpl_Ref(self):
         rx = Receiver()
-        print("Slow down Data output rate ")
+        print("Change Ref Port Coupling Value ")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("110","50.8", True)
+        rx.send_meter_cmd("111","43.5", True)
 
 
-    def faster(self):
+    def cpl_other_Ref(self):
         rx = Receiver()
-        print("Speed Up data ouput rate ")
+        print("Change Other Ref Port Coupling Value ")
         # Write command to speed up data rate output from meter
         rx.send_meter_cmd("113","39.8", True)
 
