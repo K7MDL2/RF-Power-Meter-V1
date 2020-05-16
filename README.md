@@ -2,11 +2,15 @@
 DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector modules that you assemble. They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set.
 
 ### Key files
-RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
-RF_Wattmeter.ino: Arduino code for the M5Stack with the majority of graphics removed. A step toward full headless operation. This is a temporary state and will be deleted.
-RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. All screen and button code removed, complete remote control.
-Not uploaded yet - Nano headless version ported to Cypress PSoC5LP for better AD and signal processing.
-pyPowerMeter.py: Desktop Python app.  Can run multiple instances on unique serial port and meter IDs.
+    RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
+
+    RF_Wattmeter.ino: Arduino code for the M5Stack with the majority of graphics removed. A step toward full headless operation. This is a temporary state and will be deleted.
+
+    RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. All screen and button code removed, complete remote control.
+
+    Not uploaded yet - Nano headless version ported to Cypress PSoC5LP for better AD and signal processing.
+
+    pyPowerMeter.py: Desktop Python app.  Can run multiple instances on unique serial port and meter IDs.
 
 ### Revision History:
 
