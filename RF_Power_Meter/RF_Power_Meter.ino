@@ -4,8 +4,11 @@
 /*
  * 
  *
- RF Power Meter by K7MDL 5/7/2020   
+ RF Power Meter by K7MDL 5/15/2020   
  *
+ * 5/15/2020 - Updated cal table after more cal testing.  Still noisy ADC below 900MHz
+ *             Merged changes from the Nano Headless versaion for complee remote command set and
+ *             new serial message protocol.  This is not backward compatible with V1.01 or earlier.
  *  
  * 5/7/2020 - Added correction for AD non-linearity.  Using factory A/D calibration data now.
  *            Aded lots of serial port vaidiation and error recovery
