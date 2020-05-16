@@ -680,7 +680,7 @@ class App(tk.Frame):
         rx = Receiver()
         print("Slow down Data output rate ")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("101","64.10", True)
+        rx.send_meter_cmd("110","50.8", True)
 
 
     def faster(self):
