@@ -3,7 +3,7 @@
 #include <ESP32AnalogRead.h>
 /*
  *
- * RF Power Meter by K7MDL 5/8/2020   - Remote (Headless) Edition
+ * RF Power Meter by K7MDL 5/8/2020   - Remote (Headless) Edition for M5Stack (ESP32)
  *
  * 5/8/2020 - Expanded remote commands to support dumping the cal table and writing to individual coupling
  *    factor cal values and saving to EEPROM.  Switch from a one byte command to a string with similar structure
