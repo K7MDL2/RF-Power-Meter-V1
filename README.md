@@ -4,7 +4,7 @@ DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector mo
 ### Key files
     RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
 
-    RF_Wattmeter.ino: Arduino code for the M5Stack with the majority of graphics removed. A step toward full headless operation. This is a temporary state and will be deleted.
+    Deleted RF_Wattmeter.ino on 5/23/2020 - has no useful purpose now that a Nano headless version is working.
 
     RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. All screen and button code removed, complete remote control.
 
