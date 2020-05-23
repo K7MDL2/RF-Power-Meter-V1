@@ -39,6 +39,7 @@ Key Changes:
    12. Now supports multiple meter monitoring. Can accept a new MeterID on the UI app command line as the 2nd argument. You can now run multiple instances of the UI app as long as you match each instance to the correct serial port and Meter ID. The meter ID is hard coded into the meter code. WSJTX messages are braodcast with no filtering done by the app at this point. If not using multicast (as with JTAlert rebroadcasts) then the first instance to start will grab the connection and the 2nd will not hear the broadcasts.
    13. Have nearly completed porting the Nano_Headless version over to Cypress Semiconductor PSoc5LP which is similar cost and size but far higher AD specs with multiple reference voltage level options and programmable hardware digital and analog blocks for signal conditioning and more I/O for controlling things.  Looking at embedding these meters in my new high power RF amplifier builds, implement sequencing and fault trips, temp monitoring, remote bypass/operate commands and remote monitoring. I will probably add back some sort of screen for local status on the amp, but will be set up to be easily used or not.  Could also just use a few LEDs.  See my Multiband LO project for a good example.
    14. Updated RF_Power_Meter.ini to have the complete remote command set and new serial message protocol merged from the Nano_Headless version.  Not compatible with V1.01 or V1.00.
+   15. Deleted Remote_Wattmeter arduino code. A headless M5stack version is not useful now thath aa Nona version is working.
  
 
 ### Info:
