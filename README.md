@@ -1,5 +1,5 @@
 ## RF-Power-Meter
-DIY Arduino based RF SWR\Wattmeter reads output from a pair of power detector modules that you assemble. They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set.
+DIY Arduino based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble. Thsi code is dcurrently using 8GHz rated detector modules. They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set.
 
 ### Key files
     RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
