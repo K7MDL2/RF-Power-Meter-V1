@@ -673,14 +673,14 @@ class App(tk.Frame):
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("101","65.6", True)
+        rx.send_meter_cmd("103","62.6", True)
 
 
     def cpl_Ref(self):
         rx = Receiver()
         print("Change Ref Port Coupling Value ")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("111","43.5", True)
+        rx.send_meter_cmd("110","53.9", True)
 
 
     def cpl_other_Ref(self):
