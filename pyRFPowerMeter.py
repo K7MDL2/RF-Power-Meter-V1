@@ -673,7 +673,7 @@ class App(tk.Frame):
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("105","73.8", True)
+        rx.send_meter_cmd("100","79.8", True)
 
 
     def cpl_Ref(self):
