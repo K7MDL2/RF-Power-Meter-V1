@@ -8,7 +8,7 @@ DIY Arduino based RF SWR\Wattmeter for any band HF through microwave depending o
 
     RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. All screen and button code removed, complete remote control.
 
-    Not uploaded yet - Nano headless version ported to Cypress PSoC5LP for better AD and signal processing.
+    Not uploaded yet - Headless version ported to Cypress PSoC5LP for far better AD and signal processing.  Working as of 5/72/2020.
 
     pyPowerMeter.py: Desktop Python app.  Can run multiple instances on unique serial port and meter IDs.
 
@@ -40,6 +40,7 @@ Key Changes:
    13. Have nearly completed porting the Nano_Headless version over to Cypress Semiconductor PSoc5LP which is similar cost and size but far higher AD specs with multiple reference voltage level options and programmable hardware digital and analog blocks for signal conditioning and more I/O for controlling things.  Looking at embedding these meters in my new high power RF amplifier builds, implement sequencing and fault trips, temp monitoring, remote bypass/operate commands and remote monitoring. I will probably add back some sort of screen for local status on the amp, but will be set up to be easily used or not.  Could also just use a few LEDs.  See my Multiband LO project for a good example.
    14. Updated RF_Power_Meter.ini to have the complete remote command set and new serial message protocol merged from the Nano_Headless version.  Not compatible with V1.01 or V1.00.
    15. Deleted Remote_Wattmeter arduino code. A headless M5stack version is not useful now thath aa Nona version is working.
+   15. As of 5/27/202 the headless version was succesfully ported to a Cypress Semiconductors PSoC5LP CY8CL-059 dev module (~$10 each) with instrumentation quality AD converters for lower noise and higher accuracy in close to the same form factor as the Nano. fast converson with upt o 20bits resolutions, uses an configurabel Anolog Mux ona DeltagSigma AD converter component with op amps in front for gain scaling and buffering.  The VRef is more flexible as well.
  
 
 ### Info:
