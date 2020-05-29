@@ -4,11 +4,9 @@ DIY Arduino based RF SWR\Wattmeter for any band HF through microwave depending o
 ### Key files
     RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
 
-    Deleted RF_Wattmeter.ino on 5/23/2020 - has no useful purpose now that a Nano headless version is working.
-
     RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. All screen and button code removed, complete remote control.
 
-    Not uploaded yet - Headless version ported to Cypress PSoC5LP for far better AD and signal processing.  Working as of 5/72/2020.
+    RF_Wattmeter_PSoC5LP - Headless version ported to Cypress PSoC5LP for far better AD and signal processing.
 
     pyPowerMeter.py: Desktop Python app.  Can run multiple instances on unique serial port and meter IDs.
 
