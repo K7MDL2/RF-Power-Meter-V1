@@ -1,14 +1,12 @@
 ## RF-Power-Meter
-DIY Arduino based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble. Thsi code is dcurrently using 8GHz rated detector modules. They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set.
+DIY Arduino based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble into a box. This code is currently using 2 8GHz rated detector modules. They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set.
 
 ### Key files
     RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
 
-    Deleted RF_Wattmeter.ino on 5/23/2020 - has no useful purpose now that a Nano headless version is working.
-
     RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. All screen and button code removed, complete remote control.
 
-    Not uploaded yet - Headless version ported to Cypress PSoC5LP for far better AD and signal processing.  Working as of 5/72/2020.
+    RF_Wattmeter_PSoC5LP - Headless version ported to Cypress PSoC5LP for far better AD and signal processing.
 
     pyPowerMeter.py: Desktop Python app.  Can run multiple instances on unique serial port and meter IDs.
 
@@ -39,8 +37,9 @@ Key Changes:
    12. Now supports multiple meter monitoring. Can accept a new MeterID on the UI app command line as the 2nd argument. You can now run multiple instances of the UI app as long as you match each instance to the correct serial port and Meter ID. The meter ID is hard coded into the meter code. WSJTX messages are braodcast with no filtering done by the app at this point. If not using multicast (as with JTAlert rebroadcasts) then the first instance to start will grab the connection and the 2nd will not hear the broadcasts.
    13. Have nearly completed porting the Nano_Headless version over to Cypress Semiconductor PSoc5LP which is similar cost and size but far higher AD specs with multiple reference voltage level options and programmable hardware digital and analog blocks for signal conditioning and more I/O for controlling things.  Looking at embedding these meters in my new high power RF amplifier builds, implement sequencing and fault trips, temp monitoring, remote bypass/operate commands and remote monitoring. I will probably add back some sort of screen for local status on the amp, but will be set up to be easily used or not.  Could also just use a few LEDs.  See my Multiband LO project for a good example.
    14. Updated RF_Power_Meter.ini to have the complete remote command set and new serial message protocol merged from the Nano_Headless version.  Not compatible with V1.01 or V1.00.
-   15. Deleted Remote_Wattmeter arduino code. A headless M5stack version is not useful now thath aa Nona version is working.
-   15. As of 5/27/202 the headless version was succesfully ported to a Cypress Semiconductors PSoC5LP CY8CL-059 dev module (~$10 each) with instrumentation quality AD converters for lower noise and higher accuracy in close to the same form factor as the Nano. fast converson with upt o 20bits resolutions, uses an configurabel Anolog Mux ona DeltagSigma AD converter component with op amps in front for gain scaling and buffering.  The VRef is more flexible as well.
+   15. Deleted Remote_Wattmeter arduino code. A headless M5stack version is not useful now that a Nano and PSoC version is working.
+   16. As of 5/27/202 the headless version was succesfully ported to a Cypress Semiconductors PSoC5LP CY8CL-059 dev module (~$10 each) with instrumentation quality AD converters for lower noise and higher accuracy in close to the same form factor as the Nano. fast converson with upt o 20bits resolutions, uses an configurable Analog Mux on a DeltagSigma AD converter component with op amps in front for gain scaling and buffering.  The VRef is more flexible as well.
+   17. 5/28 - Afer initial calibration testing on the PSoC version, the speed and stability of the PSoC is much better than the other platforms. Using 20 bit resolution, reduced the averaging to 1 ADC sample feeding the smoothing function now only 2 deep. Increased the serial data output rate to take advantage of the rapid stable readings.  Now remote meter response is at final value in 2 serial port updates, far faster than before, just short of instantaneous, limited by the serial data output interval.  The PSoC files are what is contained in a "minimal archive" meaning you can drop the set of files as organized into your PSoC Creator 4.2+ folder area and you can open it and it should be complete and compile and run no problem (once you set your target CPU correctly in the IDE). 2 USB ports are used, one for the programmer connection during development (has full hardware debugger), the other is the onboard micro USB connector which all application messaging take place on (USB Serial port).
  
 
 ### Info:
