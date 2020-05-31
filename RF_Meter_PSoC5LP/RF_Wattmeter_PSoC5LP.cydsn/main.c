@@ -18,11 +18,13 @@
     
 /*
  *
- * RF Watmeter_PSoc5LP by K7MDL 5/27/2020   - Remote (Headless) Edition for PSoc5LP 
+ * RF Wattmeter_PSoc5LP by K7MDL 5/27/2020   - Remote (Headless) Edition for PSoc5LP 
  *
  * 5/27/2020 -  Headless port from Arduino Nano to PSoC5LP CY8CKIT-059 dev module now fully working.
+                EEPROM work much differently and using USB serial port.
  *
- * 5/10/2020 -  Stripped out physical button tests (kept code as virtual buttons).  
+ * 5/10/2020 -  Headless Nano CPU version. 
+ *              Stripped out physical button tests.  
  *              Removed rest of M5/ESP32 dependencies,
  *              Using standard Arduino functions (vs original M5Stack/esp32).  
  *              Added CPU reset and default EEPROM commands. 
@@ -30,7 +32,7 @@
  *                  the Default is bus power (from USB or external).  Internal Vref is too low at 1.1V to use
  *                  Without adding an external voltage divider.
  *
- * 5/8/2020 - Expanded remote commands to support dumping the cal table and writing to individual coupling
+ * 5/8/2020 - Added Remote commands to support dumping the cal table and writing to individual coupling
  *    factor cal values and saving to EEPROM.  Switch from a one byte command to a string with similar structure
  *    as the power level out.  Changed sequence number to msg_type fo future expansion and to help validate the 
  *    incoming message better from random data/noise/CPU status messages.
@@ -39,10 +41,6 @@
  *    the main meter with SWR shutdowna nd other feature (including remote monitoring).
  *    One concern for getting Wi-Fi to work is the possibility the ESP32 in the M5stack I am using may take over ADC2 pins 
  *    which would be a problem.  Also the internal noise coudl be improved using an external I2C connected A/D.
- *
- * 5/7/2020 -  Builds on RF Power Meter dated 5/7.  
- *    Begin stripping the Display and M5 specific components to allow for 
- *      standard Arduino and headless operation
  *
  Has user edited Calibration sets. Have 10 "bands" for frequency correction used with values that can be edited via the UI ---
 
@@ -54,20 +52,23 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include "ssd1306.h"
 
+#define DISPLAY_ADDRESS 0x3C // 011110+SA0+RW - 0x3C or 0x3D NOTE1
+// If you are using a 128x64 OLED screen, the address will be 0x3C or 0x3D, if one does not work try with the other one.
 
 #if defined (__GNUC__)
     /* Add an explicit reference to the floating point printf library */
     /* to allow usage of the floating point conversion specifiers. */
     /* This is not linked in by default with the newlib-nano library. */
- //asm (".global _printf_float");
+    asm (".global _printf_float");
 #endif
 
 /*
   User edited values here for Callsign and Meter ID number
 */
 #define CALLSIGN_LEN            (7u)
-char    Callsign[CALLSIGN_LEN] = "K7MDL\0";
+char8    Callsign[CALLSIGN_LEN] = "K7MDL\0";
 #define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 
 // Rest of program...
@@ -78,9 +79,9 @@ char    Callsign[CALLSIGN_LEN] = "K7MDL\0";
 #define MENU 3
 #define NO 0
 #define YES 1
-#define ADC_COUNTS 1024    // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
-#define ad_Fwd "A1"    // Analog 35 pin for channel 0
-#define ad_Ref "A2"   // Analog 36 pin for channel 1
+//#define ADC_COUNTS 1024    // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
+//#define ad_Fwd "A1"    // Analog 35 pin for channel 0 - Arduino only
+//#define ad_Ref "A2"   // Analog 36 pin for channel 1 - Arduino only
 // Edit the Coupler Set data inb teh Cal_Table function.  Set the max number of sets here, and the default to load at startup
 #define NUM_SETS 10 // 10 bands, 0 through 9 for example
 #define EE_STATE_BASE_ADDR      (0x0000)   /* row 0 */
@@ -104,9 +105,9 @@ char    Callsign[CALLSIGN_LEN] = "K7MDL\0";
 char8* parity[] = {"None", "Odd", "Even", "Mark", "Space"};
 char8* stop[]   = {"1", "1.5", "2"};
 float32 Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP32 also has calibrated Vref curve
-int CouplerSetNum = 0;   // 0 is the default set on power up.  
-int ser_data_out = 0;
-int Reset_Flag = 0;
+uint8_t CouplerSetNum = 0;   // 0 is the default set on power up.  
+uint8_t ser_data_out = 0;
+uint8_t Reset_Flag = 0;
 uint32_t updateTime = 0;       // time for next update
 float32 Fwd_dBm = 0;
 float32 Ref_dBm = 0;
@@ -116,21 +117,22 @@ float32 SWRVal = 0;
 float32 SWR_Serial_Val = 0;
 float32 FwdVal = 0;
 float32 RefVal = 0;
-//int d = 0;
-int Edit_Atten = 0;
-int op_mode = SWR;
-int counter1 = 0;
-int Button_A = 0;
-int Button_B = 0;
-int Button_C = 0;
-int NewBand;
-int Ser_Data_Rate = METER_RATE;
+uint8 Edit_Atten = 0;
+uint8_t op_mode = SWR;
+uint8_t counter1 = 0;
+uint8_t Button_A = 0;
+uint8_t Button_B = 0;
+uint8_t Button_C = 0;
+uint8_t NewBand;
+uint8_t Ser_Data_Rate = METER_RATE;
 float32 CouplingFactor_Fwd = 0;
 float32 CouplingFactor_Ref = 0;
-float32 Offset = 0.500;  // AD8318 is 0.5 offset.  0.5 to about 2.1 volts for range.
-float32 Slope = 0.025;  // AD8318 is 25mV per dB with temp compensation
+float32 Offset_F = 0.644;  // AD8318 is 0.5 offset for around +5dBm to +10dBm (nonlinear range) for 0.5V to about 2.2 volts for whole range.  We want to max at 0dBm
+float32 Slope_F = 0.025;  // AD8318 is 25mV per dB with temp compensation
+float32 Offset_R = 0.656;  // AD8318 is 0.5 offset for around +5dBm to +10dBm (nonlinear range) for 0.5V to about 2.2 volts for whole range.  We want to max at 0dBm
+float32 Slope_R = 0.025;  // AD8318 is 25mV per dB with temp compensation
 float32 FwdPwr_last = 0;
-int Inverted = 1;  // 0=no, 1=Yes.  Inverted output will have max V = no input, min volt at max power input.
+uint8_t Inverted = 1;  // 0=no, 1=Yes.  Inverted output will have max V = no input, min volt at max power input.
 /* 
  *  AD8318 is an inverted with about 2.5V for no inoput and 0.5 for max input cover -65 to +5dBm range
  *  linear between -55 and 0dBm
@@ -138,17 +140,17 @@ int Inverted = 1;  // 0=no, 1=Yes.  Inverted output will have max V = no input, 
 #define NUMREADINGS 2   // adjust this for longer or shorter smooting period as AD noise requires
 float32 readings_Fwd[NUMREADINGS];      // the readings from the analog input
 float32 readings_Ref[NUMREADINGS];      // the readings from the analog input
-int readIndex_Fwd = 0;              // the index of the current reading
-int readIndex_Ref = 0;              // the index of the current reading
+uint8_t readIndex_Fwd = 0;              // the index of the current reading
+uint8_t readIndex_Ref = 0;              // the index of the current reading
 float32 total_Fwd = 0;                  // the running total
 float32 total_Ref = 0;                  // the running total
-uint8   EE_PGM_Status = 0u;
-uint8   EE_PGM_Failed;
-uint8 rx_buffer[Serial_USB_BUFFER_SIZE];
-uint8 tx_buffer[Serial_USB_BUFFER_SIZE];
-uint16 rx_count = 0;
-uint16 tx_count = 0;
-static char sdata[Serial_USB_BUFFER_SIZE], *pSdata = sdata, *pSdata1=sdata, *pSdata2=sdata;
+uint8_t   EE_PGM_Status = 0u;
+uint8_t   EE_PGM_Failed;
+uint8_t rx_buffer[Serial_USB_BUFFER_SIZE];
+uint8_t tx_buffer[Serial_USB_BUFFER_SIZE];
+uint16_t rx_count = 0;
+uint16_t tx_count = 0;
+static char8 sdata[Serial_USB_BUFFER_SIZE], *pSdata = sdata, *pSdata1=sdata, *pSdata2=sdata;
 
 // Function declarations
 void toggle_ser_data_output();
@@ -163,56 +165,52 @@ void write_Cal_Table_to_EEPROM();
 void save_config_EEPROM();
 void write_Cal_Table_from_Default();
 void get_remote_cmd();
-uint16 serial_usb_read(void);
+uint16_t serial_usb_read(void);
 void serial_usb_write();
-uint8 EEPROM_Init(uint8); /* function to initially copy the config table array to EEPROM on first use.  Calls Read or Write */
-uint8 EEPROM_Init_Write(void); /* function to initially copy the config table array TO the EEPROM on first use */
-uint8 EEPROM_Init_Read(void); /* function to initially copy the config table array FROM the EEPROM on first use */
-uint8 Copy_to_EE(uint8 e_row, uint8_t c_array[16],uint8 print);  /*  called by EEPROM_Init_Write */
+uint8_t EEPROM_Init(uint8); /* function to initially copy the config table array to EEPROM on first use.  Calls Read or Write */
+uint8_t EEPROM_Init_Write(void); /* function to initially copy the config table array TO the EEPROM on first use */
+uint8_t EEPROM_Init_Read(void); /* function to initially copy the config table array FROM the EEPROM on first use */
+uint8_t Copy_to_EE(uint8 e_row, uint8_t c_array[16],uint8 print);  /*  called by EEPROM_Init_Write */
 uint8_t EE_Save_State(void);
 
 struct Band_Cal {
-  char  BandName[12];
+  char8  BandName[12];
   float32 Cpl_Fwd;
   float32 Cpl_Ref;
 } Band_Cal_Table_Def[NUM_SETS] = {
-      {"50MHz", 74.3, 54.6},
-     {"144MHz", 64.1, 44.9},
-     {"222MHz", 61.4, 41.8},
-     {"432MHz", 59.5, 39.8},
-     {"902MHz", 58.6, 40.2},
-    {"1296MHz", 72.6, 52.4},
+      {"50MHz", 73.2, 53.0},
+     {"144MHz", 64.2, 44.2},
+     {"222MHz", 61.5, 41.5},
+     {"432MHz", 59.5, 39.5},
+     {"902MHz", 58.5, 38.5},
+     {"1296MHz",72.1, 53.0},
      {"2.3GHz", 60.1, 40.1},
      {"3.4GHz", 60.2, 40.2},
      {"5.7GHz", 60.3, 40.3},
       {"10GHz", 60.4, 40.4}
     };
-/*   Original calibration values dumped on remote command as an example before remotely issuing value changes.  
-101-1,50MHz,74.3,54.599895.2
-101-1,144MHz,64.099991.2,44.899979.2
-101-1,222MHz,61.399986.2,41.799980.2
-101-1,432MHz,59.499992.2,39.799988.2
-101-1,902MHz,58.600006.2,40.199982.2
-101-1,1296MHz,72.599937.2,52.399986.2
-*/
 
 struct Band_Cal Band_Cal_Table[10];
 
 void setup(void) {
-
+  //  I2COLED_Start(); 
+  //  display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
     Serial_Start();
+    
+    CyGlobalIntEnable; /* Enable global interrupts. */
+    
     /* Start USBFS operation with 5-V operation. */
     Serial_USB_Start(Serial_USB_DEVICE, Serial_USB_5V_OPERATION);  
     write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized
     ADC_RF_Power_Start();
     ADC_RF_Power_AMux_Start();
-    
+    Det_In_FwdPwr_Start();
+    Det_In_RefPwr_Start();
     EEPROM_Start(); /*  Start the EEPROM storage System             */
     CyDelay(7);     /* wait at least 5ms to power up EEPROM       */
    
     /*   initialize EEPROM storage if not done before - will overwrite default memory table values from EEPROM if EEPROM was written to before */    
     EE_PGM_Failed = EEPROM_Init(0);
-
     Cal_Table();   // Load current Band values from Table
 
     // initialize all the readings to 0:  Used to smooth AD values
@@ -225,11 +223,22 @@ void setup(void) {
 
 int main(void)
 {   
-    CyGlobalIntEnable; /* Enable global interrupts. */
-
     setup();
 
     while (1) {
+        /*                    
+           Test code for  128x64 OLED graphics screen.  SSD1306 I2C type.
+        */
+     /*
+        display_clear();    
+       display_update();    
+       gfx_setTextSize(1);
+       gfx_setTextColor(WHITE);
+       gfx_setCursor(2,2);
+       gfx_println("Hey there!");
+       display_update();    // NOTE: You should remember to update the display in order to see the results on the oled.
+       */ 
+     
         // Listen for remote computer commands
         serial_usb_read();  // festch latest data in buffer
               
@@ -290,30 +299,22 @@ int main(void)
 
 uint16 serial_usb_read(void)
 {
-    /* Host can send double SET_INTERFACE request. */
-    if (0u != Serial_USB_IsConfigurationChanged())
+    if (0u != Serial_USB_IsConfigurationChanged())    /* Host can send double SET_INTERFACE request. */
     {
-        /* Initialize IN endpoints when device is configured. */
-        if (0u != Serial_USB_GetConfiguration())
-        {
-            /* Enumeration is done, enable OUT endpoint to receive data 
-             * from host. */
-            Serial_USB_CDC_Init();
+        if (0u != Serial_USB_GetConfiguration())         /* Initialize IN endpoints when device is configured. */
+        {            
+            Serial_USB_CDC_Init(); /* Enumeration is done, enable OUT endpoint to receive data from host. */
         }
     }
     
     rx_count = 0;    
-    /* Service USB CDC when device is configured. */
-    if (0u != Serial_USB_GetConfiguration())
-    {
-        /* Check for input data from host. */
-        if (0u != Serial_USB_DataIsReady())
-        {
-            /* Read received data and re-enable OUT endpoint. */        
-            rx_count = Serial_USB_GetAll(rx_buffer);
+    if (0u != Serial_USB_GetConfiguration())      /* Service USB CDC when device is configured. */
+    {        
+        if (0u != Serial_USB_DataIsReady()) /* Check for input data from host. */
+        {   
+            rx_count = Serial_USB_GetAll(rx_buffer);    /* Read received data and re-enable OUT endpoint. */     
         }   
-        // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData
-        if (rx_count != 0){
+        if (rx_count != 0){         // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData
             memcpy(pSdata2 , rx_buffer, rx_count);   // append the new buffer data to current end marked by pointer 2
             pSdata2 += (rx_count);   // Update the end pointer position. The function processing chars wil lupdate teh p1 and p2 pointers
             //*(pSdata2) = '\0';
@@ -347,9 +348,7 @@ void serial_usb_write(void)
         while (0u == Serial_USB_CDCIsReady())
         {
         }
-
-        /* Send data back to host. */
-        Serial_USB_PutData(tx_buffer, tx_count);
+        Serial_USB_PutData(tx_buffer, tx_count);         /* Send data back to host. */
 
         /* If the last sent packet is exactly the maximum packet 
         *  size, it is followed by a zero-length packet to assure
@@ -358,13 +357,10 @@ void serial_usb_write(void)
         */
         if (Serial_USB_BUFFER_SIZE == tx_count)
         {
-            /* Wait until component is ready to send data to PC. */
-            while (0u == Serial_USB_CDCIsReady())
+            while (0u == Serial_USB_CDCIsReady())            /* Wait until component is ready to send data to PC. */
             {
             }
-
-            /* Send zero-length packet to PC. */
-            Serial_USB_PutData(NULL, 0u);
+            Serial_USB_PutData(NULL, 0u);            /* Send zero-length packet to PC. */
         }
     }
 }
@@ -374,15 +370,15 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     float32 a;
     float32 a1;
     float32 b;
-    int c;
+    uint16 c;
     //char buf[12];
     float32 tmp;
-    int16 ad_counts;
+    uint32 ad_counts;
 
     // subtract the last reading:
     total_Fwd -= readings_Fwd[readIndex_Fwd];
     // read from the sensor:
-    c = 2;   // short term smaples that feed into running average
+    c = 1;   // short term smaples that feed into running average
     a = 0;
     for (int i = 0; i < c; ++i) {                   
             // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC
@@ -391,34 +387,24 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
             ad_counts = ADC_RF_Power_Read32();
             a1 = ADC_RF_Power_CountsTo_Volts(ad_counts);    
             a += a1;
-            CyDelay(30);
     }
     a /= c; // calculate the average then use result in a running average
     readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this runnign average
-    // add the reading to the total:
-    total_Fwd += readings_Fwd[readIndex_Fwd];
-    // advance to the next position in the array:
-    readIndex_Fwd += 1;   
-    // if we're at the end of the array...
-    if (readIndex_Fwd >= NUMREADINGS) {
-        // ...wrap around to the beginning:
-        readIndex_Fwd = 0;
+    total_Fwd += readings_Fwd[readIndex_Fwd];    // add the reading to the total: 
+    readIndex_Fwd += 1;     // advance to the next position in the array:
+    if (readIndex_Fwd >= NUMREADINGS) {     // if we're at the end of the array...      
+        readIndex_Fwd = 0;  // ...wrap around to the beginning:
     }     
-    // calculate the average:
-    b = total_Fwd / NUMREADINGS;
-
+    b = total_Fwd / NUMREADINGS;    // calculate the average:
     // caclulate dB value for digital display section
-    b -= Offset;   // adjust to 0V reference point
-    b /= Slope;
+    b -= Offset_F;   // adjust to 0V reference point
+    b /= Slope_F;
     b *= -1; // less than 0dBm so sign negative
     b += CouplingFactor_Fwd;
-    b += 1.5; // Fudge factor for frequency independent factors like cabling
-
-    // Now have calibrated Forward Value in dBm.
-    Fwd_dBm = b;
+    b += 0.0; // Fudge factor for frequency independent factors like cabling
+    Fwd_dBm = b;    // Now have calibrated Forward Value in dBm.
     // 0dBm is max. = 1W fullscale on 1W scale for example
-    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
-    FwdPwr =  pow(10.0,(b-30.0)/10.0);
+    FwdPwr =  pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
     if (FwdPwr > 9999)
         FwdPwr = 9999;
     FwdVal = FwdPwr;
@@ -427,11 +413,9 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     //strncat(buf, "dBm", 3);
     //printf(buf);
     
-    // Now get Reflected Power 
-    // subtract the last reading:
-    total_Ref -= readings_Ref[readIndex_Ref];
-    // read from the sensor:
-    c = 2;
+    // Now get Reflected Power     
+    total_Ref -= readings_Ref[readIndex_Ref];// subtract the last reading:    
+    c = 1; // read from the sensor:
     a = 0;
     for (int i = 0; i < c; ++i)  {
             // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC
@@ -440,33 +424,25 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
             ad_counts = ADC_RF_Power_Read32();
             a1 = ADC_RF_Power_CountsTo_Volts(ad_counts);
             a += a1;
-            CyDelay(30);
     }
     a /= c; // calculate the average then use result in a running average
     readings_Ref[readIndex_Ref] = a;   // get from the latest average above and track in this runnign average
-    // add the reading to the total:
-    total_Ref += readings_Ref[readIndex_Ref];
-    // advance to the next position in the array:
-    readIndex_Ref += 1;   
-    // if we're at the end of the array...
-    if (readIndex_Ref >= NUMREADINGS) {
-        // ...wrap around to the beginning:
-        readIndex_Ref = 0;
-    }  
-    // calculate the average:
-    b = total_Ref / NUMREADINGS;
-    
+    total_Ref += readings_Ref[readIndex_Ref];// add the reading to the total:
+    readIndex_Ref += 1;       // advance to the next position in the array:
+    if (readIndex_Ref >= NUMREADINGS) { // if we're at the end of the array...        
+        readIndex_Ref = 0;// ...wrap around to the beginning:
+    }
     // caclulate dB value for digital display section
-    b -= Offset;   // adjust to 0V reference point
-    b /= Slope;
+    b = total_Ref / NUMREADINGS;// calculate the average:        
+    b -= Offset_R;   // adjust to 0V reference point
+    b /= Slope_R;
     b *= -1;
     b += CouplingFactor_Ref;
-    b += 1.5; // fudge factor for frequency independent factors like cabling
+    b += 0.0; // fudge factor for frequency independent factors like cabling
     
     Ref_dBm = b;
     // 0dBm is max. = 1W fullscale on 1W scale.
-    // convert to linear value for meter using 1KW @ 0dBm as reference 
-    RefPwr = pow(10.0,(b-30.0)/10.0);
+    RefPwr = pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference 
     if (RefPwr > 999)
         RefPwr = 999;
     RefVal = RefPwr;
@@ -480,8 +456,7 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     // strcat(buf, buf1);
     // printf(buf);
     
-    // Write our Digital Values to Sreen here in dBm and SWR ratio
-    
+    // Write our Digital Values to Sreen here in dBm and SWR ratio    
     //if (FwdPwr != FwdPwr_last) {
         //if (FwdPwr >= 9999) strcpy(buf, "OVR ");
         //else if (FwdPwr < 100) dtostrf(FwdPwr, 4, 1, buf);
@@ -491,10 +466,10 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
         //if (RefPwr >= 999) strcpy(buf, "OVR ");
         //else if (RefPwr < 100) dtostrf(RefPwr, 4, 1, buf);   // same as for forward power, remove decimal for large vcalues and display result
         //else dtostrf(RefPwr, 4, 0, buf);
-        //strncat(buf, "W\r", 2);
-        
+        //strncat(buf, "W\r", 2);        
     //VSWR = 1+sqrt of Pr/Pf  / 1-sqrt of Pr/Pf
     //if (RefPwr > FwdPwr) RefPwr = FwdPwr; 
+    
     tmp = sqrt(RefPwr/FwdPwr);
     SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
     if (FwdPwr <= 0.1)
@@ -502,7 +477,6 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     if (SWRVal > 9.9)
         SWRVal = 10;
     SWR_Serial_Val = SWRVal;
-
     FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
     sendSerialData();   // send this data to the serial port for remote monitoring
 }
@@ -514,8 +488,8 @@ void sendSerialData()
 {
 
     //if ((counter1/10) % 10 == 0) {   // slow down the data rate.  Ideally do at at the AD read command                
-        sprintf(tx_buffer,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f\r\n", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
-        tx_count = strlen(tx_buffer);
+        sprintf((char *) tx_buffer,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f\r\n", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
+        tx_count = strlen((char *) tx_buffer);
         serial_usb_write();
     //}    
 }
@@ -539,165 +513,171 @@ void get_remote_cmd(){
              
             if (pSdata1 >= pSdata2 || cmd_str_len > BUF_LEN)  // if we have caught up to the end p2 then reset to beginning of buffer position.
                 pSdata1 = pSdata2 = sdata; 
-        }
-        printf("%s", cmd_str);
-    }
-    if (strlen(sdata) >= BUF_LEN-1) {
-        //pSdata = sdata;
-        sdata[0] = '\0';
-        printf("BUFFER OVERRRUN\n");
-        //Serial_ClearRxBuffer();            
-    }
-    else {
-        // filter out unwanted characters             
-        // Now we have a full comma delimited command string - validate and break it down           
-        j = 0;
-        for (i=0; (sdata[i] != ',') && (i <= cmd_str_len); i++) {
-            if (isalnum(sdata[i]))
-                cmd_str[j++] = (sdata[i]);                 
-        }
-        cmd_str[j] = '\0';  
-        printf(" Meter ID  ");
-        printf("%s",cmd_str);
+        
+            if (strlen(sdata) >= BUF_LEN-1) {
+                //pSdata = sdata;
+                sdata[0] = '\0';
+                //printf("BUFFER OVERRRUN\n");
+                //Serial_ClearRxBuffer();            
+                return;
+            }
+            // filter out unwanted characters             
+            // Now we have a full comma delimited command string - validate and break it down           
+            j = 0;
+            for (i=0; (sdata[i] != ',') && (i <= cmd_str_len); i++) {
+                if (isalnum(sdata[i]))
+                    cmd_str[j++] = (sdata[i]);                 
+            }
+            cmd_str[j] = '\0';  
+            //printf(" Meter ID  ");
+            //printf("%s",cmd_str);
 
-        if (atoi(cmd_str) == METERID) {
-            if (i < cmd_str_len) {
-                j = 0;
-                // Look for Msg_Type now
-                for (i +=1; (sdata[i] != ',') && (i <= cmd_str_len); i++) {   // i+1 to skip over the comma the var 'i' was left pointing at
-                    cmd_str[j++] = sdata[i];                 
-                }
-                cmd_str[j] = '\0';
-                printf(" Msg Type:  ");
-                printf("%s",cmd_str);
-              
-                if (atoi(cmd_str) == 120)  {   // Vaidate this message type for commands.  120 = coammand, 170 is data output                              
+            if (atoi(cmd_str) == METERID) {
+                if (i < cmd_str_len) {
                     j = 0;
-                    if (i < cmd_str_len) {                               
-                        for (i += 1; (sdata[i] != ',') && (i <= cmd_str_len); i++) {
-                            cmd_str[j++] = sdata[i];
-                        }  
-                        cmd_str[j] = '\0';
-                        printf(" CMD1:  ");
-                        printf("%s",cmd_str);
-                        cmd1 = atoi(cmd_str);
+                    // Look for Msg_Type now
+                    for (i +=1; (sdata[i] != ',') && (i <= cmd_str_len); i++) {   // i+1 to skip over the comma the var 'i' was left pointing at
+                        cmd_str[j++] = sdata[i];                 
                     }
-                    else 
-                        cmd1 = 1;
-                    
-                    j = 0;
-                    if (i < cmd_str_len) {                                                
-                        for (i += 1; (sdata[i] != ',') && (i <= cmd_str_len); i++) {
-                            cmd_str[j++] = sdata[i];                          
+                    cmd_str[j] = '\0';
+                    printf(" Msg Type:  ");
+                    printf("%s",cmd_str);
+                  
+                    if (atoi(cmd_str) == 120)  {   // Vaidate this message type for commands.  120 = coammand, 170 is data output                              
+                        j = 0;
+                        if (i < cmd_str_len) {                               
+                            for (i += 1; (sdata[i] != ',') && (i <= cmd_str_len); i++) {
+                                cmd_str[j++] = sdata[i];
+                            }  
+                            cmd_str[j] = '\0';
+                            printf(" CMD1:  ");
+                            printf("%s",cmd_str);
+                            cmd1 = atoi(cmd_str);
                         }
-                        cmd_str[j] = '\0';
-                        printf(" CMD2:  ");
-                        printf("%s",cmd_str);
-                        cmd2 = atof(cmd_str);
-                    }
-                    else 
-                        cmd2 = 1.0;
-              
-                    // Now do the commands     
-                    // add code to limit variables received to allowed range
-                    if (cmd1 == 255) Button_A = YES;   // switch scale - not really useful if you cannot see the meter face, data is not changed
-                    if (cmd1 == 254) {
-                        Button_B = YES;   // switch bands
-                        //CouplerSetNum = constrain(CouplerSetNum, 0, NUM_SETS);  
-                        NewBand = CouplerSetNum +1;    // Update Newband to current value.  Will be incrmented in button function                          
-                        if (NewBand > NUM_SETS) 
-                            NewBand = 0;  // cycle back to lowest band
-                    }
-                    if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
-                    if (cmd1 == 252) NULL;  //Speed up or slow down the Serial line output info rate
-                    if (cmd1 == 251) NULL;  //Speed up or slow down the Serial line output info rate
-                    if (cmd1 == 250) print_cal_table();   // dump current cal table to remote  (Was Scale GUI button)
+                        else 
+                            cmd1 = 0;
+                        
+                        j = 0;
+                        if (i < cmd_str_len) {                                                
+                            for (i += 1; (sdata[i] != ',') && (i <= cmd_str_len); i++) {
+                                cmd_str[j++] = sdata[i];                          
+                            }
+                            cmd_str[j] = '\0';
+                            printf(" CMD2:  ");
+                            printf("%s",cmd_str);
+                            cmd2 = atof(cmd_str);
+                        }
+                        else 
+                            cmd2 = 0.0;
+                  
+                        // Now do the commands     
+                        // add code to limit variables received to allowed range
+                        if (cmd1 == 255) Button_A = YES;   // switch scale - not really useful if you cannot see the meter face, data is not changed
+                        if (cmd1 == 254) {
+                            Button_B = YES;   // switch bands
+                            //CouplerSetNum = constrain(CouplerSetNum, 0, NUM_SETS);  
+                            NewBand = CouplerSetNum +1;    // Update Newband to current value.  Will be incrmented in button function                          
+                            if (NewBand > NUM_SETS) 
+                                NewBand = 0;  // cycle back to lowest band
+                        }
+                        if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
+                        if (cmd1 == 252) NULL;  //Speed up or slow down the Serial line output info rate
+                        if (cmd1 == 251) NULL;  //Speed up or slow down the Serial line output info rate
+                        if (cmd1 == 250) print_cal_table();   // dump current cal table to remote  (Was Scale GUI button)
 
-                    if (cmd1 == 249) {     // Jump to BandX
-                        Button_B = YES;
-                        NewBand = 9;  
-                    }
-                    if (cmd1 == 248) {     // Jump to BandX
-                        Button_B = YES;
-                        NewBand = 8;  
-                    }
-                    if (cmd1 == 247) {     // Jump to BandX
-                        Button_B = YES;
-                        NewBand = 7;  
-                    }
-                    if (cmd1 == 246) {     // Jump to BandX
-                        Button_B = YES;
-                        NewBand = 6;  
-                    }
-                    if (cmd1 == 245) {     // Jump to Band 1296
-                        Button_B = YES;
-                        NewBand = 5;  
-                    }
-                    if (cmd1 == 244) {     // Jump to Band 902
-                        Button_B = YES;
-                        NewBand = 4;  
-                    }
-                    if (cmd1 == 243) {     // Jump to Band 432
-                        Button_B = YES;
-                        NewBand = 3;  
-                    }
-                    if (cmd1 == 242) {     // Jump to Band 222
-                        Button_B = YES;
-                        NewBand = 2;  
-                    }
-                    if (cmd1 == 241) {     // Jump to Band 144
-                        Button_B = YES;
-                        NewBand = 1;  
-                    }
-                    if (cmd1 == 240) {     // Jump to Band 50
-                        Button_B = YES;
-                        NewBand = 0;  
-                    }
-                    if (cmd1 == 239) {     // Toggle Serial power data outpout.  Other serial functions remain available.
-                        toggle_ser_data_output();
-                    }
-                    if (cmd1 == 193) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
-                        Reset_Flag = 1;
-                    }
-                    if (cmd1 == 194) {     // Set Reset EEPROM flag.  Will repopulate after CPU reset
-                        if (Reset_Flag == 1) 
-                            reset_EEPROM();
-                        Reset_Flag = 0;   
-                    }
-                    if (cmd1 == 195) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
-                       // resetFunc();  //call reset
-                       // Probably use a sw wd to do a software remote reset.
-                    }                            
-                    // Handle remote command to change stored coupling factor to support headless ops.
-                    // TODO: Need to write into EEPROM, either here or by changing bands.                          
-                    if (cmd1 >= 100 && cmd1 < 110) {     // Change Fwd coupling factor for Port X
-                        int index;
-                        index = cmd1 - 100;
-                        printf("Band: ");
-                        printf("%s",Band_Cal_Table[index].BandName);
-                        printf(" --- Old Fwd Value: ");
-                        printf("%f",Band_Cal_Table[index].Cpl_Fwd);
-                        Band_Cal_Table[index].Cpl_Fwd = cmd2;       // cmd2 is second byte in 2 byte payload.                              
-                        printf(" +++ New Fwd Value: ");
-                        printf("%f",Band_Cal_Table[index].Cpl_Fwd);
-                        EEPROM_Init_Write();  // save to eeprom
-                    }
-                    if (cmd1 >= 110 && cmd1 < 120) {     // Change Ref coupling factor for Port X
-                        int index;
-                        index = cmd1 - 110;
-                        printf("Band: ");
-                        printf("%s",Band_Cal_Table[index].BandName);
-                        printf(" --- Old Ref Value: ");
-                        printf("%f",Band_Cal_Table[index].Cpl_Ref);
-                        Band_Cal_Table[index].Cpl_Ref = cmd2;       // cmd2 is second byte in 2 byte payload.                              
-                        printf(" +++ New Ref Value: ");
-                        printf("%f",Band_Cal_Table[index].Cpl_Ref);
-                        EEPROM_Init_Write();   // save to eeprom on changes.  
-                    }                                      
-                } // end of msg_type 120                                      
-            } // end of msg_type length check
-        } // end of meter ID OK    
-    } //while serial available    
+                        if (cmd1 == 249) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 9;  
+                        }
+                        if (cmd1 == 248) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 8;  
+                        }
+                        if (cmd1 == 247) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 7;  
+                        }
+                        if (cmd1 == 246) {     // Jump to BandX
+                            Button_B = YES;
+                            NewBand = 6;  
+                        }
+                        if (cmd1 == 245) {     // Jump to Band 1296
+                            Button_B = YES;
+                            NewBand = 5;  
+                        }
+                        if (cmd1 == 244) {     // Jump to Band 902
+                            Button_B = YES;
+                            NewBand = 4;  
+                        }
+                        if (cmd1 == 243) {     // Jump to Band 432
+                            Button_B = YES;
+                            NewBand = 3;  
+                        }
+                        if (cmd1 == 242) {     // Jump to Band 222
+                            Button_B = YES;
+                            NewBand = 2;  
+                        }
+                        if (cmd1 == 241) {     // Jump to Band 144
+                            Button_B = YES;
+                            NewBand = 1;  
+                        }
+                        if (cmd1 == 240) {     // Jump to Band 50
+                            Button_B = YES;
+                            NewBand = 0;  
+                        }
+                        if (cmd1 == 239) {     // Toggle Serial power data outpout.  Other serial functions remain available.
+                            toggle_ser_data_output();
+                        }
+                        if (cmd1 == 193) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
+                            Reset_Flag = 1;
+                        }
+                        if (cmd1 == 194) {     // Set Reset EEPROM flag.  Will repopulate after CPU reset
+                            if (Reset_Flag == 1) 
+                                reset_EEPROM();
+                            Reset_Flag = 0;   
+                        }
+                        if (cmd1 == 195) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
+                           // resetFunc();  //call reset
+                           EEPROM_Init_Read();
+                           Cal_Table();
+                            
+                           // Probably use a sw wd to do a software remote reset for PSoC5.
+                        }                            
+                        // Handle remote command to change stored coupling factor to support headless ops.
+                        // TODO: Need to write into EEPROM, either here or by changing bands.                          
+                        if (cmd1 >= 100 && cmd1 < 110) {     // Change Fwd coupling factor for Port X
+                            int index;
+                            index = cmd1 - 100;
+                            //printf("Band: ");
+                            //printf("%s",Band_Cal_Table[index].BandName);
+                            //printf(" --- Old Fwd Value: ");
+                            //printf("%f",Band_Cal_Table[index].Cpl_Fwd);
+                            Band_Cal_Table[index].Cpl_Fwd = cmd2;       // cmd2 is second byte in 2 byte payload.                              
+                            //printf(" +++ New Fwd Value: ");
+                            //printf("%f",Band_Cal_Table[index].Cpl_Fwd);
+                            EEPROM_Init_Write();    // save to eeprom
+                            EEPROM_Init_Read();     // load the values into memory
+                            Cal_Table();
+                        }
+                        if (cmd1 >= 110 && cmd1 < 120) {     // Change Ref coupling factor for Port X
+                            int index;
+                            index = cmd1 - 110;
+                            //printf("Band: ");
+                            //printf("%s",Band_Cal_Table[index].BandName);
+                            //printf(" --- Old Ref Value: ");
+                            //printf("%f",Band_Cal_Table[index].Cpl_Ref);
+                            Band_Cal_Table[index].Cpl_Ref = cmd2;       // cmd2 is second byte in 2 byte payload.                              
+                            //printf(" +++ New Ref Value: ");
+                            //printf("%f",Band_Cal_Table[index].Cpl_Ref);
+                            EEPROM_Init_Write();    // save to eeprom on changes.  
+                            EEPROM_Init_Read();     // load the values into memory
+                            Cal_Table();
+                        }                                      
+                    } // end of msg_type 120                                      
+                } // end of msg_type length check
+            } // end of meter ID OK    
+        } // end of \n found
+    } //end rx_count not 0
 } // end get_remote_cmd function
 
 // Copy hard coded cal data to memory
@@ -710,45 +690,20 @@ void write_Cal_Table_from_Default()
     strcpy(Band_Cal_Table[i].BandName, Band_Cal_Table_Def[i].BandName);
     Band_Cal_Table[i].Cpl_Fwd = Band_Cal_Table_Def[i].Cpl_Fwd;
     Band_Cal_Table[i].Cpl_Ref = Band_Cal_Table_Def[i].Cpl_Ref;
-    printf("Copied default data info Band Cal Table");
+    //printf("Copied default data info Band Cal Table");
   }
-}
-
-// Read state in EEPROM
-void get_config_EEPROM()
-{
-    CouplerSetNum = EEPROM_ReadByte(EE_STATE_BASE_ADDR+COUPLERSETNUM_OFFSET )-'0';
-    //printf("CouplerSetNum Read = ");
-    //printf(CouplerSetNum);
-    op_mode = EEPROM_ReadByte(EE_STATE_BASE_ADDR+OP_MODE_OFFSET )-'0';
-    //printf("op_mode Read = ");
-    //printf(op_mode);
-}
-
-// Save state in EEPROM
-void save_config_EEPROM()
-{
-    //CouplerSetNum = constrain(CouplerSetNum,0,NUM_SETS);
-    EEPROM_WriteByte(EE_STATE_BASE_ADDR+COUPLERSETNUM_OFFSET, (CouplerSetNum+'0'));
-    //printf("CouplerSetNum Write =");
-    //printf(CouplerSetNum);
-    //op_mode = constrain(op_mode,1,3);
-    if (op_mode == 1 || op_mode == 2) {
-        EEPROM_WriteByte(EE_STATE_BASE_ADDR+OP_MODE_OFFSET, (op_mode)+'0');
-        //printf("op_mode Write = ");
-        //printf(op_mode);
-    }
 }
 
 // Mark EEPROM for overwrite
 void reset_EEPROM()
 {
     if (Reset_Flag ==1) {
-        // erase byte 0 to force init process for testing.  Can also use to "factory" reset data
-        //EEPROM_Init(EE_SAVE_YES);
+        // erase byte 0 to force init process for testing.  Can also use to "factory" reset data      
         EEPROM_WriteByte(0,EE_STATE_BASE_ADDR);
-        printf("Erased Byte 0");
-
+        write_Cal_Table_from_Default();
+        EEPROM_Init(EE_SAVE_YES);
+        //printf("Erased Byte 0");
+        Cal_Table();
     }
 }
 
@@ -799,8 +754,7 @@ void print_cal_table()
         Band_Cal_Table[i].BandName,
         Band_Cal_Table[i].Cpl_Fwd,  // value in dB from coupler specs.  
         Band_Cal_Table[i].Cpl_Ref
-        );
-        
+        );        
         tx_count = strlen(buf);
         for (j = 0; j< tx_count; j++)
             tx_buffer[j] = buf[j];
@@ -832,7 +786,7 @@ void print_cal_table()
 *
 *******************************************************************************/
 
-uint8 EEPROM_Init(uint8 ee_save)
+uint8_t EEPROM_Init(uint8 ee_save)
 {
     /*  If we find a 'G' character at the start of EEPROM then skip initialization to prevent user data overwrite */   
     EE_PGM_Status = EEPROM_ReadByte(EE_STATE_BASE_ADDR);    
@@ -917,13 +871,14 @@ uint8 EEPROM_Init(uint8 ee_save)
 *   0 for success, 1 for FAIL
 *
 *******************************************************************************/
-uint8 EEPROM_Init_Write(void)
+uint8_t EEPROM_Init_Write(void)
 {
     uint8       ee_row;
     uint8_t     c1_array[16]; /* stores 1 row of 16 bytes for eeprom write and reads */
     uint16      j;  
     uint8_t     eepromArray[(NUM_SETS*20)];  // 200 is the array size calculated by the sizeOf function below
     uint16      Arr_Size;
+    uint8       result;
     
     
     EEPROM_UpdateTemperature();   
@@ -974,7 +929,11 @@ uint8 EEPROM_Init_Write(void)
         /*   start at 3rd row 1st byte (row 2) 0x0020)   */
         for(j=0; j<(Arr_Size); j++)  /* if we have t bands then we have 14 rows of EEPROM to read - or BANDS = 7 *32bytes, start at byte address  0x0010  */
         {              
-             EEPROM_WriteByte(eepromArray[j], CAL_TBL_ARR_OFFSET+j);      /*  start at byte 16 and get ARR_SIZE bytes for whole structure */          
+            result = EEPROM_WriteByte(eepromArray[j], CAL_TBL_ARR_OFFSET+j);      /*  start at byte 16 and get ARR_SIZE bytes for whole structure */          
+            if (result == CYRET_SUCCESS)
+                printf("saved byte, result = %d", result);
+            else
+                printf("failed to save byte, result = %d", result);
         }            
        
         /*If all went OK set first byte to 'G' and return */
@@ -1011,7 +970,7 @@ uint8 EEPROM_Init_Write(void)
 *   0 for success, 1 for FAIL
 *
 *******************************************************************************/
-uint8 Copy_to_EE(uint8 e_row, uint8_t c_array[16], uint8 print)
+uint8_t Copy_to_EE(uint8 e_row, uint8_t c_array[16], uint8 print)
 {
     uint16      j;
     uint8_t     eepromArray[16];   /* copy of data from eeprom to compare with source for validation.  */
@@ -1123,7 +1082,7 @@ uint8 Copy_to_EE(uint8 e_row, uint8_t c_array[16], uint8 print)
 *   0 for success, 1 for FAIL
 *
 *******************************************************************************/
-uint8 EEPROM_Init_Read(void)
+uint8_t EEPROM_Init_Read(void)
 {
     uint16      j;  
     uint8_t     eepromArray[NUM_SETS*20];
@@ -1157,7 +1116,8 @@ uint8 EEPROM_Init_Read(void)
         for(j=0; j<(Arr_Size); j++)  /* if we have t bands then we have 14 rows of EEPROM to read - or BANDS = 7 *32bytes, start at byte address  0x0010  */
         {              
             eepromArray[j] = EEPROM_ReadByte(CAL_TBL_ARR_OFFSET+j);      /*  start at byte 16 and get ARR_SIZE bytes for whole structure */          
-        }                 
+        } 
+        memcpy(Band_Cal_Table,eepromArray,Arr_Size);       /*  copy ARR_SIZE bytes back into the Band_Cal_Table structure (if it is not padded)  */                                 
         return 1;
     }
     return 0;   /*  Now have restored user state fully.  Be sure to write updates as they happen */
