@@ -117,7 +117,7 @@ UDP_PORT = 2334             # change to match your WSJTX source of data port num
 #  By default the this program is not filtering on this ID so wil lread any instance, including multiple instances which can get confusing
 #  Change the WSJT-X ID in this code from None to teh name that matches your rigname.  
 #  You can see the actual WSJTX ID received as it is dislayed in the terminal window each time a heartbeat is received
-#      This is a section of the relavent code used in this script
+#      This is a section of the relevent code used in this script
 #           if wsjtx_id is None and (type(the_packet) == pywsjtx.HeartBeatPacket):
 #               # We have an instance of WSJTX
 #               print("WSJT-X is detected, id is {}".format(the_packet.wsjtx_id))

@@ -253,7 +253,7 @@ extern uint8 I2COLED_initVar;
 *   Initial Parameter Constants
 ***************************************/
 
-#define I2COLED_DATA_RATE          (100u)
+#define I2COLED_DATA_RATE          (50u)
 #define I2COLED_DEFAULT_ADDR       (8u)
 #define I2COLED_I2C_PAIR_SELECTED  (0u)
 

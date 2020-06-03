@@ -18,7 +18,14 @@
     
 /*
  *
- * RF Wattmeter_PSoc5LP by K7MDL 5/27/2020   - Remote (Headless) Edition for PSoc5LP 
+ * RF Wattmeter_PSoc5LP by K7MDL 6/1/2020   - Remote (Headless) Edition for PSoc5LP 
+ *
+ * 6/1/2020 -   Added timeout to USB write to remove hang when USB is down.  
+ *              Now operates when the USB is dosconnected which is useful when a display is attached for local data display
+ *              Set up OLED formatting function for Fwd Power, Reflected power, and SWR and placeholders for temp and current.
+ *
+ * 5/31/2020 -  Added SSD1306 display controller code to support OLED display test on I2C bus.   Fixed EEPRONM read problem.  
+ *              Changing a cal value now updates for use immediately.
  *
  * 5/27/2020 -  Headless port from Arduino Nano to PSoC5LP CY8CKIT-059 dev module now fully working.
                 EEPROM work much differently and using USB serial port.
@@ -53,6 +60,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include "ssd1306.h"
+#include <string.h>
+#include <stddef.h>
 
 #define DISPLAY_ADDRESS 0x3C // 011110+SA0+RW - 0x3C or 0x3D NOTE1
 // If you are using a 128x64 OLED screen, the address will be 0x3C or 0x3D, if one does not work try with the other one.
@@ -82,15 +91,15 @@ char8    Callsign[CALLSIGN_LEN] = "K7MDL\0";
 //#define ADC_COUNTS 1024    // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
 //#define ad_Fwd "A1"    // Analog 35 pin for channel 0 - Arduino only
 //#define ad_Ref "A2"   // Analog 36 pin for channel 1 - Arduino only
-// Edit the Coupler Set data inb teh Cal_Table function.  Set the max number of sets here, and the default to load at startup
+// Edit the Coupler Set data in the Cal_Table function.  Set the max number of sets here, and the default to load at startup
 #define NUM_SETS 10 // 10 bands, 0 through 9 for example
-#define EE_STATE_BASE_ADDR      (0x0000)   /* row 0 */
+#define EE_STATE_BASE_ADDR      (0x0000)  /* row 0 */
 #define EE_RESERVED_BYTE1       (0x0001)
 #define OP_MODE_OFFSET          (0x0002)
 #define COUPLERSETNUM_OFFSET    (0x0003)
-#define SER_DATA_OUT_OFFSET     (0x0004)
+#define SER_DATA_OUT_OFFSET     (0x0004)  /* end row 1  */
 #define CALLSIGN_OFFSET         (0x0010)  /* first 7 bytes of row 1*/
-#define CAL_TBL_ARR_OFFSET      (0x0020)  /* Row 2  */
+#define CAL_TBL_ARR_OFFSET      (0x0020)  /* start row 2 and beyond  */
 #define EE_SAVE_YES             (65u)
 #define TEST_LEN                (14u)
 #define CFG_ARR_TEST_STRING     "01234567890123"
@@ -117,7 +126,7 @@ float32 SWRVal = 0;
 float32 SWR_Serial_Val = 0;
 float32 FwdVal = 0;
 float32 RefVal = 0;
-uint8 Edit_Atten = 0;
+uint8_t Edit_Atten = 0;
 uint8_t op_mode = SWR;
 uint8_t counter1 = 0;
 uint8_t Button_A = 0;
@@ -144,8 +153,8 @@ uint8_t readIndex_Fwd = 0;              // the index of the current reading
 uint8_t readIndex_Ref = 0;              // the index of the current reading
 float32 total_Fwd = 0;                  // the running total
 float32 total_Ref = 0;                  // the running total
-uint8_t   EE_PGM_Status = 0u;
-uint8_t   EE_PGM_Failed;
+uint8_t EE_PGM_Status = 0u;
+uint8_t EE_PGM_Failed;
 uint8_t rx_buffer[Serial_USB_BUFFER_SIZE];
 uint8_t tx_buffer[Serial_USB_BUFFER_SIZE];
 uint16_t rx_count = 0;
@@ -167,6 +176,7 @@ void write_Cal_Table_from_Default();
 void get_remote_cmd();
 uint16_t serial_usb_read(void);
 void serial_usb_write();
+void OLED(void);
 uint8_t EEPROM_Init(uint8); /* function to initially copy the config table array to EEPROM on first use.  Calls Read or Write */
 uint8_t EEPROM_Init_Write(void); /* function to initially copy the config table array TO the EEPROM on first use */
 uint8_t EEPROM_Init_Read(void); /* function to initially copy the config table array FROM the EEPROM on first use */
@@ -193,11 +203,15 @@ struct Band_Cal {
 struct Band_Cal Band_Cal_Table[10];
 
 void setup(void) {
-  //  I2COLED_Start(); 
-  //  display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
+    I2COLED_Start(); 
+    display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
+    //gfx_setRotation(1);
     Serial_Start();
     
     CyGlobalIntEnable; /* Enable global interrupts. */
+    
+    display_clear();    
+    display_update();   
     
     /* Start USBFS operation with 5-V operation. */
     Serial_USB_Start(Serial_USB_DEVICE, Serial_USB_5V_OPERATION);  
@@ -224,21 +238,8 @@ void setup(void) {
 int main(void)
 {   
     setup();
-
+    
     while (1) {
-        /*                    
-           Test code for  128x64 OLED graphics screen.  SSD1306 I2C type.
-        */
-     /*
-        display_clear();    
-       display_update();    
-       gfx_setTextSize(1);
-       gfx_setTextColor(WHITE);
-       gfx_setCursor(2,2);
-       gfx_println("Hey there!");
-       display_update();    // NOTE: You should remember to update the display in order to see the results on the oled.
-       */ 
-     
         // Listen for remote computer commands
         serial_usb_read();  // festch latest data in buffer
               
@@ -274,8 +275,56 @@ int main(void)
             }
         } 
         adRead(); //get and calculate power + SWR values and display them
+        OLED();
         CyDelay(200);
     }
+}
+
+/*                    
+    TPrint to to 128x64 OLED graphics screen.  SSD1306 I2C type.
+*/        
+void OLED(void)
+{ 
+    char s[24];     
+        
+    display_clear();    
+    gfx_drawRect( 0, 17, 127, 47, WHITE);
+    
+    // Top row is Yellow with Power in Watts, size 2 font
+    gfx_setTextColor(WHITE);
+    sprintf(s, "  %*.1fW", 6, FwdPwr);
+    gfx_setTextSize(2);    
+    gfx_setCursor(4,0);
+    gfx_println(s);
+    
+    //sprintf(s,"  Fwd    Ref    SWR");    
+    gfx_setTextSize(1);    
+    gfx_setCursor(16,20);
+    gfx_println("Fwd");
+    gfx_setCursor(58,20);
+    gfx_println("Ref");
+    gfx_setCursor(95,20);
+    gfx_println("SWR");
+    
+    if (FwdPwr <= 0.1)
+        sprintf(s, " %*.1f%*.1f%*s", 5, 0.0, 7, 0.0, 5, "NA"); 
+    else
+        sprintf(s, " %*.1f%*.1f%*.1f", 5, Fwd_dBm, 7, Ref_dBm, 6, SWRVal);    
+    gfx_setTextSize(1);
+    gfx_setCursor(1,30);
+    gfx_println(s);
+    
+    sprintf(s,"Temp:%*dF", 3, 113);   // fake it for now
+    gfx_setTextSize(1);
+    gfx_setCursor(5,49);
+    gfx_println(s);
+    
+    sprintf(s,"Curr:%*.1f", 4, 9.6);   // fake it for now
+    gfx_setTextSize(1);
+    gfx_setCursor(68,49);
+    gfx_println(s);
+    
+    display_update();    // NOTE: You should remember to update the display in order to see the results on the oled. 
 }
 
 /*******************************************************************************
@@ -296,7 +345,6 @@ int main(void)
 *  None.
 *
 *******************************************************************************/
-
 uint16 serial_usb_read(void)
 {
     if (0u != Serial_USB_IsConfigurationChanged())    /* Host can send double SET_INTERFACE request. */
@@ -340,13 +388,19 @@ uint16 serial_usb_read(void)
 *
 *******************************************************************************/
 void serial_usb_write(void)
-{
-
+{   
+    uint32_t exit_Count;
+    #define EXIT_CTR 1500
+    
     if (0u != tx_count)
     {
+        exit_Count = 0;
         /* Wait until component is ready to send data to host. */
-        while (0u == Serial_USB_CDCIsReady())
+        while (0u == Serial_USB_CDCIsReady() && exit_Count < EXIT_CTR) 
         {
+            ++exit_Count; 
+            if (exit_Count > EXIT_CTR - 2)
+                return;
         }
         Serial_USB_PutData(tx_buffer, tx_count);         /* Send data back to host. */
 
@@ -381,12 +435,12 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     c = 1;   // short term smaples that feed into running average
     a = 0;
     for (int i = 0; i < c; ++i) {                   
-            // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC
-            AMux_RF_Power_FastSelect(0);
-            CyDelayUs(5);
-            ad_counts = ADC_RF_Power_Read32();
-            a1 = ADC_RF_Power_CountsTo_Volts(ad_counts);    
-            a += a1;
+        // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC
+        AMux_RF_Power_FastSelect(0);
+        CyDelayUs(5);
+        ad_counts = ADC_RF_Power_Read32();
+        a1 = ADC_RF_Power_CountsTo_Volts(ad_counts);    
+        a += a1;
     }
     a /= c; // calculate the average then use result in a running average
     readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this runnign average
@@ -409,21 +463,17 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
         FwdPwr = 9999;
     FwdVal = FwdPwr;
     
-    //dtostrf(Fwd_dBm, 4, 1, buf);
-    //strncat(buf, "dBm", 3);
-    //printf(buf);
-    
     // Now get Reflected Power     
     total_Ref -= readings_Ref[readIndex_Ref];// subtract the last reading:    
     c = 1; // read from the sensor:
     a = 0;
     for (int i = 0; i < c; ++i)  {
-            // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC
-            AMux_RF_Power_FastSelect(1);
-            CyDelayUs(5);
-            ad_counts = ADC_RF_Power_Read32();
-            a1 = ADC_RF_Power_CountsTo_Volts(ad_counts);
-            a += a1;
+        // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC
+        AMux_RF_Power_FastSelect(1);
+        CyDelayUs(5);
+        ad_counts = ADC_RF_Power_Read32();
+        a1 = ADC_RF_Power_CountsTo_Volts(ad_counts);
+        a += a1;
     }
     a /= c; // calculate the average then use result in a running average
     readings_Ref[readIndex_Ref] = a;   // get from the latest average above and track in this runnign average
@@ -446,29 +496,6 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     if (RefPwr > 999)
         RefPwr = 999;
     RefVal = RefPwr;
-      
-    //dtostrf(Ref_dBm, 4, 1, buf);
-    //strncat(buf, "dBm", 3);
-    //printf(buf);
-
-    // dtostrf(RefPwr, 1, 0, buf1);
-    // strcpy(buf, "Ref PWR");
-    // strcat(buf, buf1);
-    // printf(buf);
-    
-    // Write our Digital Values to Sreen here in dBm and SWR ratio    
-    //if (FwdPwr != FwdPwr_last) {
-        //if (FwdPwr >= 9999) strcpy(buf, "OVR ");
-        //else if (FwdPwr < 100) dtostrf(FwdPwr, 4, 1, buf);
-        //else dtostrf(FwdPwr, 4, 0, buf);   // remove decimal for larger values
-        //strncat(buf, "W\r", 2);  // write out the value in W on digital display zone
-        
-        //if (RefPwr >= 999) strcpy(buf, "OVR ");
-        //else if (RefPwr < 100) dtostrf(RefPwr, 4, 1, buf);   // same as for forward power, remove decimal for large vcalues and display result
-        //else dtostrf(RefPwr, 4, 0, buf);
-        //strncat(buf, "W\r", 2);        
-    //VSWR = 1+sqrt of Pr/Pf  / 1-sqrt of Pr/Pf
-    //if (RefPwr > FwdPwr) RefPwr = FwdPwr; 
     
     tmp = sqrt(RefPwr/FwdPwr);
     SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
@@ -486,7 +513,6 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
 */
 void sendSerialData()
 {
-
     //if ((counter1/10) % 10 == 0) {   // slow down the data rate.  Ideally do at at the AD read command                
         sprintf((char *) tx_buffer,"%d,%s,%s,%.1f,%.1f,%.1f,%.1f,%.1f\r\n", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val);
         tx_count = strlen((char *) tx_buffer);
@@ -494,8 +520,8 @@ void sendSerialData()
     //}    
 }
 
-void get_remote_cmd(){
-
+void get_remote_cmd()
+{
     uint8 cmd1;
     float32 cmd2;
     uint8 cmd_str_len;

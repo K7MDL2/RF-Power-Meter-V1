@@ -336,6 +336,7 @@
       <Data key="cc3bcd7e-5dc0-48ea-9bf6-6aa082be1ada" value="Vout_1" />
       <Data key="ed092b9b-d398-4703-be89-cebf998501f6" value="Tx_1" />
       <Data key="efd10059-e883-4242-b42c-e14db679ea41" value="Vout_2" />
+      <Data key="f9b69582-16c1-4837-86e7-ce971b04e59e/93327f79-f616-44c2-ae10-d5db5cc52542" value="ADC_RF_Power_Bypass_P32" />
     </Group>
   </Group>
   <Group key="EEPROM">
@@ -3424,7 +3425,7 @@
   <Group key="Pin2">
     <Group key="02f2cf2c-2c7a-49df-9246-7a3435c21be3">
       <Group key="0">
-        <Data key="Port Format" value="0,0" />
+        <Data key="Port Format" value="1,7" />
       </Group>
     </Group>
     <Group key="721ab32c-0514-47bf-9983-fee7cdebc2fd">
@@ -3434,7 +3435,7 @@
     </Group>
     <Group key="22863ebe-a37b-476f-b252-6e49a8c00b12">
       <Group key="0">
-        <Data key="Port Format" value="0,1" />
+        <Data key="Port Format" value="1,6" />
       </Group>
     </Group>
     <Group key="1425177d-0d0e-4468-8bcc-e638e5509a9b">
@@ -3460,6 +3461,11 @@
     <Group key="ed092b9b-d398-4703-be89-cebf998501f6">
       <Group key="0">
         <Data key="Port Format" value="12,7" />
+      </Group>
+    </Group>
+    <Group key="f9b69582-16c1-4837-86e7-ce971b04e59e/93327f79-f616-44c2-ae10-d5db5cc52542">
+      <Group key="0">
+        <Data key="Port Format" value="3,2" />
       </Group>
     </Group>
     <Group key="UnAssigned Pins" />
