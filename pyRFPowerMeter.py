@@ -10,7 +10,7 @@ import tkinter.font as tkFont
 import pywsjtx.extra.simple_server
 
 PowerMeterVersionNum = "1.02"
-# pyRFPowerMeter  Version 1.02  May 8 2020
+# pyRFPowerMeter  Version 1.02  June 9 2020
 # Author: M. Lewis K7MDL
 # 
 #   1.02 dev copy for testing headless and remote calibration command protocol and run on Ardiuno Nano
@@ -23,10 +23,15 @@ PowerMeterVersionNum = "1.02"
 #           5.7G followed by 10G will mark the meter EEPROM as Invalid.
 #           Serial transmit frm CPU off/on (Btn C 5 sec).#       
 #       Added cmd line argument #2 to collect custom MeterID with changes to use it.
-#       Can now run multiple instances of meters (each on their own USB port) and Desktop monior apps 
+#       Can now run multiple instances of meters (each on their own USB port) and Desktop monitor apps 
 #           by specifying correct MeterID and Comm port# at startup. Easiest done on the command line in a desktop shortcut file
 #       Catches unicode serial errors that happens when the CPU resets
-#
+#       Reassigned frequency mapping to include HF at 240 (CouplerSetNum 0 (aka Band 0) on the host)
+#       Reassigned Dump cal table to 252 to make room for 10G sliding up from 249 to 250.  251 unused.
+#       Replaced Other button to be the HF button. 2.3G button active but greyed for testing.  
+#       The 3.4, 5.7G. and 10G are enabled but mapped to reset CPU and reset to factory default config commands
+#       Works with the PSoC version as well as the Arduinos.  
+#       If bands are different then you do need to sync the buttons and commands to the available configured bands on the host cpu.
 #
 #   Uses the awesome WSJT-X python decoding package py-WSJTX 
 #       https://github.com/bmo/py-wsjtx
@@ -242,7 +247,7 @@ class Serial_RX(Thread):
         try:
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
-                #print("1  DATA HERE {}" .format(tempstr))
+                print("1  DATA HERE {}" .format(tempstr))
                 meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
                 #print("2 TMP raw str   = {}" .format(meter_data_tmp))
                 if len(meter_data_tmp) >= 4:
@@ -374,26 +379,28 @@ class Receiver(Thread):
         else:            
             cmd_data = 0        # data value always zero for band change commands
             band = int(cmd_str)           # non direct band change commands
-            if band < 70:
+            if band < 49:
                 cmd = "240"
-            elif 69 < band < 200:
+            elif 49 < band < 70:
                 cmd = "241"
-            elif 199 < band < 300:
+            elif 69 < band < 200:
                 cmd = "242"
-            elif 299 < band < 600:
+            elif 199 < band < 300:
                 cmd = "243"
-            elif 599 < band < 1000:
+            elif 299 < band < 600:
                 cmd = "244"
-            elif 999 < band < 2000: 
+            elif 599 < band < 1000:
                 cmd = "245"
-            elif 1999 < band < 3000: 
+            elif 999 < band < 2000: 
                 cmd = "246"
-            elif 2999 < band < 4000: 
+            elif 1999 < band < 3000: 
                 cmd = "247"
-            elif 3999 < band < 8000: 
+            elif 2999 < band < 4000: 
                 cmd = "248"
-            elif band > 7999: 
+            elif 3999 < band < 8000: 
                 cmd = "249"
+            elif band > 7999: 
+                cmd = "250"
             else: 
                 pass                    # incase we add more
 
@@ -469,22 +476,16 @@ class App(tk.Frame):
         self.scale.pack({"side": "left"})
 
         self.swr = tk.Button(self)
-        self.swr["text"] = " Fwd"
+        self.swr["text"] = " Fwd  "
         self.swr["command"] = self.cpl_Fwd  # Send cmd to change to SWR meter face procedure
-        self.swr.configure(font=self.btn_font, padx = 3)
+        self.swr.configure(font=self.btn_font, padx = 0)
         self.swr.pack({"side": "left"})
 
         self.rate_p = tk.Button(self)
-        self.rate_p["text"] = " Ref"
+        self.rate_p["text"] = " Ref "
         self.rate_p["command"] = self.cpl_Ref  # Send cmd to change to slow data output rate
         self.rate_p.configure(font=self.btn_font)
         self.rate_p.pack({"side": "left"})
-
-        self.rate_n = tk.Button(self)
-        self.rate_n["text"] = "OTHR"
-        self.rate_n["command"] = self.cpl_other_Ref  # Send cmd to change to slow data output rate
-        self.rate_n.configure(font=self.btn_font)
-        self.rate_n.pack({"side": "left"})
 
         self.band_10G = tk.Button(self)
         self.band_10G["text"] = "10G"
@@ -507,7 +508,7 @@ class App(tk.Frame):
         self.band_23G = tk.Button(self)
         self.band_23G["text"] = "2.3G"
         self.band_23G["command"] = self.band_2300  # Jump to Band X
-        self.band_23G.configure(fg='grey',font=self.btn_font, padx=1, state='disabled')
+        self.band_23G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
         self.band_23G.pack({"side": "right"})
 
         self.band_1296M = tk.Button(self)
@@ -541,11 +542,16 @@ class App(tk.Frame):
         self.band_144M.pack({"side": "right"})
 
         self.band_50M = tk.Button(self)
-        self.band_50M["text"] = "HF-50"
+        self.band_50M["text"] = " 50 "
         self.band_50M["command"] = self.band_50  # Jump to Band X
-        self.band_50M.configure(fg='black',font=self.btn_font, padx=0, state='normal')
+        self.band_50M.configure(fg='black',font=self.btn_font, padx=2, state='normal')
         self.band_50M.pack({"side": "right"})
 
+        self.band_HF = tk.Button(self)
+        self.band_HF["text"] = " HF "
+        self.band_HF["command"] = self.band_HF  # Jump to Band X
+        self.band_HF.configure(fg='black',font=self.btn_font, padx=2, state='normal')
+        self.band_HF.pack({"side": "right"})
 
         # Fill in text label to help identify multiple meters.  Text not needed for 1 meter usage    
         self.SWR_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),pady=0,anchor="e",width = 0)
@@ -652,7 +658,7 @@ class App(tk.Frame):
             self.QUIT.configure(fg='white', bg="red")             
             restart_serial = 0
 
-        self.meter_id_f.after(250, self.update_label)  # refresh the live data display in the GUI window
+        self.meter_id_f.after(200, self.update_label)  # refresh the live data display in the GUI window
                
     # These functions are called by a button to do something with the power nter such as change cal sets for a new band
 
@@ -660,35 +666,26 @@ class App(tk.Frame):
         rx = Receiver()
         print("Get the meter's calibation table")
         # Write command to change meter scale and change meter face to Watts
-        rx.send_meter_cmd("250", "", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
+        rx.send_meter_cmd("252", "", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
        
-
     def change_band(self):
         rx = Receiver()
         print("Go to Next Band ")
         # Write command to change Band
         rx.send_meter_cmd("254","", True)
 
-    def cpl_Fwd(self):
+    def cpl_Fwd(self): 
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("100","32.0", True)
+        rx.send_meter_cmd("105","72.2", True)
 
 
     def cpl_Ref(self):
         rx = Receiver()
         print("Change Ref Port Coupling Value ")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("110","33.0", True)
-
-
-    def cpl_other_Ref(self):
-        rx = Receiver()
-        print("Change Other Ref Port Coupling Value ")
-        # Write command to speed up data rate output from meter
-        rx.send_meter_cmd("113","39.8", True)
-
+        rx.send_meter_cmd("115","72.2", True)
         
     def band_10g(self):
         rx = Receiver()
@@ -715,50 +712,55 @@ class App(tk.Frame):
         rx = Receiver()
         print("Jump to 2.3GHz Band ")
         # Write command to jump to band 6
-        rx.send_meter_cmd("246","", True)
+        rx.send_meter_cmd("247","", True)
 
         
     def band_1296(self):
         rx = Receiver()
         print("Jump to 1296MHz Band ")
         # Write command to jump to band 5
-        rx.send_meter_cmd("245","", True)
+        rx.send_meter_cmd("246","", True)
 
         
     def band_902(self):
         rx = Receiver()
         print("Jump to 902MHz Band ")
         # Write command to jump to band 4
-        rx.send_meter_cmd("244","", True)
+        rx.send_meter_cmd("245","", True)
 
 
     def band_432(self):
         rx = Receiver()
         print("Jump to 432MHz Band ")
         # Write command to jump to band 3
-        rx.send_meter_cmd("243","", True)
+        rx.send_meter_cmd("244","", True)
 
 
     def band_222(self):
         rx = Receiver()
         print("Jump to 222MHz Band ")
         # Write command to jump to band 2
-        rx.send_meter_cmd("242","", True)
+        rx.send_meter_cmd("243","", True)
 
 
     def band_144(self):
         rx = Receiver()
         print("Jump to 144MHz Band ")
         # Write command to jump to band 1
-        rx.send_meter_cmd("241","", True)
+        rx.send_meter_cmd("242","", True)
 
     
     def band_50(self):
         rx = Receiver()
         print("Jump to 50MHz Band ")
         # Write command to jump to band 0
+        rx.send_meter_cmd("241","", True)
+        
+    def band_HF(self):
+        rx = Receiver()
+        print("Jump to HF Band")
+        # Write command to speed up data rate output from meter
         rx.send_meter_cmd("240","", True)
-
 
     def comm(self):         # toggle if on or off, do noting if neither (started up with out a serial port for example)
         global comms
