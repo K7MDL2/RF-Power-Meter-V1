@@ -142,6 +142,8 @@ cmd = ""
 cmd_data = ""
 meter_data = ["","","","","","","","","",""]
 meter_data_fl  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,] # stores the same info in same psotion when possible as a float
+cal_flag = 3
+
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -227,6 +229,7 @@ class Serial_RX(Thread):
                             print("Error communicating while reading serial port: " + str(port_name))
                             print(e)
                         else:
+                            #print(out)
                             self.get_power_data(out)
                     else:
                         pass
@@ -243,16 +246,21 @@ class Serial_RX(Thread):
         global meter_data
         global meter_data_fl
         global comms
+        global cal_flag
 
         try:
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
-                print("1  DATA HERE {}" .format(tempstr))
+                #print("1  DATA HERE {}" .format(tempstr))
                 meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
                 #print("2 TMP raw str   = {}" .format(meter_data_tmp))
                 if len(meter_data_tmp) >= 4:
-                    if meter_data_tmp[0] == myRig_meter_ID:                                
-                        if meter_data_tmp[1] == "170":   # normal power data                        
+                    if meter_data_tmp[0] == myRig_meter_ID:   
+                        if meter_data_tmp[1] == "161":   # Coupler Cal progress message
+                            cal_flag = 1
+                        if meter_data_tmp[1] == "160":   # Coupler Cal progress message
+                            cal_flag = 0
+                        if meter_data_tmp[1] == "170":   # normal power data
                             meter_data = meter_data_tmp        
                             for i in range(len(meter_data)):                    
                                 if isfloat(meter_data[i]):                                                                    
@@ -352,7 +360,7 @@ class Receiver(Thread):
                             if band != freq or freq != last_freq:
                                 #print(" Meter band not matched to radio: Meter: {}  Radio: {}" .format(band, freq))                    
                                 self.send_meter_cmd(int(freq), "", False)
-                                print('{} {} {} {} {} {}' .format("Dial Drequency is : ", freq, "    Was : ", last_freq, "   Meter Band : ", band))                            
+                                print('{} {} {} {} {} {}' .format("Dial Frequency is : ", freq, "    Was : ", last_freq, "   Meter Band : ", band))                            
                                 last_freq = freq                                
                             else:
                                 print("Frequency Now " + freq)         
@@ -547,11 +555,11 @@ class App(tk.Frame):
         self.band_50M.configure(fg='black',font=self.btn_font, padx=2, state='normal')
         self.band_50M.pack({"side": "right"})
 
-        self.band_HF = tk.Button(self)
-        self.band_HF["text"] = " HF "
-        self.band_HF["command"] = self.band_HF  # Jump to Band X
-        self.band_HF.configure(fg='black',font=self.btn_font, padx=2, state='normal')
-        self.band_HF.pack({"side": "right"})
+        self.band_HFM = tk.Button(self)
+        self.band_HFM["text"] = " HF "
+        self.band_HFM["command"] = self.band_HF  # Jump to Band X
+        self.band_HFM.configure(fg='black',font=self.btn_font, padx=2, state='normal')
+        self.band_HFM.pack({"side": "right"})
 
         # Fill in text label to help identify multiple meters.  Text not needed for 1 meter usage    
         self.SWR_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),pady=0,anchor="e",width = 0)
@@ -652,6 +660,10 @@ class App(tk.Frame):
             else:
                 self.SWR_a.configure(text='{0:4.1f}  ' .format(swr), font=('Helvetica', 12, 'bold'), bg="light green", fg="black", width=4) 
 
+        if cal_flag == 1:  # Coupler cal is in progress.             
+            self.scale.configure(font=self.btn_font, bg="red",)
+        if cal_flag == 0:  # Coupler cal is finished.
+            self.scale.configure(font=self.btn_font, bg="grey94")
         # check if the serial is open and update button to warn user if it is closed and not supposed to be
         if restart_serial:
             self.comm()
@@ -674,18 +686,19 @@ class App(tk.Frame):
         # Write command to change Band
         rx.send_meter_cmd("254","", True)
 
+
     def cpl_Fwd(self): 
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("105","72.2", True)
+        rx.send_meter_cmd("88","100.0", True)
 
 
     def cpl_Ref(self):
         rx = Receiver()
         print("Change Ref Port Coupling Value ")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("115","72.2", True)
+        rx.send_meter_cmd("87","10.0", True)
         
     def band_10g(self):
         rx = Receiver()
@@ -760,7 +773,7 @@ class App(tk.Frame):
         rx = Receiver()
         print("Jump to HF Band")
         # Write command to speed up data rate output from meter
-        rx.send_meter_cmd("240","", True)
+        rx.send_meter_cmd("86","13", True)
 
     def comm(self):         # toggle if on or off, do noting if neither (started up with out a serial port for example)
         global comms
