@@ -8,12 +8,12 @@
  *
  * RF Power Meter by K7MDL 6/17/2020
  *
- * 6/16/2020 - Changed Fwd ADC to exernal I2C connected ADS100 "Unit" module froim M5stack.  This is a
- *             16-bit differntial input ADC in a plastic case with Grove conenctor (I2C 4 wire cable).
- *             Performance looks very good and far better than the internal 12B, free of noise, very stable looking.
- *             Have not changed the Ref port ADC becaue I forgot the order a Gorve "Tee" to add the 2nd ADS100 unit.
- *             Can splice wire but while looking arond for a Tee, I found the 4 port ADS1115 boards for $4 each.
- *             Going to test that board.  Near identical specs to the ADS1100.
+ * 6/16/2020 - Changed Fwd ADC to external I2C connected ADS1100 "Unit" module from M5stack.  This is a
+ *             16-bit differential input ADC in a plastic case with 4 pin "Grove" connector (I2C 4 wire cable).
+ *             Performance looks very good and far better than the internal 12bt ADC, free of noise, very stable looking.
+ *             Have not changed the Ref port ADC because I forgot the order a Grove "Tee" to add the 2nd ADS1100 unit.
+ *             Can splice the wires but while looking around for a Tee, I found some 4 port ADS1115 boards for $4 each.
+ *             Going to test those soon board.  Near identical specs to the ADS1100.
  *             In the PSoC version I have auto calibration, Nextion & OLED displays now working.
  *             This changes with more remote commands need to be brought over to this platform.
  *
