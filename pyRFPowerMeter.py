@@ -7,10 +7,14 @@ import serial.tools.list_ports as cports
 import sys
 import tkinter as tk
 import tkinter.font as tkFont
+from tkinter import *
+from tkinter.filedialog import askopenfilename
 import pywsjtx.extra.simple_server
+import tkinter.messagebox
+import ctypes
 
 PowerMeterVersionNum = "1.02"
-# pyRFPowerMeter  Version 1.02  June 9 2020
+# pyRFPowerMeter  Version 1.02  June 18 2020
 # Author: M. Lewis K7MDL
 # 
 #   1.02 dev copy for testing headless and remote calibration command protocol and run on Ardiuno Nano
@@ -32,6 +36,11 @@ PowerMeterVersionNum = "1.02"
 #       The 3.4, 5.7G. and 10G are enabled but mapped to reset CPU and reset to factory default config commands
 #       Works with the PSoC version as well as the Arduinos.  
 #       If bands are different then you do need to sync the buttons and commands to the available configured bands on the host cpu.
+#       CPU side auto cal now support measuring 1 power level s on comamnd 88 and 87 and will 
+#           computer the slope (including inversion) and offset.  Attenuation value is no longer modified. 
+#           This works better for more accurate reading over entire range.
+#       Converted coammnd line COM dialog to a GUI popup listbox.  Title bar now shows chosen port (if any)
+#       
 #
 #   Uses the awesome WSJT-X python decoding package py-WSJTX 
 #       https://github.com/bmo/py-wsjtx
@@ -69,7 +78,7 @@ myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Ti
 
 # edit these to match your meter ID and Rig/Location text for this meter instance
 myRig = "K3 Florida"      # Rig name and location - about 10 characters max
-myRig_meter_ID = "101"    # Change to match your power meter ID.  Always 3 digits, pad with leading 0 if needed on meter side
+myRig_meter_ID = "100"    # Change to match your power meter ID.  Always 3 digits, pad with leading 0 if needed on meter side
 myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
 
 # examples to inspire ....
@@ -412,6 +421,60 @@ class Receiver(Thread):
             else: 
                 pass                    # incase we add more
 
+class USBSelect:
+    def __init__(self):
+        self.HEIGHT = 700
+        self.WIDTH = 800    
+        root = tk.Tk()
+        root.width = self.WIDTH
+        root.height = self.HEIGHT
+        self.dialogroot = root
+        self.strDialogResult = ""    
+        self.canvas = tk.Canvas(root, height=self.HEIGHT, width=self.WIDTH)
+        self.canvas.pack()    
+        frame = tk.Frame(root, bg='#42c2f4')
+        frame.place(relx=0.5, rely=0.02, relwidth=0.96, relheight=0.95, anchor='n')  
+        # Here is the button call to the InputBox() function
+        buttonInputBox = tk.Button(frame, text="Input Box", bg='#cccccc', font=60, 
+            command=lambda: self.InputBox())   # open the window   
+        buttonInputBox.place(relx=0.05, rely=0.1, relwidth=0.90, relheight=0.8)    
+        #root.wm_withdraw()   # hides main host window
+        root.mainloop()   # execute program
+
+    def InputBox(self):        
+        dialog = tk.Toplevel(self.dialogroot)
+        dialog.width = 600
+        dialog.height = 100
+
+        frame = tk.Frame(dialog,  bg='#42c2f4', bd=5)
+        frame.place(relwidth=1, relheight=1)
+
+        entry = tk.Entry(frame, font=40)
+        entry.place(relwidth=0.65, rely=0.02, relheight=0.96)
+        entry.focus_set()
+
+        submit = tk.Button(frame, text='OK', font=16, command=lambda: self.DialogResult(entry.get()))
+        submit.place(relx=0.7, rely=0.02, relheight=0.96, relwidth=0.3)
+
+        root_name = self.dialogroot.winfo_pathname(self.dialogroot.winfo_id())
+        dialog_name = dialog.winfo_pathname(dialog.winfo_id())
+
+        # These two lines show a modal dialog
+        self.dialogroot.tk.eval('tk::PlaceWindow {0} widget {1}'.format(dialog_name, root_name))
+        self.dialogroot.mainloop()
+
+        #This line destroys the modal dialog after the user exits/accepts it
+        dialog.destroy()
+
+        #Print and return the inputbox result
+        print(self.strDialogResult)
+        return self.strDialogResult
+
+    def DialogResult(self, result):
+        self.strDialogResult = result
+        #This line quits from the MODAL STATE but doesn't close or destroy the modal dialog
+        self.dialogroot.quit()
+
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
 class App(tk.Frame):
@@ -423,7 +486,7 @@ class App(tk.Frame):
         super().__init__(master)
         self.serial_rx = None
         self.receiver = None
-        #self.grid()
+        self.grid()
         self.pack()
         self.createWidgets()
         self.update()
@@ -691,14 +754,14 @@ class App(tk.Frame):
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("88","100.0", True)
+        rx.send_meter_cmd("88","36.3", True)
 
 
     def cpl_Ref(self):
         rx = Receiver()
         print("Change Ref Port Coupling Value ")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("87","10.0", True)
+        rx.send_meter_cmd("87","5.0", True)
         
     def band_10g(self):
         rx = Receiver()
@@ -810,12 +873,24 @@ class App(tk.Frame):
     def place_window(self, width, height):
         # get screen width and height
         screen_width = self.winfo_screenwidth()
-        # screen_height = self.winfo_screenheight()
-    
+        screen_height = self.winfo_screenheight()
+        print('Screen Width and Height is ', screen_width, screen_height)
         # calculate position x and y coordinates
         x = screen_width - (width+10)
         y = 2
+        print('Window size and placement is %dx%d+%d+%d' % (width, height, x, y))
         self.master.geometry('%dx%d+%d+%d' % (width, height, x, y))
+        #self.master.geometry("720x49+500+500")
+
+    def NewFile(self):
+        print("New File!")
+
+    def OpenFile(self):
+        name = askopenfilename()
+        print(name)
+
+    def About(self):
+        print("RF Wattmeter Remote\nby K7MDL\nV1.X June 2020")
 
     def mainloop(self, *args):
         # Overriding mainloop so that we can do cleanup of our threads
@@ -834,24 +909,34 @@ def main():
     global cmd
     global cmd_data
     cmd = ""
-    global comms
+    global comms 
    
-    app = App()    
-    app.master.title(myTitle)           # tite can be edited in string constant at top of this file
+    root = Tk()
+    menu = Menu(root)  # Menu type top level window
+    app = App() # frame within the Menu type window
+    root.config(menu=menu)
+    filemenu = Menu(menu)
+    menu.add_cascade(label="File", menu=filemenu)
+    filemenu.add_command(label="New", command=(app.NewFile))
+    filemenu.add_command(label="Open...", command=app.OpenFile)
+    filemenu.add_separator()
+    filemenu.add_command(label="Exit", command=app.quit)
+    helpmenu = Menu(app)
+    menu.add_cascade(label="Help", menu=helpmenu)
+    helpmenu.add_command(label="About...", command=app.About)   
+    app.master.title(myTitle)           # title can be edited in string constant at top of this file
     w = 720   # width of our app window
     h = 49    # height of our app window
     app.place_window(w, h)
-
     app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
-     
     app.receiver = Receiver()
-    app.receiver.start()
-    
+    app.receiver.start()      # start the receiver thread now
     app.mainloop()      # start the GUI
-
 
 if __name__ == '__main__':
     comms = None
+
+    # The program actually starts here in on the command line before the GUI part starts above in Main()
     def validate_provided_port_name(port_name):
         #  List available ports for info
         print("Scanning for USB serial device matching cmd line provided port name {} (if any)" .format(port_name))    
@@ -873,14 +958,67 @@ if __name__ == '__main__':
             print("Error getting serial ports list: " + str(e))
             return 0
 
-    def ask_for_input():
+    # Interact with user in a popup GUI box to select a valid USB serial port if none named on the cmd line.
+    def com_box():
+        global comms 
+
+        def DialogResult():                       
+            port_name = None
+            index_list = listbox.curselection()
+            print(index_list)        
+            if (index_list != ()):            
+                port = index_list[0]
+                port_name = ask_for_input(port+1)   # +1 is to match the cmd line dialog that adjust the displayed list starting with 1, not 0
+                com_port_var.set(port_name)
+            else:
+                com_port_var.set("")            
+            dialog.destroy()
+            dialogroot.destroy()
+            dialogroot.quit() 
+
+        dialogroot = tk.Tk()
+        dialog = tk.Toplevel(dialogroot)
+        dialogroot.wm_withdraw()        
+        dialog.title("RF Wattmeter Remote - Select USB Port") 
+        dialog.geometry("800x200+600+400")  # remember its geometry("WidthxHeight(+or-)X(+or-)Y")
+        com_port_var=tk.StringVar()
+        com_port_var.set("") 
+        # defining a function that will get the comp port choice and print it on the screen  
+        com_port_label = tk.Label(dialog, text='Select a USB com port : {}' .format(com_port_var.get()), font=('Helvetica', 12, 'bold'),anchor="w", pady=2)
+        com_port_label.configure(fg='cyan', bg="black")     
+        submit_btn = tk.Button(dialog, text='OK', font=16, command = DialogResult)                  
+        scrollbar = Scrollbar(dialog)        
+        listbox = Listbox(dialog)       
+        scrollbar.grid(row=2,column=0)        
+        listbox.grid(row=0, column=0)
+        ports = []
+        i = 0
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
+            if "USB" in desc:   #  Only expecting USB serial ports for our Arduino
+                i = i + 1
+                ports.append(port)           
+                #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
+        for p in ports:
+            listbox.insert(END, p)                    
+        listbox.config(yscrollcommand = scrollbar.set)
+        scrollbar.config(command=listbox.yview)
+        submit_btn.grid(row=0,column=1)       
+        root_name = dialogroot.winfo_pathname(dialogroot.winfo_id())
+        dialog_name = dialog.winfo_pathname(dialog.winfo_id())
+        # These two lines show a modal dialog
+        dialogroot.tk.eval('tk::PlaceWindow {0} widget {1}'.format(dialog_name, root_name))
+        dialogroot.mainloop()
+        port_name = com_port_var.get()
+        return port_name        
+
+    def ask_for_input(port_listbox):
         global comms            
         """
         Show a list of ports and ask the user for a choice. To make selection
         easier on systems with long device names, also allow the input of an
         index.
         """
-        sys.stderr.write('\n--- Choose an available USB port to connect to yor RF Power Meter:\n')
+        sys.stderr.write('\n--- Choose an available USB port to connect to your RF Power Meter:\n')        
         ports = []
         i = 0
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
@@ -888,26 +1026,29 @@ if __name__ == '__main__':
                 i = i + 1
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        while True:
-            port = input('--- Enter port index number from list or any other key to continue without serial comms: ')
-            try:                
-                index = int(port) - 1
-                if not 0 <= index < len(ports):
-                    sys.stderr.write('--- Invalid index!\n')
-                    continue
-                port_name = ports[index]
-                comms = False
-                return port_name
-            except ValueError:
-                print("  Starting with serial comms OFF ")        
-                comms = None        # continue with comms off.
-                return None
-            else:
-                port = ports[index] 
-        print("**** Missing condition if you got here! ****" + port)    
-        
-    #  Begin collection and validation of serial port
-    port_name = ""
+        #while True:
+        #port = input('--- Enter port index number from list or any other key to continue without serial comms: ')       
+        port = port_listbox        
+        try:                
+            index = int(port) - 1
+            if not 0 <= index < len(ports):
+                sys.stderr.write('--- Invalid index!\n')
+                return None   #continue
+            port_name = ports[index]
+            comms = False
+            return port_name
+        except ValueError:
+            print("  Starting with serial comms OFF ")        
+            comms = None        # continue with comms off.
+            port_name = None
+            return None
+        else:
+            #port = ports[index] 
+            port_name = None
+            return None
+        print("**** Missing condition if you got here! ****" + port)  
+
+    port_name = None
     if len(sys.argv) > 1:
         port_name = sys.argv[1]
         print("COM port name provided: " + sys.argv[1]) # Collect serial port COMX from command line or terminal input
@@ -915,20 +1056,22 @@ if __name__ == '__main__':
         if validate_provided_port_name(port_name):            
             comms = False
         else:       # no valid port match
-            port_name = ask_for_input()     # No valid COMM port match found              
+            #port_name = ask_for_input()     # No valid COMM port match found              
+            port_name = com_box()     # No valid COMM port match found            
     else:
-        port_name = ask_for_input()      #  No COM port supplied on the command line
+        #port_name = ask_for_input()      #  No COM port supplied on the command line
+        port_name = com_box()     # No valid COMM port match found 
 
     if len(sys.argv) > 2:
         myRig_meter_ID = sys.argv[2]    
         print("Meter ID now set to : " + myRig_meter_ID)
     if myRig_meter_ID == "":
-        myRig_meter_ID = 101
-   
-    #comms = False
+        myRig_meter_ID = 100
+    print("Meter ID set to  : " + myRig_meter_ID)  
+
     if comms == False:
         print (" Port {} will be used" .format(port_name))
-        print("Opening USB serial Port: " + port_name)
+        print("Opening USB serial Port: " , port_name)
         ser = serial.Serial(
             port=port_name,
             baudrate=115200,
@@ -947,5 +1090,6 @@ if __name__ == '__main__':
                 print(" Cannot open serial port")   
 
         print("** Started up communication threads **")
-        
+        myTitle += " - " + port_name
+       
 main()      # start main app with GUI
