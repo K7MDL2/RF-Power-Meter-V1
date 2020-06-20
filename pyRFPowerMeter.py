@@ -14,7 +14,7 @@ import tkinter.messagebox
 import ctypes
 
 PowerMeterVersionNum = "1.02"
-# pyRFPowerMeter  Version 1.02  June 18 2020
+# pyRFPowerMeter  Version 1.02  June 19 2020
 # Author: M. Lewis K7MDL
 # 
 #   1.02 dev copy for testing headless and remote calibration command protocol and run on Ardiuno Nano
@@ -941,15 +941,9 @@ if __name__ == '__main__':
     myRig_meter_ID = "100"
     port_name = ""
     
-    if len(sys.argv) > 2:
-        myRig_meter_ID = sys.argv[2]    
-        print("Meter ID now set to : " + myRig_meter_ID)
+    #Program Startup happens here before the main app window is opened
 
-    if (myRig_meter_ID < "100" or myRig_meter_ID > "119"):
-        myRig_meter_ID = "100"
-        print("Meter ID value corrected to : " + myRig_meter_ID)  
-    
-    # The program actually starts here in on the command line before the GUI part starts above in Main()
+    # Several support functions
     def validate_provided_port_name(port_name):
         #  List available ports for info
         print("Scanning for USB serial device matching cmd line provided port name {} (if any)" .format(port_name))    
@@ -1082,7 +1076,7 @@ if __name__ == '__main__':
                 i = i + 1
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        #while True:
+        #while True:  (for cmd line usage)
         #port = input('--- Enter port index number from list or any other key to continue without serial comms: ')       
         port = port_listbox        
         try:                
@@ -1104,6 +1098,18 @@ if __name__ == '__main__':
             return None
         print("**** Missing condition if you got here! ****" + port)  
 
+    # This is the actual startup code that calls the functions above as needed.  
+    # Meter ID and Com port are harvested from the cmd line if provided.
+    # If missing or wrong, the GUI startup screen will be shown
+
+    if len(sys.argv) > 2:
+        myRig_meter_ID = sys.argv[2]    
+        print("Meter ID now set to : " + myRig_meter_ID)
+
+    if (myRig_meter_ID < "100" or myRig_meter_ID > "119"):
+        myRig_meter_ID = "100"
+        print("Meter ID value corrected to : " + myRig_meter_ID)  
+    
     port_name = ""
     if len(sys.argv) > 1:
         port_name = sys.argv[1]
@@ -1112,10 +1118,10 @@ if __name__ == '__main__':
         if validate_provided_port_name(port_name):            
             comms = False
         else:       # no valid port match
-            #port_name = ask_for_input()     # No valid COMM port match found              
+            #port_name = ask_for_input()     # No valid COMM port match found (for cmd line usage)             
             port_name = com_box()     # No valid COMM port match found            
     else:
-        #port_name = ask_for_input()      #  No COM port supplied on the command line
+        #port_name = ask_for_input()      #  No COM port supplied on the command line  (for cmd line usage)
         port_name = com_box()     # No valid COMM port match found 
 
     print("Meter ID final value set to  : " + myRig_meter_ID)
@@ -1143,4 +1149,4 @@ if __name__ == '__main__':
         print("** Started up communication threads **")
         myTitle += " - " + port_name
        
-main()      # start main app with GUI
+main()      # start main app GUI and threads
