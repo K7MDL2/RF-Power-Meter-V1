@@ -36,8 +36,9 @@ PowerMeterVersionNum = "1.02"
 #       The 3.4, 5.7G. and 10G are enabled but mapped to reset CPU and reset to factory default config commands
 #       Works with the PSoC version as well as the Arduinos.  
 #       If bands are different then you do need to sync the buttons and commands to the available configured bands on the host cpu.
-#       CPU side auto cal now support measuring 1 power level s on comamnd 88 and 87 and will 
-#           computer the slope (including inversion) and offset.  Attenuation value is no longer modified. 
+#       CPU side auto cal now support measuring 2 power levels on commands 88 (get hi power ADC voltage, set cal button red)
+#           and 87 (fwd low power ADC voltage and calculation) and 86 (ref low power ADC voltage and calculation)  
+#           figuring out the slope (including inversion) and offset.  Attenuation value is no longer modified.
 #           This works better for more accurate reading over entire range.
 #       Converted command line COM dialog to a GUI popup listbox.  Title bar now shows chosen port (if any)
 #           2 listboxes are presented for ConPort and MeterID selection. The fisrt, if any com port shown is chosen as default. 
