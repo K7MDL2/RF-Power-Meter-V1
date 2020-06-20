@@ -39,7 +39,12 @@ PowerMeterVersionNum = "1.02"
 #       CPU side auto cal now support measuring 1 power level s on comamnd 88 and 87 and will 
 #           computer the slope (including inversion) and offset.  Attenuation value is no longer modified. 
 #           This works better for more accurate reading over entire range.
-#       Converted coammnd line COM dialog to a GUI popup listbox.  Title bar now shows chosen port (if any)
+#       Converted command line COM dialog to a GUI popup listbox.  Title bar now shows chosen port (if any)
+#           2 listboxes are presented for ConPort and MeterID selection. The fisrt, if any com port shown is chosen as default. 
+#           100 is default for the meter ID unless it was changed here it eh Python source code below.
+#           If you click OK, the defaults are used.  No serial port is required to start, though not much can happen.
+#           You can get into the config screen and make edit thre and save.  WSJTX if available will still operate
+#           As of 6/19/2020 the config screens and config file save and read are stil to be created.
 #       
 #
 #   Uses the awesome WSJT-X python decoding package py-WSJTX 
@@ -77,8 +82,9 @@ PowerMeterVersionNum = "1.02"
 myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Title Bar Text
 
 # edit these to match your meter ID and Rig/Location text for this meter instance
-myRig = "K3 Florida"      # Rig name and location - about 10 characters max
-myRig_meter_ID = "100"    # Change to match your power meter ID.  Always 3 digits, pad with leading 0 if needed on meter side
+myRig = "K3 Florida"       # Rig name and location - about 10 characters max
+ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
+                           # --> Always 3 digits, 100 to 119 only allowed.  
 myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
 
 # examples to inspire ....
@@ -143,7 +149,7 @@ global s            # used to get nmetwork packet data
 own_call = ""       # used for meter ID in Radio field of GUI when only network is on.
 last_freq = ""      # used for detecting band changes from network
 # This boolean variable will save the communications (comms) status
-comms = None   #  False is off.  App.comm wil then toggle to on state.
+global comms  # = None   #  False is off.  App.comm wil then toggle to on state.
 restart_serial = 0
 heartbeat_timer = 0
 send_meter_cmd_flag = False   # Boolean to gate Sreial thread to send cmd byte to meter.  Cmd comes from USB thread
@@ -694,11 +700,11 @@ class App(tk.Frame):
         self.meter_id_f.configure(text=' Radio: {0:11s}   Band:' .format(ID), width=21) 
 
         curr_band = meter_data[2]
-        if curr_band == "":         # if blank then the meter is disconefted or turned off.  Instead post up WSJTX data if avaialble            
+        if curr_band == "":         # if blank then the meter is disconnected or turned off.  Instead post up WSJTX data if avaialble            
             curr_band = last_freq  
-            self.band_f.configure(text='%7s Net' % curr_band, anchor="e", fg="blue",bg="grey", pady=1, width=7)  # band Value
+            self.band_f.configure(text='%7s Net' % curr_band, anchor="e", fg="cyan",bg="black", pady=1, width=7)  # band Value
         else:
-            self.band_f.configure(text='%7s' % curr_band, anchor="e", fg="white",bg="grey", pady=1, width=7)  # band Value
+            self.band_f.configure(text='%7s' % curr_band, anchor="e", fg="yellow",bg="black", pady=1, width=7)  # band Value
         
         if (meter_data_fl[5]) > 9999:   # limit to under 10KW (9999.1W)
             meter_data[5] = "*OVER* "
@@ -754,14 +760,14 @@ class App(tk.Frame):
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("88","36.3", True)
+        rx.send_meter_cmd("88","100.0", True)
 
 
     def cpl_Ref(self):
         rx = Receiver()
         print("Change Ref Port Coupling Value ")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("87","5.0", True)
+        rx.send_meter_cmd("87","10.0", True)
         
     def band_10g(self):
         rx = Receiver()
@@ -836,7 +842,7 @@ class App(tk.Frame):
         rx = Receiver()
         print("Jump to HF Band")
         # Write command to speed up data rate output from meter
-        rx.send_meter_cmd("86","13", True)
+        rx.send_meter_cmd("240","", True)
 
     def comm(self):         # toggle if on or off, do noting if neither (started up with out a serial port for example)
         global comms
@@ -866,21 +872,7 @@ class App(tk.Frame):
             self.serial_rx.start() 
             print(" Serial thread started ")
         else:
-            pass
-
-    # Place window in the upper right corner of the desktop display for now.  
-    #   Later improve to save config file and remember the last position 
-    def place_window(self, width, height):
-        # get screen width and height
-        screen_width = self.winfo_screenwidth()
-        screen_height = self.winfo_screenheight()
-        print('Screen Width and Height is ', screen_width, screen_height)
-        # calculate position x and y coordinates
-        x = screen_width - (width+10)
-        y = 2
-        print('Window size and placement is %dx%d+%d+%d' % (width, height, x, y))
-        self.master.geometry('%dx%d+%d+%d' % (width, height, x, y))
-        #self.master.geometry("720x49+500+500")
+            pass     
 
     def NewFile(self):
         print("New File!")
@@ -912,9 +904,23 @@ def main():
     global comms 
    
     root = Tk()
-    menu = Menu(root)  # Menu type top level window
+    # Place window in the upper right corner of the desktop display for now.  
+    #   Later improve to save config file and remember the last position 
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    print('Screen Width and Height is ', screen_width, screen_height)
+    # calculate position x and y coordinates
+    w = 720   # width of our app window
+    h = 49    # height of our app window
+    x = screen_width - (w+10)
+    y = 2
+    print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
+    root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+    root.update_idletasks()
     app = App() # frame within the Menu type window
+    menu = Menu(root)  # Menu type top level window
     root.config(menu=menu)
+    app.master.title(myTitle)           # title can be edited in string constant at top of this file
     filemenu = Menu(menu)
     menu.add_cascade(label="File", menu=filemenu)
     filemenu.add_command(label="New", command=(app.NewFile))
@@ -924,10 +930,6 @@ def main():
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=app.About)   
-    app.master.title(myTitle)           # title can be edited in string constant at top of this file
-    w = 720   # width of our app window
-    h = 49    # height of our app window
-    app.place_window(w, h)
     app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
     app.receiver = Receiver()
     app.receiver.start()      # start the receiver thread now
@@ -935,7 +937,17 @@ def main():
 
 if __name__ == '__main__':
     comms = None
+    myRig_meter_ID = "100"
+    port_name = ""
+    
+    if len(sys.argv) > 2:
+        myRig_meter_ID = sys.argv[2]    
+        print("Meter ID now set to : " + myRig_meter_ID)
 
+    if (myRig_meter_ID < "100" or myRig_meter_ID > "119"):
+        myRig_meter_ID = "100"
+        print("Meter ID value corrected to : " + myRig_meter_ID)  
+    
     # The program actually starts here in on the command line before the GUI part starts above in Main()
     def validate_provided_port_name(port_name):
         #  List available ports for info
@@ -961,17 +973,31 @@ if __name__ == '__main__':
     # Interact with user in a popup GUI box to select a valid USB serial port if none named on the cmd line.
     def com_box():
         global comms 
+        global myRig_meter_ID
 
-        def DialogResult():                       
+        def ComPortSelect(event):              
             port_name = None
-            index_list = listbox.curselection()
-            print(index_list)        
+            index_list = listbox.curselection()      
             if (index_list != ()):            
                 port = index_list[0]
                 port_name = ask_for_input(port+1)   # +1 is to match the cmd line dialog that adjust the displayed list starting with 1, not 0
-                com_port_var.set(port_name)
+                com_port_var.set(port_name)                          
+                listbox_label.configure(text='USB Port: {}' .format(com_port_var.get()))                
             else:
-                com_port_var.set("")            
+                com_port_var.set("")   
+            print("listbox port_name value =", com_port_var.get())
+
+        def MeterID_Select(event): 
+            global myRig_meter_ID
+
+            myRig_meter_ID_list = meterid_listbox.curselection()
+            if (myRig_meter_ID_list != ()):
+                myRig_meter_ID = str(myRig_meter_ID_list[0] + 100)                
+                meterid_listbox.configure(selectbackground="BLUE")
+                meterid_label.configure(text='Meter ID: {}' .format(myRig_meter_ID))
+                print("listbox meter ID value =", myRig_meter_ID)
+        
+        def Select_done():
             dialog.destroy()
             dialogroot.destroy()
             dialogroot.quit() 
@@ -979,18 +1005,33 @@ if __name__ == '__main__':
         dialogroot = tk.Tk()
         dialog = tk.Toplevel(dialogroot)
         dialogroot.wm_withdraw()        
-        dialog.title("RF Wattmeter Remote - Select USB Port") 
-        dialog.geometry("800x200+600+400")  # remember its geometry("WidthxHeight(+or-)X(+or-)Y")
+        dialog.title("RF Wattmeter Remote")         
+        width = 420
+        height = 150
+        x = 400
+        y = 100
+        dialog.geometry('%dx%d+%d+%d' % (width, height, x, y))     
         com_port_var=tk.StringVar()
-        com_port_var.set("") 
+        com_port_var.set("")
+
+        meterid_label = tk.Label(dialog, text='Meter ID: {}' .format(myRig_meter_ID), font=('Helvetica',12), padx=0, pady=6)
+        meterid_label.place(x=180, y=0)                
+        meterid_listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2)      
+        for m in range(100,120):
+            meterid_listbox.insert(END, m) 
+
+        m -= 100
+        if (m > 4):
+            meterid_listscroll = Scrollbar(dialog, orient= VERTICAL)            
+            meterid_listbox.config(yscrollcommand = meterid_listscroll.set)
+            meterid_listscroll.config(command=meterid_listbox.yview) 
+            meterid_listscroll.place(x=276, y=55)       
+
         # defining a function that will get the comp port choice and print it on the screen  
-        com_port_label = tk.Label(dialog, text='Select a USB com port : {}' .format(com_port_var.get()), font=('Helvetica', 12, 'bold'),anchor="w", pady=2)
-        com_port_label.configure(fg='cyan', bg="black")     
-        submit_btn = tk.Button(dialog, text='OK', font=16, command = DialogResult)                  
-        scrollbar = Scrollbar(dialog)        
-        listbox = Listbox(dialog)       
-        scrollbar.grid(row=2,column=0)        
-        listbox.grid(row=0, column=0)
+        listbox_label = tk.Label(dialog, text='USB Port: {}' .format(com_port_var.get()), font=('Helvetica',12), padx=0, pady=6)
+        listbox_label.place(x=20, y=0)  
+        listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2) 
+
         ports = []
         i = 0
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
@@ -999,17 +1040,31 @@ if __name__ == '__main__':
                 ports.append(port)           
                 #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         for p in ports:
-            listbox.insert(END, p)                    
-        listbox.config(yscrollcommand = scrollbar.set)
-        scrollbar.config(command=listbox.yview)
-        submit_btn.grid(row=0,column=1)       
+            listbox.insert(END, p)           
+        if (len(ports) > 1):
+            listscroll = Scrollbar(dialog, orient= VERTICAL)            
+            listbox.config(yscrollcommand = listscroll.set)
+            listscroll.config(command=listbox.yview) 
+            listscroll.place(x=101, y=40, height=80 ) 
+        
+        com_port_var.set(ports[0])
+        listbox_label.configure(text='USB Port: {}' .format(com_port_var.get()))        
+        listbox.bind("<ButtonRelease-1>", ComPortSelect) 
+        meterid_listbox.bind("<ButtonRelease-1>", MeterID_Select)
+        listbox.place(x=20, y=40)   #, width=80 ) 
+        meterid_listbox.place(x=180, y=40 ) 
+        listbox.selection_set(first=0)
+
+        submit_btn = tk.Button(dialog, text='OK', font=16, command = Select_done) 
+        submit_btn.place(x=350, y=56, height=50, width=50)       
+        
         root_name = dialogroot.winfo_pathname(dialogroot.winfo_id())
         dialog_name = dialog.winfo_pathname(dialog.winfo_id())
         # These two lines show a modal dialog
         dialogroot.tk.eval('tk::PlaceWindow {0} widget {1}'.format(dialog_name, root_name))
         dialogroot.mainloop()
         port_name = com_port_var.get()
-        return port_name        
+        return port_name 
 
     def ask_for_input(port_listbox):
         global comms            
@@ -1048,7 +1103,7 @@ if __name__ == '__main__':
             return None
         print("**** Missing condition if you got here! ****" + port)  
 
-    port_name = None
+    port_name = ""
     if len(sys.argv) > 1:
         port_name = sys.argv[1]
         print("COM port name provided: " + sys.argv[1]) # Collect serial port COMX from command line or terminal input
@@ -1062,13 +1117,8 @@ if __name__ == '__main__':
         #port_name = ask_for_input()      #  No COM port supplied on the command line
         port_name = com_box()     # No valid COMM port match found 
 
-    if len(sys.argv) > 2:
-        myRig_meter_ID = sys.argv[2]    
-        print("Meter ID now set to : " + myRig_meter_ID)
-    if myRig_meter_ID == "":
-        myRig_meter_ID = 100
-    print("Meter ID set to  : " + myRig_meter_ID)  
-
+    print("Meter ID final value set to  : " + myRig_meter_ID)
+    print("Com Port final value set to : ", port_name)
     if comms == False:
         print (" Port {} will be used" .format(port_name))
         print("Opening USB serial Port: " , port_name)
