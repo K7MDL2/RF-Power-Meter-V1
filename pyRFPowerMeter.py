@@ -295,7 +295,7 @@ class Serial_RX(Thread):
                                 meter_data[i] = ""
                                 meter_data_fl[i] = 0.0
                     else:  # No ID Match
-                        #print(meter_data[0])
+                        #print("Non Matching Meter ID = ", meter_data[0])
                         #self.debug_meter_string("4 No ID Match   ")
                         meter_data[0] = "NA"          # no meter ID match so tell the UI  
                 else:   # Not 8 Elements
@@ -881,6 +881,20 @@ class App(tk.Frame):
     def OpenFile(self):
         name = askopenfilename()
         print(name)
+    
+    def Config(self):        
+        print("Config Screen Goes Here")
+        cfg = Tk()  
+        #   Later improve to save config file and remember the last position 
+        screen_width = cfg.winfo_screenwidth()
+        screen_height = cfg.winfo_screenheight()                
+        w = 900   # width of our app window
+        h = 500   # height of our app window
+        x = screen_width/3
+        y = 200
+        print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
+        cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        cfg.mainloop()
 
     def About(self):
         print("RF Wattmeter Remote\nby K7MDL\nV1.X June 2020")
@@ -928,6 +942,9 @@ def main():
     filemenu.add_command(label="Open...", command=app.OpenFile)
     filemenu.add_separator()
     filemenu.add_command(label="Exit", command=app.quit)
+    configmenu = Menu(menu)
+    menu.add_cascade(label="Configuration", menu=configmenu)
+    configmenu.add_command(label="Edit Config...", command=app.Config)   
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=app.About)   
@@ -994,12 +1011,14 @@ if __name__ == '__main__':
         
         def Select_done():
             dialog.destroy()
-            dialogroot.destroy()
-            dialogroot.quit() 
+            #dialogroot.destroy()
+            #dialogroot.quit() 
 
-        dialogroot = tk.Tk()
-        dialog = tk.Toplevel(dialogroot)
-        dialogroot.wm_withdraw()        
+        #dialogroot = tk.Tk()
+        #dialog = tk.Toplevel(dialogroot)
+        #dialogroot.wm_withdraw()        
+
+        dialog = tk.Tk()
         dialog.title("RF Wattmeter Remote")         
         width = 420
         height = 150
@@ -1036,13 +1055,14 @@ if __name__ == '__main__':
                 #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         for p in ports:
             listbox.insert(END, p)           
-        if (len(ports) > 1):
+        if (len(ports) > 4):
             listscroll = Scrollbar(dialog, orient= VERTICAL)            
             listbox.config(yscrollcommand = listscroll.set)
             listscroll.config(command=listbox.yview) 
             listscroll.place(x=101, y=40, height=80 ) 
         
-        com_port_var.set(ports[0])
+        if (len(ports) > 0):
+            com_port_var.set(ports[0])                    
         listbox_label.configure(text='USB Port: {}' .format(com_port_var.get()))        
         listbox.bind("<ButtonRelease-1>", ComPortSelect) 
         meterid_listbox.bind("<ButtonRelease-1>", MeterID_Select)
@@ -1053,11 +1073,7 @@ if __name__ == '__main__':
         submit_btn = tk.Button(dialog, text='OK', font=16, command = Select_done) 
         submit_btn.place(x=350, y=56, height=50, width=50)       
         
-        root_name = dialogroot.winfo_pathname(dialogroot.winfo_id())
-        dialog_name = dialog.winfo_pathname(dialog.winfo_id())
-        # These two lines show a modal dialog
-        dialogroot.tk.eval('tk::PlaceWindow {0} widget {1}'.format(dialog_name, root_name))
-        dialogroot.mainloop()
+        dialog.mainloop()
         port_name = com_port_var.get()
         return port_name 
 
@@ -1103,14 +1119,11 @@ if __name__ == '__main__':
     # If missing or wrong, the GUI startup screen will be shown
 
     if len(sys.argv) > 2:
-        myRig_meter_ID = sys.argv[2]    
-        print("Meter ID now set to : " + myRig_meter_ID)
+        if (sys.argv[2] >= '100' and sys.argv[2] <'120'):
+            myRig_meter_ID = sys.argv[2]    
+    print("Meter ID now set to : " + myRig_meter_ID)
 
-    if (myRig_meter_ID < "100" or myRig_meter_ID > "119"):
-        myRig_meter_ID = "100"
-        print("Meter ID value corrected to : " + myRig_meter_ID)  
-    
-    port_name = ""
+    port_name = None
     if len(sys.argv) > 1:
         port_name = sys.argv[1]
         print("COM port name provided: " + sys.argv[1]) # Collect serial port COMX from command line or terminal input
@@ -1126,8 +1139,10 @@ if __name__ == '__main__':
 
     print("Meter ID final value set to  : " + myRig_meter_ID)
     print("Com Port final value set to : ", port_name)
-    if comms == False:
-        print (" Port {} will be used" .format(port_name))
+    if (port_name != ""):
+        comms = False
+    if (comms == False):
+        print ("Port {} will be used" .format(port_name))
         print("Opening USB serial Port: " , port_name)
         ser = serial.Serial(
             port=port_name,
@@ -1146,7 +1161,8 @@ if __name__ == '__main__':
             except:
                 print(" Cannot open serial port")   
 
-        print("** Started up communication threads **")
-        myTitle += " - " + port_name
+        print("** Started up Serial Port communication thread **")
+
+    myTitle += " - " + port_name + " - Meter ID=" + myRig_meter_ID
        
 main()      # start main app GUI and threads
