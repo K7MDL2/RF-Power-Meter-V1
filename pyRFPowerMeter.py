@@ -84,7 +84,7 @@ myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Ti
 
 # edit these to match your meter ID and Rig/Location text for this meter instance
 myRig = "K3 Florida"       # Rig name and location - about 10 characters max
-ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
+myRig_meter_ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
                            # --> Always 3 digits, 100 to 119 only allowed.  
 myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
 
@@ -150,7 +150,7 @@ global s            # used to get nmetwork packet data
 own_call = ""       # used for meter ID in Radio field of GUI when only network is on.
 last_freq = ""      # used for detecting band changes from network
 # This boolean variable will save the communications (comms) status
-global comms  # = None   #  False is off.  App.comm wil then toggle to on state.
+comms  = None   #  False is off.  App.comm wil then toggle to on state.
 restart_serial = 0
 heartbeat_timer = 0
 send_meter_cmd_flag = False   # Boolean to gate Sreial thread to send cmd byte to meter.  Cmd comes from USB thread
@@ -158,8 +158,8 @@ cmd = ""
 cmd_data = ""
 meter_data = ["","","","","","","","","",""]
 meter_data_fl  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,] # stores the same info in same psotion when possible as a float
-cal_flag = 3
-
+cal_flag = 0
+cmd_flag = 0
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -210,8 +210,8 @@ class Serial_RX(Thread):
 
     def ser_meter_cmd(self):
         global send_meter_cmd_flag
-        global cmd
-        global cmd_data
+        #global cmd
+        #global cmd_data
 
         if send_meter_cmd_flag == True:   # if True then the UDP thread has a cmd waiting to send out.       
                 if ser.isOpen():
@@ -261,21 +261,28 @@ class Serial_RX(Thread):
     def get_power_data(self, s_data):
         global meter_data
         global meter_data_fl
-        global comms
+        #global comms
         global cal_flag
-
+        global cmd_flag
+        
         try:
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
                 #print("1  DATA HERE {}" .format(tempstr))
                 meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
                 #print("2 TMP raw str   = {}" .format(meter_data_tmp))
-                if len(meter_data_tmp) >= 4:
+                if len(meter_data_tmp) >= 3:
                     if meter_data_tmp[0] == myRig_meter_ID:   
-                        if meter_data_tmp[1] == "161":   # Coupler Cal progress message
+                        if meter_data_tmp[1] == "161":   # Cal progress message start
                             cal_flag = 1
-                        if meter_data_tmp[1] == "160":   # Coupler Cal progress message
+                        if meter_data_tmp[1] == "160":   # Cal progress message end
                             cal_flag = 0
+                        if meter_data_tmp[1] == "163":   # Cmd progress message start
+                            cmd_flag = 1                            
+                            print(" -------------cmd flag = 1 -------------")                           
+                        if meter_data_tmp[1] == "162":   # Cmd progress message end
+                            cmd_flag = 0                            
+                            print(" -------------cmd flag = 0 -------------")                                
                         if meter_data_tmp[1] == "170":   # normal power data
                             meter_data = meter_data_tmp        
                             for i in range(len(meter_data)):                    
@@ -316,8 +323,6 @@ class Serial_RX(Thread):
             meter_data_fl[i] = 0.0
         print("{0:}    = {1:}" .format(debug_msg, meter_data))
         print("{0:} FLT= {1:}" .format(debug_msg, meter_data_fl))
-
-
 
 #__________  Network handler in its own thread.  ________________________________________________________________
 #               Monitors WSJT-X broadcast packets to extract frequency for band changing
@@ -426,61 +431,7 @@ class Receiver(Thread):
             elif band > 7999: 
                 cmd = "250"
             else: 
-                pass                    # incase we add more
-
-class USBSelect:
-    def __init__(self):
-        self.HEIGHT = 700
-        self.WIDTH = 800    
-        root = tk.Tk()
-        root.width = self.WIDTH
-        root.height = self.HEIGHT
-        self.dialogroot = root
-        self.strDialogResult = ""    
-        self.canvas = tk.Canvas(root, height=self.HEIGHT, width=self.WIDTH)
-        self.canvas.pack()    
-        frame = tk.Frame(root, bg='#42c2f4')
-        frame.place(relx=0.5, rely=0.02, relwidth=0.96, relheight=0.95, anchor='n')  
-        # Here is the button call to the InputBox() function
-        buttonInputBox = tk.Button(frame, text="Input Box", bg='#cccccc', font=60, 
-            command=lambda: self.InputBox())   # open the window   
-        buttonInputBox.place(relx=0.05, rely=0.1, relwidth=0.90, relheight=0.8)    
-        #root.wm_withdraw()   # hides main host window
-        root.mainloop()   # execute program
-
-    def InputBox(self):        
-        dialog = tk.Toplevel(self.dialogroot)
-        dialog.width = 600
-        dialog.height = 100
-
-        frame = tk.Frame(dialog,  bg='#42c2f4', bd=5)
-        frame.place(relwidth=1, relheight=1)
-
-        entry = tk.Entry(frame, font=40)
-        entry.place(relwidth=0.65, rely=0.02, relheight=0.96)
-        entry.focus_set()
-
-        submit = tk.Button(frame, text='OK', font=16, command=lambda: self.DialogResult(entry.get()))
-        submit.place(relx=0.7, rely=0.02, relheight=0.96, relwidth=0.3)
-
-        root_name = self.dialogroot.winfo_pathname(self.dialogroot.winfo_id())
-        dialog_name = dialog.winfo_pathname(dialog.winfo_id())
-
-        # These two lines show a modal dialog
-        self.dialogroot.tk.eval('tk::PlaceWindow {0} widget {1}'.format(dialog_name, root_name))
-        self.dialogroot.mainloop()
-
-        #This line destroys the modal dialog after the user exits/accepts it
-        dialog.destroy()
-
-        #Print and return the inputbox result
-        print(self.strDialogResult)
-        return self.strDialogResult
-
-    def DialogResult(self, result):
-        self.strDialogResult = result
-        #This line quits from the MODAL STATE but doesn't close or destroy the modal dialog
-        self.dialogroot.quit()
+                pass                    # in case we add more
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
@@ -493,7 +444,7 @@ class App(tk.Frame):
         super().__init__(master)
         self.serial_rx = None
         self.receiver = None
-        self.grid()
+        #self.grid()
         self.pack()
         self.createWidgets()
         self.update()
@@ -503,7 +454,7 @@ class App(tk.Frame):
         # Will be called when the main window is closed
         # It should close the serial port if it has not
         # been previously closed
-        global comms
+        #global comms
 
         if comms:
             if ser.isOpen() == True:                
@@ -706,19 +657,30 @@ class App(tk.Frame):
             self.band_f.configure(text='%7s Net' % curr_band, anchor="e", fg="cyan",bg="black", pady=1, width=7)  # band Value
         else:
             self.band_f.configure(text='%7s' % curr_band, anchor="e", fg="yellow",bg="black", pady=1, width=7)  # band Value
-        
-        if (meter_data_fl[5]) > 9999:   # limit to under 10KW (9999.1W)
-            meter_data[5] = "*OVER* "
-        self.F_Watts_f.configure(text=' FWD:', anchor="w", width=5)       
-        self.F_Watts_a.configure(text='{0:7.1f}W' .format(meter_data_fl[5]), width=7)  
 
-        self.F_dBm_f.configure(text='(%6sdBm)' % meter_data[3], anchor="e")
+        self.F_Watts_f.configure(text=' FWD:', anchor="w", width=5)               
+        self.R_Watts_f.configure(text='  REF:', anchor="w", width=5)        
+        
+        if curr_band != "HF":       #  HF band is a "dummy" band to show it is not active 
+            if meter_data_fl[5] < 1.0:
+                meter_data_fl[5] = meter_data_fl[6] = 0.0  # zero out values less then minimum detectable by meter
+                meter_data[3] =  meter_data[4] = '0.0'   # also do the dBm values               
+                self.F_Watts_a.configure(text='{0:4.1f}W' .format(meter_data_fl[5]), width=7)                        
+            elif meter_data_fl[5] > 9999:   # limit to under 10KW (9999.1W)
+                self.F_Watts_a.configure(text='*OVER* ', width=7)              
+            elif meter_data_fl[5] > 99.9:
+                self.F_Watts_a.configure(text='{0:4.0f}W' .format(meter_data_fl[5]), width=7)      
+            else:
+                self.F_Watts_a.configure(text='{0:4.1f}W' .format(meter_data_fl[5]), width=7)                        
+            self.F_dBm_f.configure(text='(%6sdBm)' % meter_data[3], anchor="e")
+            self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)
+            self.R_dBm_f.configure(text='(%6sdBm) ' % meter_data[4], anchor="e")        
+        else:           
+            self.F_Watts_a.configure(text='   NA  ', width=7)
+            self.F_dBm_f.configure(text='(     dBm)', anchor="e")  
+            self.R_Watts_a.configure(text='  NA  ', width=6)
+            self.R_dBm_f.configure(text='(     dBm) ', anchor="e")        
 
-        self.R_Watts_f.configure(text='  REF:', anchor="w", width=5)
-        self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)
-        
-        self.R_dBm_f.configure(text='(%6sdBm) ' % meter_data[4], anchor="e")        
-        
         swr = meter_data_fl[7]
         if swr ==  0.0:
             self.SWR_a.configure(text='NA  ',font=('Helvetica', 12, 'bold'), bg="grey94", fg="black", width=4)   # not transmitting
@@ -730,15 +692,16 @@ class App(tk.Frame):
             else:
                 self.SWR_a.configure(text='{0:4.1f}  ' .format(swr), font=('Helvetica', 12, 'bold'), bg="light green", fg="black", width=4) 
 
-        if cal_flag == 1:  # Coupler cal is in progress.             
-            self.scale.configure(font=self.btn_font, bg="red",)
-        if cal_flag == 0:  # Coupler cal is finished.
+        if cmd_flag == 1:  # Coupler cal is in progress.             
+            self.scale.configure(font=self.btn_font, bg="red",)    
+        if cmd_flag == 0:  # Coupler cal is finished.
             self.scale.configure(font=self.btn_font, bg="grey94")
+
         # check if the serial is open and update button to warn user if it is closed and not supposed to be
         if restart_serial:
             self.comm()
             self.QUIT.configure(fg='white', bg="red")             
-            restart_serial = 0
+            restart_serial = 0   
 
         self.meter_id_f.after(200, self.update_label)  # refresh the live data display in the GUI window
                
@@ -756,13 +719,11 @@ class App(tk.Frame):
         # Write command to change Band
         rx.send_meter_cmd("254","", True)
 
-
     def cpl_Fwd(self): 
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
         # Write command to change meter face to SWR
         rx.send_meter_cmd("88","100.0", True)
-
 
     def cpl_Ref(self):
         rx = Receiver()
@@ -775,35 +736,30 @@ class App(tk.Frame):
         print("Jump to 10GHz Band ")
         # Write command to jump to band 9
         rx.send_meter_cmd("194","", True)
-
         
     def band_5700(self):
         rx = Receiver()
         print("Jump to 5.7GHz Band ")
         # Write command to jump to band 8
         rx.send_meter_cmd("193","", True)
-
         
     def band_3400(self):
         rx = Receiver()
         print("Jump to 3.4GHz Band ")
         # Write command to jump to band 7
         rx.send_meter_cmd("195","", True)
-
         
     def band_2300(self):
         rx = Receiver()
         print("Jump to 2.3GHz Band ")
         # Write command to jump to band 6
         rx.send_meter_cmd("247","", True)
-
         
     def band_1296(self):
         rx = Receiver()
         print("Jump to 1296MHz Band ")
         # Write command to jump to band 5
         rx.send_meter_cmd("246","", True)
-
         
     def band_902(self):
         rx = Receiver()
@@ -811,13 +767,11 @@ class App(tk.Frame):
         # Write command to jump to band 4
         rx.send_meter_cmd("245","", True)
 
-
     def band_432(self):
         rx = Receiver()
         print("Jump to 432MHz Band ")
         # Write command to jump to band 3
         rx.send_meter_cmd("244","", True)
-
 
     def band_222(self):
         rx = Receiver()
@@ -825,13 +779,11 @@ class App(tk.Frame):
         # Write command to jump to band 2
         rx.send_meter_cmd("243","", True)
 
-
     def band_144(self):
         rx = Receiver()
         print("Jump to 144MHz Band ")
         # Write command to jump to band 1
         rx.send_meter_cmd("242","", True)
-
     
     def band_50(self):
         rx = Receiver()
@@ -881,20 +833,6 @@ class App(tk.Frame):
     def OpenFile(self):
         name = askopenfilename()
         print(name)
-    
-    def Config(self):        
-        print("Config Screen Goes Here")
-        cfg = Tk()  
-        #   Later improve to save config file and remember the last position 
-        screen_width = cfg.winfo_screenwidth()
-        screen_height = cfg.winfo_screenheight()                
-        w = 900   # width of our app window
-        h = 500   # height of our app window
-        x = screen_width/3
-        y = 200
-        print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
-        cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
-        cfg.mainloop()
 
     def About(self):
         print("RF Wattmeter Remote\nby K7MDL\nV1.X June 2020")
@@ -910,15 +848,117 @@ class App(tk.Frame):
         if self.receiver:
             self.receiver.stop()
 
+    def start_cfg(self):
+        cfg = Cfg_Mtr()
+        print(" ---->  Started Config Window")
+
+
+class Cfg_Mtr(tk.Frame):    
+#    def __init__(self):
+        # Call superclass constructor
+#        super().__init__()   
+    def __init__(self, master=None): 
+        # Call superclass constructor
+        super().__init__(master)          
+        self.pack()    
+
+        self.Cfg_Window()
+        self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
+
+    def exit_protocol(self):
+        # Will be called when the main window is closed
+        self.master.destroy()  # Destroy root window
+        self.master.quit()  # Exiting the main loop
+
+    def delay_6000msec(self):
+        duration = 6000
+        self.Reset_btn.after(duration, self.update_cfg)
+        print(" Delaying....")
+            
+    def Cal_Dump(self):
+        rx = Receiver()
+        print("Dump Cal Table")
+        rx.send_meter_cmd("252","", True)
+    
+    def Cal_Hi(self):
+        rx = Receiver()
+        print("Get High power in Watts (Fwd or Ref) then send command to capture ADC voltage for it")
+        rx.send_meter_cmd("88","100.0", True)
+
+    def Cal_Lo_Fwd(self):
+        rx = Receiver()
+        print("Get High power in Watts (Fwd or Ref) then send command to capture ADC voltage for it")
+        rx.send_meter_cmd("87","10.0", True)        
+    
+    def Cal_Lo_Ref(self):
+        rx = Receiver()
+        print("Get High power in Watts (Fwd or Ref) then send command to capture ADC voltage for it")
+        rx.send_meter_cmd("86","10.0", True)    
+
+    def Save_to_Meter(self):
+        rx = Receiver()
+        print("Save cal table changes to Meter's EEPROM")
+        rx.send_meter_cmd("195","", True)    
+
+    def Toggle_Ser_Data(self):
+        rx = Receiver()
+        print("Toggle Meter Data Output Stream")
+        rx.send_meter_cmd("239","", True)    
+
+    # this page will collect Auto Cal hi and lo power levels issueing commands for each
+    # the power levels can be slider, or best is to type it in and remember the last value
+    #   in a cfg file entry for future use
+    # also read in a cfg file and save one back out.
+    #start with issueing auto cal commands. Add factory reset button.
+    def Cfg_Window(self):                      
+        print("Config Screen Goes Here")
+        cfg = tk.Tk()      
+        #   Later improve to save config file and remember the last position 
+        screen_width = cfg.winfo_screenwidth()
+        screen_height = cfg.winfo_screenheight()                
+        w = 900   # width of our app window
+        h = 500   # height of our app window
+        x = screen_width/3
+        y = screen_height/4
+        print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
+        cfg.title("Remote Wattmeter Configuration Editor")
+        cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.Cfg_Band_label = tk.Label(cfg, text="Current Band for Edit/Cal is {}" .format(meter_data[2]),font=('Helvetica', 16, 'bold'), bg="grey94", fg="black")
+        self.Cfg_Band_label.pack()
+        self.Reset_btn = tk.Button(cfg, text='Factory\nReset', command = self.Factory_Reset,font=('Helvetica', 12, 'bold'))
+        self.Reset_btn.pack()
+        self.Cal_Hi_btn = tk.Button(cfg, text='Cal Hi Pwr', command = self.Cal_Hi,font=('Helvetica', 12, 'bold'))
+        self.Cal_Hi_btn.pack()
+        self.Cal_Lo_Fwd_btn = tk.Button(cfg, text='Cal Lo Pwr\nFwd', command = self.Cal_Lo_Fwd, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Fwd_btn.pack()
+        self.Cal_Lo_Ref_btn = tk.Button(cfg, text='Cal Lo Pwr\nRef', command = self.Cal_Lo_Ref, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Ref_btn.pack()
+        self.Save_to_Meter_btn = tk.Button(cfg, text='Save to Meter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'))
+        self.Save_to_Meter_btn.pack()
+        self.Toggle_Ser_Data_btn = tk.Button(cfg, text='Toggle_Ser_Data', command = self.Toggle_Ser_Data, font=('Helvetica', 12, 'bold'))
+        self.Toggle_Ser_Data_btn.pack()
+        self.Cal_Dump_btn = tk.Button(cfg, text='Dump Cal Table', command = self.Cal_Dump, font=('Helvetica', 12, 'bold'))
+        self.Cal_Dump_btn.pack()        
+
+    def Factory_Reset(self):      
+        rx = Receiver()
+        print("Sending part 1 of 2 commands for Factory Reset")
+        rx.send_meter_cmd("193","", True)
+        while (cmd_flag == 0):            
+            time.sleep(0.1)        
+        rx.send_meter_cmd("194","", True)
+        while (cmd_flag == 1):
+            time.sleep(0.1)                    
+        self.Reset_btn.configure(font=('Helvetica', 12, 'bold'), bg="grey94")                                
+
 def main():   
-    global send_meter_cmd_flag
-    send_meter_cmd_flag = False
-    global cmd
-    global cmd_data
-    cmd = ""
-    global comms 
-   
-    root = Tk()
+    #global send_meter_cmd_flag
+    #send_meter_cmd_flag = False
+    #global cmd
+    #global cmd_data
+    #cmd = ""
+    #global comms 
+    root = tk.Tk()
     # Place window in the upper right corner of the desktop display for now.  
     #   Later improve to save config file and remember the last position 
     screen_width = root.winfo_screenwidth()
@@ -944,7 +984,7 @@ def main():
     filemenu.add_command(label="Exit", command=app.quit)
     configmenu = Menu(menu)
     menu.add_cascade(label="Configuration", menu=configmenu)
-    configmenu.add_command(label="Edit Config...", command=app.Config)   
+    configmenu.add_command(label="Edit Config...", command=app.start_cfg)   
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=app.About)   
@@ -954,8 +994,6 @@ def main():
     app.mainloop()      # start the GUI
 
 if __name__ == '__main__':
-    comms = None
-    myRig_meter_ID = "100"
     port_name = ""
     
     #Program Startup happens here before the main app window is opened
