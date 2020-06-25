@@ -272,7 +272,8 @@ class Serial_RX(Thread):
                 meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
                 #print("2 TMP raw str   = {}" .format(meter_data_tmp))
                 if len(meter_data_tmp) >= 3:
-                    if meter_data_tmp[0] == myRig_meter_ID:   
+                    meter_data[0] = meter_data_tmp[0]  
+                    if meter_data_tmp[0] == myRig_meter_ID: 
                         if meter_data_tmp[1] == "161":   # Cal progress message start
                             cal_flag = 1
                         if meter_data_tmp[1] == "160":   # Cal progress message end
@@ -291,7 +292,7 @@ class Serial_RX(Thread):
                                 else: # Not a float so zero fill the field
                                     meter_data_fl[i] = 0.0
                             meter_data_fl[2] = float(meter_data[2][:-3])    # convert band label to a number.  Ideally would use a RegEx to split at teh end of the numbers
-                            if meter_data_fl[5] == 0:
+                            if meter_data_fl[5] == 0 and cmd_flag != 1:
                                 meter_data[3] = "0.0"          #  zero out the dBm values when F watts is zero
                                 meter_data[4] = "0.0"
                             #print("{0:}    = {1:}" .format("3 ID Match Data ", meter_data))
@@ -304,11 +305,12 @@ class Serial_RX(Thread):
                     else:  # No ID Match
                         #print("Non Matching Meter ID = ", meter_data[0])
                         #self.debug_meter_string("4 No ID Match   ")
-                        meter_data[0] = "NA"          # no meter ID match so tell the UI  
+                        #meter_data[0] = "NA"          # no meter ID match so tell the UI  
+                        pass
                 else:   # Not 8 Elements
                     s_data = ""
                     #self.debug_meter_string("5 Not 8 Elements")                    
-                    meter_data[0] = "NA"          # no meter ID match so tell the UI  
+                    #meter_data[0] = "NA"          # no meter ID match so tell the UI  
             else:
                 #self.debug_meter_string("6 Empty String  ")
                 meter_data[0] = "NA"          # no meter ID match so tell the UI  
@@ -637,7 +639,8 @@ class App(tk.Frame):
         global last_freq
 
         if own_call == "":     # allow for running without serial port to meter connection, network still running 
-            ID = "NA"       # No ID available from any source
+            #ID = "NA"       # No ID available from any source
+            ID = meter_data[0]
         elif myRig_meter_ID == meter_data[0]:     #  Assign myRig1 to ID 101.  Allow for future case to monitor multiple meters
             ID = myRig               
         elif heartbeat_timer < 200:        # updates every update cycle per .after setpoint.  Typical every 1/4 second.
@@ -860,8 +863,6 @@ class Cfg_Mtr(tk.Frame):
     def __init__(self, master=None): 
         # Call superclass constructor
         super().__init__(master)          
-        self.pack()    
-
         self.Cfg_Window()
         self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
 
@@ -904,6 +905,9 @@ class Cfg_Mtr(tk.Frame):
         rx = Receiver()
         print("Toggle Meter Data Output Stream")
         rx.send_meter_cmd("239","", True)    
+    
+    def Show_MeterID(self):
+        print("Meter ID received is ", meter_data[0])
 
     # this page will collect Auto Cal hi and lo power levels issueing commands for each
     # the power levels can be slider, or best is to type it in and remember the last value
@@ -923,22 +927,25 @@ class Cfg_Mtr(tk.Frame):
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
         cfg.title("Remote Wattmeter Configuration Editor")
         cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
-        self.Cfg_Band_label = tk.Label(cfg, text="Current Band for Edit/Cal is {}" .format(meter_data[2]),font=('Helvetica', 16, 'bold'), bg="grey94", fg="black")
-        self.Cfg_Band_label.pack()
-        self.Reset_btn = tk.Button(cfg, text='Factory\nReset', command = self.Factory_Reset,font=('Helvetica', 12, 'bold'))
-        self.Reset_btn.pack()
-        self.Cal_Hi_btn = tk.Button(cfg, text='Cal Hi Pwr', command = self.Cal_Hi,font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_btn.pack()
+        self.Cfg_Band_label = tk.Label(cfg, text="Current Band for Edit/Cal is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        self.Cfg_Band_label.grid(row=0, column =0)
+        self.Cal_Hi_btn = tk.Button(cfg, text='Cal Hi Pwr\nFwd&Ref', command = self.Cal_Hi,font=('Helvetica', 12, 'bold'))
+        self.Cal_Hi_btn.grid(row=1, column =2)
         self.Cal_Lo_Fwd_btn = tk.Button(cfg, text='Cal Lo Pwr\nFwd', command = self.Cal_Lo_Fwd, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Fwd_btn.pack()
+        self.Cal_Lo_Fwd_btn.grid(row=1, column =3)
         self.Cal_Lo_Ref_btn = tk.Button(cfg, text='Cal Lo Pwr\nRef', command = self.Cal_Lo_Ref, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Ref_btn.pack()
+        self.Cal_Lo_Ref_btn.grid(row=1, column =4)
         self.Save_to_Meter_btn = tk.Button(cfg, text='Save to Meter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'))
-        self.Save_to_Meter_btn.pack()
+        self.Save_to_Meter_btn.grid(row=3, column =1)
         self.Toggle_Ser_Data_btn = tk.Button(cfg, text='Toggle_Ser_Data', command = self.Toggle_Ser_Data, font=('Helvetica', 12, 'bold'))
-        self.Toggle_Ser_Data_btn.pack()
+        self.Toggle_Ser_Data_btn.grid(row=3, column =2)
         self.Cal_Dump_btn = tk.Button(cfg, text='Dump Cal Table', command = self.Cal_Dump, font=('Helvetica', 12, 'bold'))
-        self.Cal_Dump_btn.pack()        
+        self.Cal_Dump_btn.grid(row=3, column =3)   
+        self.Reset_btn = tk.Button(cfg, text='Factory\nReset', command = self.Factory_Reset,font=('Helvetica', 12, 'bold'))
+        self.Reset_btn.grid(row=3, column =4)
+        self.Show_MeterID_btn = tk.Button(cfg, text='Show Meter ID\nReceived', command = self.Show_MeterID,font=('Helvetica', 12, 'bold'))
+        self.Show_MeterID_btn.grid(row=4, column =1)
+    
 
     def Factory_Reset(self):      
         rx = Receiver()
@@ -952,12 +959,6 @@ class Cfg_Mtr(tk.Frame):
         self.Reset_btn.configure(font=('Helvetica', 12, 'bold'), bg="grey94")                                
 
 def main():   
-    #global send_meter_cmd_flag
-    #send_meter_cmd_flag = False
-    #global cmd
-    #global cmd_data
-    #cmd = ""
-    #global comms 
     root = tk.Tk()
     # Place window in the upper right corner of the desktop display for now.  
     #   Later improve to save config file and remember the last position 
@@ -1048,13 +1049,7 @@ if __name__ == '__main__':
                 print("listbox meter ID value =", myRig_meter_ID)
         
         def Select_done():
-            dialog.destroy()
-            #dialogroot.destroy()
-            #dialogroot.quit() 
-
-        #dialogroot = tk.Tk()
-        #dialog = tk.Toplevel(dialogroot)
-        #dialogroot.wm_withdraw()        
+            dialog.destroy()     
 
         dialog = tk.Tk()
         dialog.title("RF Wattmeter Remote")         
