@@ -3,22 +3,33 @@ DIY Arduino and PSoC based RF SWR\Wattmeter for any band HF through microwave de
 
 ### Key files
     RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
-            Has some new ADS1100 files to support external I2C connected ADSS1100 16bit ADC units frm M5Stack.  They work really well, 0-12V inputs, 15 bit useful range.
-            I have a 4 channel version module very similar to try out based on the ADS1115.  Intended for adding measurements for voltage and temperature.  Some of the features from the PSoC are merged into the M5Stack at times.
+            Has some new ADS1100 files to support external I2C connected ADSS1100 16bit ADC units frm M5Stack.  
+            They work really well, 0-12V inputs, 15 bit useful range. I have a 4 channel version module very similar
+            to try out based on the ADS1115. Intended for adding measurements for voltage and temperature.
+            Some of the features from the PSoC are merged into the M5Stack at times.
 
-    RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. All screen and button code removed, complete remote control.  Could be merged with the other version's features as needed but for now is not being updated.
+    RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. 
+            All screen and button code removed, complete remote control.
+            Could be merged with the other version's features as needed but for now is not being updated.
 
-    RF_Wattmeter_PSoC5LP - Cypress PSoC5LP platform used for far better AD and signal processing. Use headless or with optional Nextion and/or small OLED display.  I am developing new features on this platform first.  Can use the main module or the programmer module via a simple bootloader procedure.
-            This is an archive file (like a zip file) produced from the PSoC Creator 4.3 IDE. Drop the expended archive into your workspace to open in PSoC Creator
+    RF_Wattmeter_PSoC5LP: Cypress PSoC5LP platform used for far better AD and signal processing. 
+            Use headless or with optional Nextion and/or small OLED display.
+            I am developing new features on this platform first. Can use the main module or the programmer
+            module via a simple bootloader procedure. This is an archive file (like a zip file) produced
+            from the PSoC Creator 4.3 IDE. Drop the expended archive into your workspace to open in PSoC Creator
 
-    pyPowerMeter.py: Desktop Python app.  Can run multiple instances on unique serial port and meter IDs.  Now has a separate config screen (very early work) supporting new auto calibration function for Fwd and Ref power.  host CPU wil calculate offset and slope now.  Coupling attenuation is now fixed
-            value (Feature in PSoC ony for now).
+    pyPowerMeter.py: Desktop Python app. Can run multiple instances on unique serial port and meter IDs.
+            Now has a separate config screen (very early work) supporting new auto calibration function for Fwd and Ref power.
+            Host CPU will calculate offset and slope now. Coupling attenuation is now fixed value (Feature in PSoC ony for now).
     
     *.HMI files: These are config files for the 2.4 and 3.5" Nextion intellgent displays. 
-            The code to support these 2 displays and a 0.96" OLED display exist only in the PSoC version today.  There is a near identical Nextion library for
-            Arduino and merging this code into Arduino version would not be difficult. The Nextion library used is a community sourced adaption from Arduino C++ to C.
-            Makes a great desktop display or stand alone instrument.   Added analog inputs for measuring high and low DC, temperature and current with alarm setpoints
-            configured in one of the Nextion screens.  
+            The code to support these 2 displays and a 0.96" OLED display exist only in the PSoC version today.
+            There is a near identical Nextion library for Arduino on GitHub and merging this code into the Arduino
+            version would not be difficult.
+            The Nextion library used for the PSoC is a community sourced adaption from Arduino C++ to C.
+            Makes a great desktop display or stand alone instrument. 
+            Added analog inputs for measuring high and low DC, temperature and current with alarm setpoints configured in
+            one of the Nextion screens.  
 
 ### Revision History:
 
