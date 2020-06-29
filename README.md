@@ -76,6 +76,7 @@ Key Changes:
     d. Not using using the voltage divder inputs yet so those still havedummy values.
     25. 6/29/2020 - Built a new RF wattmeter box with 3.5" Nextion, ADL5519 dual detector, PSoC5 with KitProg, and 4 port USB hub with USB to UART converter on board (was designed as a Raspberry Pi and Pi Zero Hat). Added CPU I/O lines to perform signal switching for the Nextion display RxD and TxD lines between the CPU UART and the USB UART converter on the 4 port hub PCB.  The hub reduces 3 USB connections to 1.  The serial switching permits uploading to the Nextion display without no physical switching or pass through coding.  The CPU has new serial commands to switch from CPU-UART to USB-UART and back.  This achieves complete remote dev as a bonnus.
     26. 6/29/2020 - Changed SWR graph scale to be more accurate with more vertical axis lablels. Added vertical line separator on the power graph each time the scale button is pressed to separate the scale data visually.
+    27. The ADL5519 dual dete tor board is a dual 8318 on single chip so temperature and part variations are more controlled.  Has a temp output and a Return Loss output. Results were nearly the same as the dual 8318s, just a recalibration needed.  Results were very close to spec sheet values.   Being a single board, construction and accuracy are both improved, slightly higher cost. My source is from SV1AFN.com in Greece.  I will be odering a couple more. It took the postal service 6 weeks to get it here last time.  It sat for weeks at various locations.
  
 
 ### Info:
