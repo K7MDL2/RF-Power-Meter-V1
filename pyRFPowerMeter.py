@@ -873,7 +873,7 @@ class Cfg_Mtr(tk.Frame):
 
     def delay_6000msec(self):
         duration = 6000
-        self.Reset_btn.after(duration, self.update_cfg)
+        #self.Reset_btn.after(duration, self.update_cfg)
         print(" Delaying....")
         
     def NexProgram(self):
@@ -1006,10 +1006,7 @@ class Cfg_Mtr(tk.Frame):
         self.Cal_Lo_Ref_Text_result.place(x=260, y=240, height=20, width=100) 
         self.Cal_Lo_Ref_btn = tk.Button(cfg, text='Cal Lo Pwr\nRef', command = get_Lo_Ref_Watts, font=('Helvetica', 12, 'bold'))
         self.Cal_Lo_Ref_btn.place(x=260, y=270, height=60, width=100)     
-
-
-
-        
+      
 
     def Factory_Reset(self):      
         rx = Receiver()
