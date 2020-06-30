@@ -875,7 +875,17 @@ class Cfg_Mtr(tk.Frame):
         duration = 6000
         self.Reset_btn.after(duration, self.update_cfg)
         print(" Delaying....")
-            
+        
+    def NexProgram(self):
+        rx = Receiver()
+        print("Switch Nextion to Program Connection")
+        rx.send_meter_cmd("96","", True)
+        
+    def NexOperate(self):
+        rx = Receiver()
+        print("Switch Nextion to Operate Connection")
+        rx.send_meter_cmd("95","", True)
+
     def Cal_Dump(self):
         rx = Receiver()
         print("Dump Cal Table")
@@ -920,31 +930,38 @@ class Cfg_Mtr(tk.Frame):
         #   Later improve to save config file and remember the last position 
         screen_width = cfg.winfo_screenwidth()
         screen_height = cfg.winfo_screenheight()                
-        w = 900   # width of our app window
-        h = 500   # height of our app window
+        w = 500   # width of our app window
+        h = 260   # height of our app window
         x = screen_width/3
         y = screen_height/4
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
         cfg.title("Remote Wattmeter Configuration Editor")
         cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
-        self.Cfg_Band_label = tk.Label(cfg, text="Current Band for Edit/Cal is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
-        self.Cfg_Band_label.grid(row=0, column =0)
-        self.Cal_Hi_btn = tk.Button(cfg, text='Cal Hi Pwr\nFwd&Ref', command = self.Cal_Hi,font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_btn.grid(row=1, column =2)
-        self.Cal_Lo_Fwd_btn = tk.Button(cfg, text='Cal Lo Pwr\nFwd', command = self.Cal_Lo_Fwd, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Fwd_btn.grid(row=1, column =3)
-        self.Cal_Lo_Ref_btn = tk.Button(cfg, text='Cal Lo Pwr\nRef', command = self.Cal_Lo_Ref, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Ref_btn.grid(row=1, column =4)
-        self.Save_to_Meter_btn = tk.Button(cfg, text='Save to Meter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'))
-        self.Save_to_Meter_btn.grid(row=3, column =1)
-        self.Toggle_Ser_Data_btn = tk.Button(cfg, text='Toggle_Ser_Data', command = self.Toggle_Ser_Data, font=('Helvetica', 12, 'bold'))
-        self.Toggle_Ser_Data_btn.grid(row=3, column =2)
-        self.Cal_Dump_btn = tk.Button(cfg, text='Dump Cal Table', command = self.Cal_Dump, font=('Helvetica', 12, 'bold'))
-        self.Cal_Dump_btn.grid(row=3, column =3)   
+        self.Cfg_Band_label = tk.Label(cfg, text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        self.Cfg_Band_label.place(x=60, y=0) 
+        self.NexOperate_btn = tk.Button(cfg, text='Nextion\nOperate', command = self.NexOperate,font=('Helvetica', 12, 'bold'))
+        self.NexOperate_btn.place(x=20, y=40, height=60, width=100) 
+        self.NexProgram_btn = tk.Button(cfg, text='Nextion\nProgram', command = self.NexProgram,font=('Helvetica', 12, 'bold'))
+        self.NexProgram_btn.place(x=140, y=40, height=60, width=100)  
+        self.Toggle_Ser_Data_btn = tk.Button(cfg, text='Toggle\nData', command = self.Toggle_Ser_Data, font=('Helvetica', 12, 'bold'))
+        self.Toggle_Ser_Data_btn.place(x=260, y=40, height=60, width=100) 
         self.Reset_btn = tk.Button(cfg, text='Factory\nReset', command = self.Factory_Reset,font=('Helvetica', 12, 'bold'))
-        self.Reset_btn.grid(row=3, column =4)
-        self.Show_MeterID_btn = tk.Button(cfg, text='Show Meter ID\nReceived', command = self.Show_MeterID,font=('Helvetica', 12, 'bold'))
-        self.Show_MeterID_btn.grid(row=4, column =1)
+        self.Reset_btn.place(x=380, y=110, height=60, width=100)
+        self.Cal_Dump_btn = tk.Button(cfg, text='Dump Cal\nTable', command = self.Cal_Dump, font=('Helvetica', 12, 'bold'))
+        self.Cal_Dump_btn.place(x=20, y=110, height=60, width=100) 
+        self.Show_MeterID_btn = tk.Button(cfg, text='Show \nMeter ID', command = self.Show_MeterID,font=('Helvetica', 12, 'bold'))
+        self.Show_MeterID_btn.place(x=140, y=110, height=60, width=100)
+        self.Save_to_Meter_btn = tk.Button(cfg, text='Save to\nMeter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'))
+        self.Save_to_Meter_btn.place(x=260, y=110, height=60, width=100)
+        self.Cal_Hi_btn = tk.Button(cfg, text='Cal Hi Pwr\nFwd & Ref', command = self.Cal_Hi,font=('Helvetica', 12, 'bold'))
+        self.Cal_Hi_btn.place(x=20, y=180, height=60, width=100) 
+        self.Cal_Lo_Fwd_btn = tk.Button(cfg, text='Cal Lo Pwr\nFwd', command = self.Cal_Lo_Fwd, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Fwd_btn.place(x=140, y=180, height=60, width=100) 
+        self.Cal_Lo_Ref_btn = tk.Button(cfg, text='Cal Lo Pwr\nRef', command = self.Cal_Lo_Ref, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Ref_btn.place(x=260, y=180, height=60, width=100) 
+  
+
+
     
 
     def Factory_Reset(self):      
