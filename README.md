@@ -77,6 +77,7 @@ Key Changes:
     d. Not using using the voltage divder inputs yet so those still have dummy values.
 27. 6/29/2020 - Changed SWR graph scale to be more accurate with more vertical axis lablels. Added vertical line separator on the power graph each time the scale button is pressed to separate the scale data visually.  
 28. ADL5519 results were nearly the same as the dual 8318s, just a recalibration needed. Results were very close to spec sheet values. Being a single board, construction and accuracy are both improved, slightly higher cost. My source is from SV1AFN.com in Greece. I will be ordering a couple more. It took the postal service 6 weeks to get it here last time. It sat for weeks at various locations.
+28. 6/30/2020 - Completed Desktop app Config page. Button layout done with on screen calibration instructions. 2 text entry boxes provided to specify the hi and lo power levels to be measured. Apply carrier at each power level, then hit measure button to caclclate the slope and intercept.  Previous Host commands altered a bit to seprate the measure from the calculate actions. To commit, use teh Save to Meter button to write calues to EEPROM. Future additions would be saving last screen positions and upload and download complete cal tables from a file.
  
 
 ### Info:
