@@ -919,6 +919,13 @@ class Cfg_Mtr(tk.Frame):
     def Show_MeterID(self):
         print("Meter ID received is ", meter_data[0])
 
+    def get_Hi_Watts(self, event):
+        temp_val = self.Cal_Hi_Entry.get()
+        self.Pwr_Hi.set(temp_val)
+        print(self.Pwr_Hi.get())
+        self.Cal_Hi_Text_result.config(text=self.Pwr_Hi.get(), font=('Helvetica', 12, 'bold'))
+        #self.Cal_Hi_Text_result.place(x=20, y=240, height=20, width=100) 
+
     # this page will collect Auto Cal hi and lo power levels issueing commands for each
     # the power levels can be slider, or best is to type it in and remember the last value
     #   in a cfg file entry for future use
@@ -931,7 +938,7 @@ class Cfg_Mtr(tk.Frame):
         screen_width = cfg.winfo_screenwidth()
         screen_height = cfg.winfo_screenheight()                
         w = 500   # width of our app window
-        h = 260   # height of our app window
+        h = 440   # height of our app window
         x = screen_width/3
         y = screen_height/4
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
@@ -953,16 +960,56 @@ class Cfg_Mtr(tk.Frame):
         self.Show_MeterID_btn.place(x=140, y=110, height=60, width=100)
         self.Save_to_Meter_btn = tk.Button(cfg, text='Save to\nMeter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'))
         self.Save_to_Meter_btn.place(x=260, y=110, height=60, width=100)
-        self.Cal_Hi_btn = tk.Button(cfg, text='Cal Hi Pwr\nFwd & Ref', command = self.Cal_Hi,font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_btn.place(x=20, y=180, height=60, width=100) 
-        self.Cal_Lo_Fwd_btn = tk.Button(cfg, text='Cal Lo Pwr\nFwd', command = self.Cal_Lo_Fwd, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Fwd_btn.place(x=140, y=180, height=60, width=100) 
-        self.Cal_Lo_Ref_btn = tk.Button(cfg, text='Cal Lo Pwr\nRef', command = self.Cal_Lo_Ref, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Ref_btn.place(x=260, y=180, height=60, width=100) 
-  
+        
+        self.Pwr_Hi = StringVar(cfg)
+        self.Pwr_Hi.set(100)
+        self.Cal_Hi_Text = tk.Label(cfg,text='Enter Hi Pwr', font=('Helvetica', 12, 'bold'))
+        self.Cal_Hi_Text.place(x=20, y=190, height=20, width=100) 
+        self.Cal_Hi_Entry = tk.Entry(cfg, textvariable=self.Pwr_Hi, font=('Helvetica', 12, 'bold'))
+        self.Cal_Hi_Entry.place(x=20, y=220, height=20, width=100) 
+        #self.Cal_Hi_Entry.insert(10, self.Pwr_Hi.get())
+        #self.Cal_Hi_Entry["textvariable"] = self.Pwr_Hi
+        self.Cal_Hi_Entry.bind('<Return>', self.get_Hi_Watts)
+        self.Cal_Hi_Text_result = tk.Label(cfg,text=self.Pwr_Hi.get(), font=('Helvetica', 12, 'bold'))
+        self.Cal_Hi_Text_result.place(x=20, y=240, height=20, width=100) 
+        self.Cal_Hi_btn = tk.Button(cfg, text='Cal Hi Pwr\nFwd & Ref', command=self.get_Hi_Watts(self), font=('Helvetica', 12, 'bold'))
+        self.Cal_Hi_btn.place(x=20, y=270, height=60, width=100) 
+
+        self.Pwr_Lo_Fwd = StringVar(cfg)
+        self.Pwr_Lo_Fwd.set(10)
+        self.Cal_Lo_Fwd_Text = tk.Label(cfg,text='Enter Lo Pwr', font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Fwd_Text.place(x=140, y=190, height=20, width=100)
+        self.Cal_Lo_Fwd_Entry = Entry(cfg, text=self.Pwr_Lo_Fwd.get(), font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Fwd_Entry.place(x=140, y=220, height=20, width=100) 
+        def get_Lo_Fwd_Watts():
+            Pwr_Lo_Fwd = self.Cal_Lo_Fwd_Entry.get()
+            self.Cal_Lo_Fwd_Text_result.config(text=self.Pwr_Lo_Fwd.get(), font=('Helvetica', 12, 'bold'))
+            self.Pwr_Lo_Fwd.set(Pwr_Lo_Fwd)
+            print(self.Pwr_Lo_Fwd.get())
+        Pwr_Lo_Fwd = 10
+        self.Cal_Lo_Fwd_Text_result = tk.Label(cfg,text=Pwr_Lo_Fwd, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Fwd_Text_result.place(x=140, y=240, height=20, width=100) 
+        self.Cal_Lo_Fwd_btn = tk.Button(cfg, text='Cal Lo Pwr\nFwd', command = get_Lo_Fwd_Watts, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Fwd_btn.place(x=140, y=270, height=60, width=100) 
 
 
-    
+        self.Cal_Lo_Ref_Text = tk.Label(cfg,text='Enter Lo Pwr', font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Ref_Text.place(x=260, y=190, height=20, width=100)
+        self.Cal_Lo_Ref_Entry = Entry(cfg, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Ref_Entry.place(x=260, y=220, height=20, width=100) 
+        def get_Lo_Ref_Watts():
+            Pwr_Lo_Ref = self.Cal_Lo_Fwd_Entry.get()
+            self.Cal_Lo_Ref_Text_result.config(text=Pwr_Lo_Ref, font=('Helvetica', 12, 'bold'))
+            #self.Cal_Lo_Ref_Text_result.place(x=260, y=240, height=20, width=100) 
+        Pwr_Lo_Ref = 10
+        self.Cal_Lo_Ref_Text_result = tk.Label(cfg,text=Pwr_Lo_Ref, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Ref_Text_result.place(x=260, y=240, height=20, width=100) 
+        self.Cal_Lo_Ref_btn = tk.Button(cfg, text='Cal Lo Pwr\nRef', command = get_Lo_Ref_Watts, font=('Helvetica', 12, 'bold'))
+        self.Cal_Lo_Ref_btn.place(x=260, y=270, height=60, width=100)     
+
+
+
+        
 
     def Factory_Reset(self):      
         rx = Receiver()
