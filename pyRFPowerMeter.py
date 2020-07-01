@@ -146,20 +146,24 @@ UDP_PORT = 2334             # change to match your WSJTX source of data port num
 #               wsjtx_id = the_packet.wsjtx_id
 
 # Global Vars
-global s            # used to get nmetwork packet data
+global s            # used to get network packet data
 own_call = ""       # used for meter ID in Radio field of GUI when only network is on.
 last_freq = ""      # used for detecting band changes from network
 # This boolean variable will save the communications (comms) status
 comms  = None   #  False is off.  App.comm wil then toggle to on state.
 restart_serial = 0
 heartbeat_timer = 0
-send_meter_cmd_flag = False   # Boolean to gate Sreial thread to send cmd byte to meter.  Cmd comes from USB thread
+send_meter_cmd_flag = False   # Boolean to gate Serial thread to send cmd byte to meter.  Cmd comes from USB thread
 cmd = ""
 cmd_data = ""
 meter_data = ["","","","","","","","","",""]
 meter_data_fl  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,] # stores the same info in same psotion when possible as a float
 cal_flag = 0
 cmd_flag = 0
+FwdVal_Hi = ""
+FwdVal_Lo = ""
+RefVal_Hi = ""
+RefVal_Lo = ""
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -264,6 +268,10 @@ class Serial_RX(Thread):
         #global comms
         global cal_flag
         global cmd_flag
+        global FwdVal_Hi
+        global FwdVal_Lo
+        global RefVal_Hi
+        global RefVal_Lo
         
         try:
             if s_data != '':
@@ -276,11 +284,16 @@ class Serial_RX(Thread):
                     if meter_data_tmp[0] == myRig_meter_ID: 
                         if meter_data_tmp[1] == "161":   # Cal progress message start
                             cal_flag = 1
+                            FwdVal_Hi = meter_data_tmp[3]
+                            FwdVal_Lo = meter_data_tmp[4]
+                            RefVal_Hi = meter_data_tmp[5]
+                            RefVal_Lo = meter_data_tmp[6]  
+                            print("Voltages = ", meter_data_tmp)
                         if meter_data_tmp[1] == "160":   # Cal progress message end
                             cal_flag = 0
                         if meter_data_tmp[1] == "163":   # Cmd progress message start
-                            cmd_flag = 1                            
-                            print(" -------------cmd flag = 1 -------------")                           
+                            cmd_flag = 1       
+                            print(" -------------cmd flag = 1 -------------")                            
                         if meter_data_tmp[1] == "162":   # Cmd progress message end
                             cmd_flag = 0                            
                             print(" -------------cmd flag = 0 -------------")                                
@@ -862,7 +875,7 @@ class Cfg_Mtr(tk.Frame):
 #        super().__init__()   
     def __init__(self, master=None): 
         # Call superclass constructor
-        super().__init__(master)          
+        super().__init__(master)        
         self.Cfg_Window()
         self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
 
@@ -890,11 +903,15 @@ class Cfg_Mtr(tk.Frame):
         rx = Receiver()
         print("Measure Fwd and Ref High Power ADC Voltage at {}W" .format(self.Pwr_Hi.get()))
         rx.send_meter_cmd("88",self.Pwr_Hi.get(), True)
+        time.sleep(2)
+        self.Cal_HiV_Text.config(text=FwdVal_Hi, font=('Helvetica', 12, 'bold'))   
 
     def Cal_Lo(self):
         rx = Receiver()
         print("Measure Fwd and Ref Low Power ADC Voltage at {}W" .format(self.Pwr_Lo.get()))
-        rx.send_meter_cmd("87",self.Pwr_Lo.get(), True)    
+        rx.send_meter_cmd("87",self.Pwr_Lo.get(), True)   
+        time.sleep(2)
+        self.Cal_LoV_Text.config(text=FwdVal_Lo, font=('Helvetica', 12, 'bold'))  
 
     def Cal_Fwd(self):
         rx = Receiver()
@@ -918,30 +935,6 @@ class Cfg_Mtr(tk.Frame):
     
     def Show_MeterID(self):
         print("Meter ID received is ", meter_data[0])
-
-    #def get_Lo_Fwd_Watts(self, event):
-    #    temp_val = self.Cal_Lo_Fwd_Entry.get()
-    #    if temp_val == "":
-    #        temp_val = 1
-    #    self.Pwr_Lo_Fwd.set(temp_val)
-    #    self.Cal_Lo_Fwd_Text_result.config(text=self.Pwr_Lo_Fwd.get(), font=('Helvetica', 12, 'bold'))            
-    #    print(self.Pwr_Lo_Fwd.get())
-
-    def get_Lo_Watts(self, event):
-        temp_val = self.Cal_Lo_Entry.get()
-        if temp_val == "":
-            temp_val = 1
-        self.Pwr_Lo.set(temp_val)
-        #self.Cal_Lo_Text_result.config(text=self.Pwr_Lo.get(), font=('Helvetica', 12, 'bold'))            
-        print(self.Pwr_Lo.get())
-
-    def get_Hi_Watts(self, event):
-        temp_val = self.Cal_Hi_Entry.get()
-        if temp_val == "":
-            temp_val = 1
-        self.Pwr_Hi.set(temp_val)     
-        #self.Cal_Hi_Text_result.config(text=self.Pwr_Hi.get(), font=('Helvetica', 12, 'bold'))
-        print(self.Pwr_Hi.get())
 
     # this page will collect Auto Cal hi and lo power levels issueing commands for each
     # the power levels can be slider, or best is to type it in and remember the last value
@@ -975,8 +968,7 @@ class Cfg_Mtr(tk.Frame):
         self.Cal_Dump_btn.place(x=80, y=110, height=60, width=100) 
         self.Show_MeterID_btn = tk.Button(cfg, text='Show \nMeter ID', command = self.Show_MeterID,font=('Helvetica', 12, 'bold'))
         self.Show_MeterID_btn.place(x=200, y=110, height=60, width=100)
-
-        
+    
         self.Pwr_Hi = StringVar(cfg)
         self.Pwr_Hi.set(100)  # default entry
         self.Pwr_Lo = StringVar(cfg)
@@ -988,20 +980,24 @@ class Cfg_Mtr(tk.Frame):
         self.Cal1_Text.place(x=10, y=230, height=60, width=w-20)
 
         self.Cal_Hi_Text = tk.Label(cfg,text='Enter Hi Pwr', font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_Text.place(x=60, y=300, height=20, width=100) 
+        self.Cal_Hi_Text.place(x=36, y=300, height=20, width=100) 
         self.Cal_Hi_Entry = tk.Entry(cfg, textvariable=self.Pwr_Hi, font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_Entry.place(x=180, y=300, height=20, width=100)     
-        self.Cal_Hi_Entry.bind('<Return>', self.get_Hi_Watts)                
+        self.Cal_Hi_Entry.place(x=156, y=300, height=20, width=100)     
+        self.Cal_Hi_Entry.bind('<Return>', self.get_Hi_Watts)                        
         self.Cal_Hi_btn = tk.Button(cfg, text='Measure Hi Pwr', command=self.Cal_Hi, font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_btn.place(x=290, y=300, height=20, width=140) 
+        self.Cal_Hi_btn.place(x=266, y=300, height=20, width=140) 
+        self.Cal_HiV_Text = tk.Label(cfg,text=FwdVal_Hi, font=('Helvetica', 12, 'bold'))
+        self.Cal_HiV_Text.place(x=406, y=300, height=20, width=90) 
 
         self.Cal_Lo_Text = tk.Label(cfg,text='Enter Lo Pwr', font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Text.place(x=60, y=326, height=20, width=100)
+        self.Cal_Lo_Text.place(x=36, y=326, height=20, width=100)
         self.Cal_Lo_Entry = tk.Entry(cfg, textvariable=self.Pwr_Lo, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Entry.place(x=180, y=326, height=20, width=100)         
+        self.Cal_Lo_Entry.place(x=156, y=326, height=20, width=100)         
         self.Cal_Lo_Entry.bind('<Return>', self.get_Lo_Watts)                
         self.Cal_Lo_btn = tk.Button(cfg, text='Measure Lo Pwr', command=self.Cal_Lo, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_btn.place(x=290, y=326, height=20, width=140)         
+        self.Cal_Lo_btn.place(x=266, y=326, height=20, width=140)
+        self.Cal_LoV_Text = tk.Label(cfg,text=FwdVal_Lo, font=('Helvetica', 12, 'bold'))
+        self.Cal_LoV_Text.place(x=406, y=326, height=20, width=90)      
 
         self.Cal_Text = tk.Label(cfg,text='After measuring both high and low power for a given direction\n(Fwd or Ref) push the appropriate button to calibrate on this band\nCommit changes with Save to Meter button', font=('Helvetica', 10))  #, 'bold'))
         self.Cal_Text.place(x=20, y=350, height=60, width=w-20)
@@ -1013,17 +1009,23 @@ class Cfg_Mtr(tk.Frame):
         self.Save_to_Meter_btn = tk.Button(cfg, text='Save to\nMeter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'))
         self.Save_to_Meter_btn.place(x=320, y=420, height=60, width=100)
 
-
-        self.Pwr_Lo_Ref = StringVar(cfg)
-        self.Pwr_Lo_Ref.set(10)  # default entry
-        
-        #self.Cal_Lo_Ref_Entry = tk.Entry(cfg, textvariable=self.Pwr_Lo_Ref, font=('Helvetica', 12, 'bold'))
-        #self.Cal_Lo_Ref_Entry.place(x=260, y=220, height=20, width=100) 
-        #self.Cal_Lo_Ref_Entry.bind('<Return>', self.get_Lo_Ref_Watts)
-
-        #self.Cal_Lo_Ref_Text_result = tk.Label(cfg,text=self.Pwr_Lo_Ref.get(), font=('Helvetica', 12, 'bold'))
-        #self.Cal_Lo_Ref_Text_result.place(x=260, y=240, height=20, width=100) 
+        #self.Pwr_Lo_Ref = StringVar(cfg)
+        #self.Pwr_Lo_Ref.set(10)  # default entry
       
+    def get_Hi_Watts(self, event):
+        global FwdVal_Hi
+        temp_val = self.Cal_Hi_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.Pwr_Hi.set(temp_val)             
+        print(self.Pwr_Hi.get())
+
+    def get_Lo_Watts(self, event):
+        temp_val = self.Cal_Lo_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.Pwr_Lo.set(temp_val)
+        print(self.Pwr_Lo.get())
 
     def Factory_Reset(self):      
         rx = Receiver()
