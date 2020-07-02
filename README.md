@@ -4,7 +4,7 @@
 
 Most of the planned work (and much more unplanned) is complete in time for a break while I start traveling in July. 
 
-I plan to build a new mtere with some new features later this summer for my 2nd QTH. It will include scanning for RF among multiple couplers using a solid state RF switch, programmable attenuator and if I can find something, a frequency counter board. If I have time I will merge the features from the PSoC version to the Arduino.  The M5Stack did get a merge about a month ago so it is fairly feature rich as is. I have previously used a SS SP6T RF switch and 31dB programmable ss attenuator in my Multiband central LO project last year.
+I plan to build a new meter with some new features later this summer for my 2nd QTH. It will include scanning for RF among multiple couplers using a solid state RF switch, programmable attenuator and if I can find something, a frequency counter board. If I have time I will merge the features from the PSoC version to the Arduino.  The M5Stack did get a merge about a month ago so it is fairly feature rich as is. I have previously used a SS SP6T RF switch and 31dB programmable ss attenuator in my Multiband central LO project last year.
 
 ### Summary Description
 
