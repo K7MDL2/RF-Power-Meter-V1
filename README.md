@@ -1,4 +1,13 @@
 ## RF-Power-Meter
+
+*** Release V2 created July 1, 2020 ***
+
+Most of the planned work (and much more unplanned) is complete in time for a break while I start traveling in July. 
+
+I plan to build a new mtere with some new features later this summer for my 2nd QTH. It will include scanning for RF among multiple couplers using a solid state RF switch, programmable attenuator and if I can find something, a frequency counter board. If I have time I will merge the features from the PSoC version to the Arduino.  The M5Stack did get a merge about a month ago so it is fairly feature rich as is. I have previously used a SS SP6T RF switch and 31dB programmable ss attenuator in my Multiband central LO project last year.
+
+### Summary Description
+
 DIY Arduino and PSoC based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble into a box. This code is currently using 2 8GHz rated detector modules. They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set.   Also has support for optional OLED and Nextion color LCD touch screens.  You can see the latest pictures on my web site project pages. The PSoC version with 10GHz detector, OLED and 3.5" touchscreen is here at https://k7mdl2.wixsite.com/k7mdl/rf-wattmeter-on-psoc5lp.
 
 ### Key files
