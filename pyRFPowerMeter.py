@@ -903,8 +903,11 @@ class Cfg_Mtr(tk.Frame):
     
     def Cal_Hi(self):
         rx = Receiver()
-        print("Measure Fwd and Ref High Power ADC Voltage at {}W" .format(self.Pwr_Hi.get()))        
-        rx.send_meter_cmd("88",self.Pwr_Hi.get(), True)
+        print("Measure Fwd and Ref High Power ADC Voltage at {}{}" .format(self.Pwr_Hi.get(), self.P_Units.get()))        
+        if self.P_Units.get() == "dBm":
+            rx.send_meter_cmd("78",self.Pwr_Hi.get(), True)
+        else:
+            rx.send_meter_cmd("79",self.Pwr_Hi.get(), True)
         time.sleep(2)
         self.Cal_HiV_F_Text.config(text="F:"+FwdVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))   
         self.Cal_HiV_R_Text.config(text="R:"+RefVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))        
@@ -916,8 +919,11 @@ class Cfg_Mtr(tk.Frame):
         
     def Cal_Lo(self):
         rx = Receiver()
-        print("Measure Fwd and Ref Low Power ADC Voltage at {}W" .format(self.Pwr_Lo.get()))                
-        rx.send_meter_cmd("87",self.Pwr_Lo.get(), True)   
+        print("Measure Fwd and Ref Low Power ADC Voltage at {}{}" .format(self.Pwr_Lo.get(), self.P_Units.get()))                
+        if self.P_Units.get() == "dBm":
+            rx.send_meter_cmd("76",self.Pwr_Lo.get(), True)
+        else:
+            rx.send_meter_cmd("77",self.Pwr_Lo.get(), True)
         time.sleep(2)
         self.Cal_LoV_F_Text.config(text="F:"+FwdVal_Lo+"VDC", font=('Helvetica', 12, 'bold')) 
         self.Cal_LoV_R_Text.config(text="R:"+RefVal_Lo+"VDC", font=('Helvetica', 12, 'bold'))  
@@ -927,17 +933,17 @@ class Cfg_Mtr(tk.Frame):
             print(RefVal_Hi+"    "+RefVal_Lo+"  "+FwdVal_Hi+"    "+FwdVal_Lo)    
         self.Lo_Flag = 1
 
-    def Cal_Fwd(self):
+    def Cal_Fwd(self):    # used measured hi and lo values sent to host earlier, now calculate
         rx = Receiver()
-        print("Calculate Fwd Cal using {}W Hi and {}W Lo".format(self.Pwr_Hi.get(), self.Pwr_Lo.get()))
-        rx.send_meter_cmd("86","", True)        
+        print("Calculate Fwd Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
+        rx.send_meter_cmd("75","", True)        
     
     def Cal_Ref(self):
         rx = Receiver()
-        print("Calculate Ref Cal using {}W Hi and {}W Lo".format(self.Pwr_Hi.get(), self.Pwr_Lo.get()))
-        rx.send_meter_cmd("85","", True)    
+        print("Calculate Ref Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
+        rx.send_meter_cmd("74","", True)    
 
-    def Save_to_Meter(self):
+    def Save_to_Meter(self):   # Commit to EEPROM
         rx = Receiver()
         print("Save cal table changes to Meter's EEPROM")
         rx.send_meter_cmd("195","", True)    
@@ -962,7 +968,7 @@ class Cfg_Mtr(tk.Frame):
         screen_width = cfg.winfo_screenwidth()
         screen_height = cfg.winfo_screenheight()                
         w = 500   # width of our app window
-        h = 560   # height of our app window
+        h = 580   # height of our app window
         x = screen_width/3
         y = screen_height/4
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
@@ -987,49 +993,66 @@ class Cfg_Mtr(tk.Frame):
         self.Pwr_Hi.set(100)  # default entry
         self.Pwr_Lo = StringVar(cfg)
         self.Pwr_Lo.set(10)  # default entry
+        self.Measure_Units = StringVar(cfg)
+        self.Measure_Units.set("dBm")
 
         self.Cal_Text = tk.Label(cfg,text='--------Calibate Fwd and Ref Power Measurements--------', font=('Helvetica', 12, 'bold'), justify=CENTER)
-        self.Cal_Text.place(x=0, y=216, height=20, width=w)
-        self.Cal1_Text = tk.Label(cfg,text='1. Enter high and low power levels in Watts\n2. Transmit a steady carrier (Fwd or Ref) at each level\n3. Push Fwd or Ref Cal Pwr button to measure carrier ADC voltage', font=('Helvetica', 10), justify=LEFT)
-        self.Cal1_Text.place(x=10, y=240, height=60, width=w-20)
+        self.Cal_Text.place(x=0, y=210, height=20, width=w)
+        self.Cal1_Text = tk.Label(cfg,text='1. Choose Units then enter high and low power levels for this band\n2. Transmit a steady carrier at each power level pushing Measure for each\n3. Push Cal Fwd Power or Cal Ref Power button to caclulate', font=('Helvetica', 10), justify=LEFT)
+        self.Cal1_Text.place(x=0, y=230, height=60, width=w)
 
-        self.Cal_Hi_Text = tk.Label(cfg,text='Enter Hi Pwr:', font=('Helvetica', 12, 'bold'), justify=LEFT)
-        self.Cal_Hi_Text.place(x=40, y=320, height=20, width=100) 
+        self.P_Units = StringVar(cfg, "dBm")
+        #self.var.set("dBm")
+        self.Cal_Choose_Units_L = tk.Label(cfg, text="Choose Units: ",font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_Choose_Units_L.place(x=100, y=295, height=20, width=130)
+        self.Cal_Choose_Watts = tk.Radiobutton(cfg, text="Watts", variable=self.P_Units, value="Watts", command = self.Choice_Units, font=('Helvetica', 12, 'bold'))
+        self.Cal_Choose_Watts.place(x=230, y=295, height=20)
+        self.Cal_Choose_dBm = tk.Radiobutton(cfg, text="dBm", variable=self.P_Units, value="dBm", command = self.Choice_Units, font=('Helvetica', 12, 'bold'))
+        self.Cal_Choose_dBm.place(x=320, y=295, height=20)
+
+        self.Cal_Hi_Text = tk.Label(cfg,text='Enter Hi Pwr:', font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_Hi_Text.place(x=30, y=340, height=20, width=130) 
         self.Cal_Hi_Entry = tk.Entry(cfg, textvariable=self.Pwr_Hi, font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_Entry.place(x=150, y=320, height=20, width=60)     
+        self.Cal_Hi_Entry.place(x=150, y=340, height=20, width=60)     
         self.Cal_Hi_Entry.bind('<Return>', self.get_Hi_Watts)                        
         self.Cal_Hi_btn = tk.Button(cfg, text='Measure', command=self.Cal_Hi, font=('Helvetica', 12, 'bold'))
-        self.Cal_Hi_btn.place(x=230, y=310, height=40, width=100) 
+        self.Cal_Hi_btn.place(x=230, y=330, height=40, width=100) 
         self.Cal_HiV_F_Text = tk.Label(cfg,text="F:0.00000VDC", font=('Helvetica', 12, 'bold'))
-        self.Cal_HiV_F_Text.place(x=350, y=310, height=20, width=110) 
+        self.Cal_HiV_F_Text.place(x=350, y=330, height=20, width=110) 
         self.Cal_HiV_R_Text = tk.Label(cfg,text="R:0.00000VDC", font=('Helvetica', 12, 'bold'))
-        self.Cal_HiV_R_Text.place(x=350, y=330, height=20, width=110) 
+        self.Cal_HiV_R_Text.place(x=350, y=350, height=20, width=110) 
         
-        self.Cal_Lo_Text = tk.Label(cfg,text='Enter Lo Pwr:', font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Text.place(x=40, y=370, height=20, width=100)
+        self.Cal_Lo_Text = tk.Label(cfg,text='Enter Lo Pwr:', font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_Lo_Text.place(x=30, y=390, height=20, width=130)
         self.Cal_Lo_Entry = tk.Entry(cfg, textvariable=self.Pwr_Lo, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_Entry.place(x=150, y=370, height=20, width=60)         
+        self.Cal_Lo_Entry.place(x=150, y=390, height=20, width=60)         
         self.Cal_Lo_Entry.bind('<Return>', self.get_Lo_Watts)                
         self.Cal_Lo_btn = tk.Button(cfg, text='Measure', command=self.Cal_Lo, font=('Helvetica', 12, 'bold'))
-        self.Cal_Lo_btn.place(x=230, y=360, height=40, width=100)
+        self.Cal_Lo_btn.place(x=230, y=380, height=40, width=100)
         self.Cal_LoV_F_Text = tk.Label(cfg,text="F:0.00000VDC", font=('Helvetica', 12, 'bold'))
-        self.Cal_LoV_F_Text.place(x=350, y=360, height=20, width=110)      
+        self.Cal_LoV_F_Text.place(x=350, y=380, height=20, width=110)      
         self.Cal_LoV_R_Text = tk.Label(cfg,text="R:0.00000VDC", font=('Helvetica', 12, 'bold'))
-        self.Cal_LoV_R_Text.place(x=350, y=380, height=20, width=110)      
+        self.Cal_LoV_R_Text.place(x=350, y=400, height=20, width=110)      
 
         self.Cal_Text = tk.Label(cfg,text='After measuring both high and low power for a given direction\n(Fwd or Ref) push the appropriate button to calibrate on this band\nCommit changes with Save to Meter button', font=('Helvetica', 10))  #, 'bold'))
-        self.Cal_Text.place(x=20, y=400, height=60, width=w-20)
+        self.Cal_Text.place(x=20, y=430, height=60, width=w-20)
 
-        self.Cal_Fwd_btn = tk.Button(cfg, text='Cal Pwr\nFwd', command=self.Cal_Fwd, font=('Helvetica', 12, 'bold'), state='disabled')
-        self.Cal_Fwd_btn.place(x=80, y=480, height=60, width=100) 
-        self.Cal_Ref_btn = tk.Button(cfg,text='Cal Pwr\nRef', command = self.Cal_Ref, font=('Helvetica', 12, 'bold'), state='disabled')
-        self.Cal_Ref_btn.place(x=200, y=480, height=60, width=100)     
+        self.Cal_Fwd_btn = tk.Button(cfg, text='Cal Fwd\nPower', command=self.Cal_Fwd, font=('Helvetica', 12, 'bold'), state='disabled')
+        self.Cal_Fwd_btn.place(x=80, y=500, height=60, width=100) 
+        self.Cal_Ref_btn = tk.Button(cfg,text='Cal Ref\nPower', command = self.Cal_Ref, font=('Helvetica', 12, 'bold'), state='disabled')
+        self.Cal_Ref_btn.place(x=200, y=500, height=60, width=100)     
         self.Save_to_Meter_btn = tk.Button(cfg, text='Save to\nMeter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'), state='normal')
-        self.Save_to_Meter_btn.place(x=320, y=480, height=60, width=100)
+        self.Save_to_Meter_btn.place(x=320, y=500, height=60, width=100)
+        self.update_cfg_win()
 
-        #self.Pwr_Lo_Ref = StringVar(cfg)
-        #self.Pwr_Lo_Ref.set(10)  # default entry
+    def update_cfg_win(self):
+        self.Cfg_Band_label.config(text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        self.Cfg_Band_label.after(500, self.update_cfg_win)    
       
+    def Choice_Units(self):
+        #print(self.Measure_Units.get())
+        print(self.P_Units.get())
+
     def get_Hi_Watts(self, event):
         global FwdVal_Hi
         temp_val = self.Cal_Hi_Entry.get()
