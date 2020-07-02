@@ -14,40 +14,59 @@ import tkinter.messagebox
 import ctypes
 
 PowerMeterVersionNum = "1.02"
-# pyRFPowerMeter  Version 1.02  June 19 2020
+# pyRFPowerMeter  Version 2.0  July 1 2020
 # Author: M. Lewis K7MDL
-# 
-#   1.02 dev copy for testing headless and remote calibration command protocol and run on Ardiuno Nano
-#       This now runs on Arduino Nano with no screens or buttons required.  
-#       All capabilities are controlled by serial port commands. 
-#       Renamed some buttons to send test commands to alter some coupling factor values for Fewd and Rev.  
-#           BF2+ sets a test value in Band 2 Fwd, BF2- button set  sit back.  Changes are saved in EEPROM.
-#           BR- resets a ref port back, no button curently assigned to set a test value right now.
-#           3.4G = Meter CPU reset - needed to follow a factory reset commands
-#           5.7G followed by 10G will mark the meter EEPROM as Invalid.
-#           Serial transmit frm CPU off/on (Btn C 5 sec).#       
-#       Added cmd line argument #2 to collect custom MeterID with changes to use it.
-#       Can now run multiple instances of meters (each on their own USB port) and Desktop monitor apps 
-#           by specifying correct MeterID and Comm port# at startup. Easiest done on the command line in a desktop shortcut file
-#       Catches unicode serial errors that happens when the CPU resets
-#       Reassigned frequency mapping to include HF at 240 (CouplerSetNum 0 (aka Band 0) on the host)
-#       Reassigned Dump cal table to 252 to make room for 10G sliding up from 249 to 250.  251 unused.
-#       Replaced Other button to be the HF button. 2.3G button active but greyed for testing.  
-#       The 3.4, 5.7G. and 10G are enabled but mapped to reset CPU and reset to factory default config commands
-#       Works with the PSoC version as well as the Arduinos.  
-#       If bands are different then you do need to sync the buttons and commands to the available configured bands on the host cpu.
-#       CPU side auto cal now support measuring 2 power levels on commands 88 (get hi power ADC voltage, set cal button red)
-#           and 87 (fwd low power ADC voltage and calculation) and 86 (ref low power ADC voltage and calculation)  
-#           figuring out the slope (including inversion) and offset.  Attenuation value is no longer modified.
-#           This works better for more accurate reading over entire range.
-#       Converted command line COM dialog to a GUI popup listbox.  Title bar now shows chosen port (if any)
-#           2 listboxes are presented for ConPort and MeterID selection. The fisrt, if any com port shown is chosen as default. 
-#           100 is default for the meter ID unless it was changed here it eh Python source code below.
-#           If you click OK, the defaults are used.  No serial port is required to start, though not much can happen.
-#           You can get into the config screen and make edit thre and save.  WSJTX if available will still operate
-#           As of 6/19/2020 the config screens and config file save and read are stil to be created.
-#       
 #
+#   Companion Desktop app to montor and control the Arduino or PSoC5 version of the RF Wattmeter.
+#
+#   See project details on these websites
+#   Github Wiki: https://github.com/K7MDL2/RF-Power-Meter-V1/wiki
+#   GitHUb project Readme: https://github.com/K7MDL2/RF-Power-Meter-V1
+#   K7MDL web site  - PSoC5 version: https://k7mdl2.wixsite.com/k7mdl/rf-wattmeter-on-psoc5lp
+#                   - Arduino Version: https://k7mdl2.wixsite.com/k7mdl/arduino-rf-remote-wattmeter
+#
+#   Since the PSoC5 has more capable hardware, higher performance, better IDE with full debugging,
+#       uses standard C language, similar size dev modules and costs the same I am leading new
+#       development on the PSoC platform first, then occasionally merge appropriate features back.
+#
+#   Displays Supported  (can use #ifdef in .h file to exclude/include these): 
+#       None (headless)
+#       Nextion 3.5"
+#       0.96" OLED (SSD1306 compatible)
+
+#   There are some PSoC5 programmable hardware features (digital Mux/deMux and voltage controlled GPIO 
+#       port) used to switch the Nextion display (if used) between the CPU and a USB serial line
+#       to allow remote upload to the Nextion.  The latest hardware build I used a 4 port USB hub
+#       with onboard USB USART TTL converter which is at 3.3V since it was meant for a Raspberry
+#       Pi Zero.  
+#
+#   USB Port usage:
+#       Main CPU serial connection to a desktop app (not required if using a local display - helpful for calibration from a PC app like this app)
+#       Nextion Programming (only needed if the display is used - can use a temporary connection with a USB UART TTL converter)
+#       KitProg programming/debugging board for main CPU (only needed for initial programming or firmware updates later)
+#
+#   KitProg usage (in place of the main board):
+#       The programming board may be snapped off the Main CY8CKIT-059 dev module and used 
+#       standalone. It has a special bootloader installed that can load a user app. A Bootloader component
+#       included in the TopDesign drawing must be enabled and a new target CPU platform selected
+#       (-039 variant from the list, the -097 is the main device variant) 
+#       The Tools->Bootloader Host utility is used to upload the app program to the bootloader on the 
+#       KitProg board. To see the board in teh Bootloader Host, unplug the KitProg, hoid the reset button
+#       down, plug the KitProg back into the USB cable then let go of the switch.  You can now download.
+#       At completion of download, power cycle the Kitprog and your app wil run normally thereafter.
+#
+#   All capabilities are controlled by serial port commands.  Not all commands are used anymore as better
+#       commands such as in the calibraton area are preferred.
+#    
+#   This program reuses a version of the Nextion Arduino library on GitHub ported to C by another Github user.
+#       https://github.com/itead/ITEADLIB_Arduino_Nextion
+#       
+#       Some modifications were needed in the UART area and some likely compiler bugs were found and worked
+#       around.  Not all commands are supported by library calls so sprintf + sendcommand() functions are used
+#       to send any command.  SOmetimes a result is expected and the library functions will collect those.  Not
+#       doing so results in some delay or confusion if you are looking for a specific return message (like a get
+#       value command stacked behind a status message)
+#      
 #   Uses the awesome WSJT-X python decoding package py-WSJTX 
 #       https://github.com/bmo/py-wsjtx
 #
@@ -75,9 +94,10 @@ PowerMeterVersionNum = "1.02"
 #   You could emulate the same simple data format of 8 string fields and use this for your own device
 #   The deafult serial rate (found at bottom of code below) is 115200 to match the default in my Arduino meter code
 
-# This app accepts 1 command line argument --  The serial port to use.  It will prompt for one if not supplied in a text command window
-# In normal usage you would specify the com port to be used on the command line in a desktop shortcut or a batch file.  
-# You could also specify the "port_name" in the code at the bottom of this script
+# This app accepts 2 command line arguments --  The serial port to use.  and teh meter ID (100-119).
+#   It will prompt for a USB Serial Port if one is not supplied on teh command line
+#   In normal usage you would specify the com port to be used on the command line in a desktop shortcut or a batch file.  
+#   You could also specify the "port_name" in the code at the bottom of this script
 
 # Change these 2 lines to suit your station
 myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Title Bar Text
@@ -851,7 +871,20 @@ class App(tk.Frame):
         print(name)
 
     def About(self):
-        print("RF Wattmeter Remote\nby K7MDL\nV1.X June 2020")
+        print("RF Wattmeter Remote\nby K7MDL\nV2.0 July 2020")
+        abt = tk.Tk()      
+        #   Later improve to save config file and remember the last position 
+        screen_width = abt.winfo_screenwidth()
+        screen_height = cfg.winfo_screenheight()                
+        w = 500   # width of our app window
+        h = 580   # height of our app window
+        x = screen_width/3
+        y = screen_height/4
+        print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
+        cfg.title("Remote Wattmeter Configuration Editor")
+        cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.Cfg_Band_label = tk.Label(cfg, text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        self.Cfg_Band_label.place(x=60, y=0)
 
     def mainloop(self, *args):
         # Overriding mainloop so that we can do cleanup of our threads
