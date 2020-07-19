@@ -2,17 +2,28 @@
 
 *** Release V2 created July 1, 2020 ***
 
-Most of the planned work (and much more unplanned) is complete in time for a break while I start traveling in July. 
+Planned and unplanned work is complete and rolled up in Release V2 download.
 
-I plan to build a new meter with some new features later this summer for my 2nd QTH. It will include scanning for RF among multiple couplers using a solid state RF switch, programmable attenuator and if I can find something, a frequency counter board. If I have time I will merge the features from the PSoC version to the Arduino.  The M5Stack did get a merge about a month ago so it is fairly feature rich as is. I have previously used a SS SP6T RF switch and 31dB programmable ss attenuator in my Multiband central LO project last year.
+I have started work on the next features. It will include scanning for RF among multiple couplers using a solid state RF switch.  A programmable attenuator added to remove (most) of the need for external fixed attenuators. If I can find something, a frequency counter board to eliminate manual or extrnal calibration selection. If I have time I will merge the features from the PSoC version to the Arduino. The M5Stack did get a merge about a month ago so it is fairly feature rich as is. I have previously used a SS SP6T RF switch and 31dB programmable ss attenuator in my Multiband central LO project last year.
 
 ### Summary Description
 
-DIY Arduino and PSoC based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble into a box. This code is currently using 2 8GHz rated detector modules. They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set.   Also has support for optional OLED and Nextion color LCD touch screens.  You can see the latest pictures on my web site project pages. The PSoC version with 10GHz detector, OLED and 3.5" touchscreen is here at https://k7mdl2.wixsite.com/k7mdl/rf-wattmeter-on-psoc5lp.
+DIY Arduino and PSoC based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble into a box. This code is currently using either 1 dual 10Ghz detector (ADL5519) 2 8GHz detector modules (2x AD8318). They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set. Also has support for optional OLED and/or Nextion color LCD touch screens. You can see the latest pictures on my web site project pages. The PSoC version with 10GHz detector, OLED and 3.5" touchscreen is here at https://k7mdl2.wixsite.com/k7mdl/rf-wattmeter-on-psoc5lp. With the PSoC5, using the optional bootloader component you can use the Kitprog board (the small 1" square break-off PSoC5 programming board) as the host CPU.
+
+The hardware flow for the latest build is:
+
+  Coupler Fwd -> | Detector Input A |  -> CPU ADMux 1 \                                 / -> OLED Display (optional)
+                 |                  |                  X -> CPU ADC (20bit) -> CPU ->  X <-> USB Serial Comms <-> Desktop Python App (optional)  <- WSJTX (optional)
+  Coupler Ref -> | Detector Input B |  -> CPU ADMux 2 /                          ^       \ -> Nextion Graphics Display (2.4" or 3.5") (optional)
+                                                                                 | 
+                                                                      USB TTL converter for Nextion upload (optional)
+                                                                      
+For ease of dev I am also using a small USB 4 port hub with onboard UART TTL converter with the KitPRog plugged in for dev work.  It reduces 3 USB connections to 1.
+
 
 ### Key files
     RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
-            Has some new ADS1100 files to support external I2C connected ADSS1100 16bit ADC units frm M5Stack.  
+            Has some new ADS1100 files to support external I2C connected ADSS1100 16bit ADC units from M5Stack.  
             They work really well, 0-12V inputs, 15 bit useful range. I have a 4 channel version module very similar
             to try out based on the ADS1115. Intended for adding measurements for voltage and temperature.
             Some of the features from the PSoC are merged into the M5Stack at times.
@@ -26,12 +37,14 @@ DIY Arduino and PSoC based RF SWR\Wattmeter for any band HF through microwave de
             I am developing new features on this platform first. Can use the main module or the programmer
             module via a simple bootloader procedure. This is an archive file (like a zip file) produced
             from the PSoC Creator 4.3 IDE. Drop the expanded archive into your workspace to open in PSoC Creator
+            Current code is setup for the ADL5519 Dual 10GHz power detector from SV1AFN.com.  2 AD8318 modules can be used
+            instead for up to 8Ghz and slightly less accuracy due to component variances.
 
     pyPowerMeter.py: Desktop Python app. Can run multiple instances on unique serial port and meter IDs.
             Now has a separate config screen supporting new auto calibration function for Fwd and Ref power.
             Host CPU will calculate offset and slope. Coupler attenuation is now fixed value (Feature in PSoC only for now).
     
-    *.HMI files: These are config files for the 2.4 and 3.5" Nextion intelligent displays. 
+    *.HMI files: These are config files for the 2.4" and 3.5" Nextion intelligent displays.  They have the same layout/fucntion scaled to size.
             The code to support these 2 displays and a 0.96" OLED display exist only in the PSoC version today.
             The original Nextion library for Arduino is on GitHub so would be easy to merge this code into the Arduino platform.
             The Nextion library used for the PSoC is a community sourced adaption from Arduino C++ to C.
