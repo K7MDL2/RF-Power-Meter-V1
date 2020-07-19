@@ -10,13 +10,7 @@ I have started work on the next features. It will include scanning for RF among 
 
 DIY Arduino and PSoC based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble into a box. This code is currently using either 1 dual 10Ghz detector (ADL5519) 2 8GHz detector modules (2x AD8318). They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set. Also has support for optional OLED and/or Nextion color LCD touch screens. You can see the latest pictures on my web site project pages. The PSoC version with 10GHz detector, OLED and 3.5" touchscreen is here at https://k7mdl2.wixsite.com/k7mdl/rf-wattmeter-on-psoc5lp. With the PSoC5, using the optional bootloader component you can use the Kitprog board (the small 1" square break-off PSoC5 programming board) as the host CPU.
 
-The hardware flow for the latest build is:
-
-  Coupler Fwd -> | Detector Input A |  -> CPU ADMux 1 \                                 / -> OLED Display (optional)
-                 |                  |                  X -> CPU ADC (20bit) -> CPU ->  X <-> USB Serial Comms <-> Desktop Python App (optional)  <- WSJTX (optional)
-  Coupler Ref -> | Detector Input B |  -> CPU ADMux 2 /                          ^       \ -> Nextion Graphics Display (2.4" or 3.5") (optional)
-                                                                                 | 
-                                                                      USB TTL converter for Nextion upload (optional)
+The hardware flow for the latest build is: https://github.com/K7MDL2/RF-Power-Meter-V1/blob/master/RF%20Wattmeter%20Hardware%20Block%20Diagram.JPG
                                                                       
 For ease of dev I am also using a small USB 4 port hub with onboard UART TTL converter with the KitPRog plugged in for dev work.  It reduces 3 USB connections to 1.
 
