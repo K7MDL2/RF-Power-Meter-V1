@@ -1,6 +1,7 @@
 ## RF-Power-Meter
 
 *** Release V2 created July 1, 2020 ***
+*** Note: V2.1 uploaded to Master Branch on 7/25/2020.   See Note for 7/25/2020 Item 32 below for summary of changes.   Mostly Nextion screen enhancements.
 
 Planned and unplanned work is complete and rolled up in Release V2 download.
 
@@ -57,6 +58,10 @@ For ease of dev I am also using a small USB 4 port hub with onboard UART TTL con
 
 ** NOTE ** The remote data protocol has changed for RX and TX to both be string based with comma separated values and have similar structure. This means you cannot mix previous versions of Arduino or Python code (1.00/1.01) with (1.02+). Ths was done to support full headless operation with expanded command messages and to support multiple meter instances (each on their own USB serial port). The 1st message value is meterID as before, the 2nd is now Msg_Type (150 for meter power data out, 180 for cal table dump, 120 for command to meter, 170, 16x, etc), and the rest of the fields are payload (variable length) with \r\n terminating each message. For commands, the 3rd value is the actual command (0-255), the 4th value is an optional data value for that command (such as coupling factor number for the 432 Fwd port). 
 
+2.0 - Major feature adds July 1, 2020- Available in the Release V2 download.
+
+2.1 - Nextion Screen adds July 25, 2020.  Changes committed to Master branch.  2nd Nextion PSoC RF Wattmeter build completed with 4 port hub and UART converter.
+
 Key Changes:
 1. Place the desktop window in the upper right corner of screen on app open. Plan to create a config file to remember placement position later.
 2. Changed the name of pyRFPowerMeter.py removing the Version number in the name.
@@ -94,7 +99,13 @@ Key Changes:
 28. 6/30/2020 - Completed Desktop app Config page. Button layout done with on screen calibration instructions. 2 text entry boxes provided to specify the hi and lo power levels to be measured. Apply carrier at each power level, then hit measure button to caclclate the slope and intercept.  Previous Host commands altered a bit to seprate the measure from the calculate actions. To commit, use the "Save to Meter" button to write values to EEPROM. Future additions would be saving last screen positions and upload and download complete cal tables from a file.
 29. 7/1/2020 - Now shows the ADC voltages captured during Cal. Calculate (fwd or Ref) buttons are disabled until both a hi and lo reading are taken since the Config window was opened. After that you can just reread either one, the calculation uses the last saved values. Went through a compelete calibration on both forward and reflected on 6 bands 50-1296MHz and the resulting slope and offset numbers are tightly grouped and close to the ADL5519 spec sheet. Will probably extend the Config UI to accept power level input in either dBm or Watts for convenience.  Note the desktop app Fwd and Ref do nothing at this time. YOu can edit hte script to plug in any command-calue pair you like for testing. This about wraps up this phase of work and will create a V1.2 release package soon.
 30. 7/1/2020 - Added choice of dBm or Watts for calibration power levels.  Displays the measured ADC voltages for each power level.  New commands added for dBm measurement levels.  Renumbered the related cal commands.  Desktop and PSoC versions only have these so far.  M5Stack will work standalone and most serial commands from the desktop app should work but it is not fully up to date with the latest latest PSoC changes so expect some issues.
-31. 7/1/2020 - Release V2 created.  There is more to do but they are in niche corners and significant new areas like wireless control.  
+31. 7/1/2020 - Release V2 created.  There is more to do but they are in niche corners and significant new areas like wireless control. 
+32. 7/25/2020 - V2.1 uploaded.  New screens added to the Nextion (2.4" only so far).   Will merge these into the 3.5" a bit later.
+    a. ADC Cal like the desktop app config page has
+    b. Reworked Nextion serial port handling to deal with missed events better, serial port Nextion code memcpy bounds checking that caused power on hangs.
+    c. Added quick band change pop up page when you press the band label on the Main screen.
+    d. Faster band switching times any screen/headless config.  Was saving all EEPROMN on band change, now only state vars.
+    e. No change to headless, OLED or Arduino in this batch of changes.  Completed the 5 RF Wattmeter build.  2nd with a 4 port hub+UART converter., 3rd with PSoC.
  
 
 ### Info:
