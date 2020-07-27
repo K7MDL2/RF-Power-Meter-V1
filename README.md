@@ -3,9 +3,9 @@
 *** Release V2 created July 1, 2020 ***
 *** Note: V2.1 uploaded to Master Branch on 7/25/2020.   See Note for 7/25/2020 Item 32 below for summary of changes.   Mostly Nextion screen enhancements.
 
-Planned and unplanned work is complete and rolled up in Release V2 download.
+Planned and unplanned work is complete and rolled up in Release V2 download.  Check out the Wiki pages for Bill of Materials, a drawing, and more details.  https://github.com/K7MDL2/RF-Power-Meter-V1/wiki
 
-I have started work on the next features. It will include scanning for RF among multiple couplers using a solid state RF switch.  A programmable attenuator added to remove (most) of the need for external fixed attenuators. If I can find something, a frequency counter board to eliminate manual or extrnal calibration selection. If I have time I will merge the features from the PSoC version to the Arduino. The M5Stack did get a merge about a month ago so it is fairly feature rich as is. I have previously used a SS SP6T RF switch and 31dB programmable ss attenuator in my Multiband central LO project last year.
+I have started work on the next features. It will include N1MM logging program antenna/transverter selection, scanning for RF among multiple couplers using a solid state RF switch.  A programmable attenuator added to remove (most) of the need for external fixed attenuators. If I can find something, a frequency counter board to eliminate manual or extrnal calibration selection. If I have time I will merge the features from the PSoC version to the Arduino. The M5Stack did get a merge about a month ago so it is fairly feature rich as is. I have previously used a SS SP6T RF switch and 31dB programmable ss attenuator in my Multiband central LO project last year.
 
 ### Summary Description
 
