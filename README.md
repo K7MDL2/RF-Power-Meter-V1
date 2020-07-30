@@ -7,6 +7,7 @@
 *** V2.2 uploaded to master Branch on 7/27/2020.  
 This is a PSoC code change only to add initial support for AUX IO BCD pin outputs and Meter band change from N1MM+ logger using the Antennas tab. This should be particularly valuable for N1MM users who do not have a IF radio with native support for transverters.
 N1MM+ uses OTRSP protocol over a serial port to issue many radio commands mostly for SO2R ops. We are just picking off the AUX commands for transverter and antenna control and wattmeter band change control. If using the USB hub with UART converter there are no wiring changes except bring out wires from the 4 new GPIO pins on port 0 to control your devices. See Wiki Revisipon History page for more details on limitations and setup instructions in N1MM, as well as likely near term enhancements on this. 
+*** Note - 7/27 and 7/28 made updates to fix dropped messages and discovered random AUX messages for Radio #2 showing up.  Added parsing for the AUX 2 (Radio2) messages and added 4 more IO outputs on Port_1 pins 3-7 for AUX2. Rewrote the parser to be a single function, deleted the Serial2.C file as it was just a 2nd buffer, and now pull all incoming characters into a string before processing them for easier message debugging.
 
 General Notes:
 
