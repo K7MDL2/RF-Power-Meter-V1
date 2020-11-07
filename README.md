@@ -2,7 +2,8 @@
 
 *** Release V2 created July 1, 2020 ***
 
-*** Note: V2.1 uploaded to Master Branch on 7/25/2020.   See Note for 7/25/2020 Item 32 below for summary of changes.   Mostly Nextion screen enhancements.
+*** Note: V2.3 uploaded to Master Branch on 11/6/2020.   See Revision History in teh Wiki pages for full list of changes over time.  This release added LoRa to remote the Nextion screen wirelessly, removed SWR display spikes during TX On/Off transients, updated 3.5" Screen update to match 2.4" screen with band decoder changes, enabled 28v and 13V Voltage readings for embedded use in high power RF amplifier using the small KitProg board.
+
 
 *** V2.2 uploaded to master Branch on 7/27/2020.  
 This is a PSoC code change only to add initial support for AUX IO BCD pin outputs and Meter band change from N1MM+ logger using the Antennas tab. This should be particularly valuable for N1MM users who do not have a IF radio with native support for transverters.
@@ -71,6 +72,9 @@ See Wiki page here https://github.com/K7MDL2/RF-Power-Meter-V1/wiki/Revision-His
 2.0 - Major feature adds July 1, 2020- Available in the Release V2 download.
 
 2.1 - Nextion Screen adds July 25, 2020.  Changes committed to Master branch.  2nd Nextion PSoC RF Wattmeter build completed with 4 port hub and UART converter.
+
+2.2 - Added LoRa to remote the Nextion screen wirelessly, removed SWR display spikes during TX On/OFF trnasients, updated 3.5" Screen update to match 2.4" screen with band decoder changes, enabled Voltage readings for embedded use in hgh power RF amplifier.
+
 
 ### Info:
 Version 1.0 RF Power Meter code running on a M5Stack (http://M5Stack.com) Arduino Basic Core CPU module.  No extra core modules required.  You will need 2 AD8318 based RF log power detector modules, or suitable alternatives with some code minor adjustments to adapt the calculation for different output V slope and offset and if no slope inversion.
