@@ -1,7 +1,8 @@
 ## RF-Power-Meter
 
 *** Release V2 created July 1, 2020 ***
-*** Note: V2.2 uploaded to Master Branch on 11/6/2020.   See Note for 11/6/2020 Item 33 below for summary of changes. Added LoRa to remote the Nextion screen wirelessly, removed SWR display spikes during TX On/OFF trnasients, updated 3.5" Screen update to match 2.4" screen with band decoder changes, enabled Voltage readings for embedded use in hgh power RF amplifier.
+
+*** Note: V2.3 uploaded to Master Branch on 11/6/2020.   See Revision History in teh Wiki pages for full list of changes over time.  This release added LoRa to remote the Nextion screen wirelessly, removed SWR display spikes during TX On/Off transients, updated 3.5" Screen update to match 2.4" screen with band decoder changes, enabled 28v and 13V Voltage readings for embedded use in high power RF amplifier using the small KitProg board.
 
 
 *** V2.2 uploaded to master Branch on 7/27/2020.  
