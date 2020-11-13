@@ -2,8 +2,7 @@
 
 *** Release V2 created July 1, 2020 ***
 
-*** Note: V2.3 uploaded to Master Branch on 11/6/2020.   See Revision History in teh Wiki pages for full list of changes over time.  This release added LoRa to remote the Nextion screen wirelessly, removed SWR display spikes during TX On/Off transients, updated 3.5" Screen update to match 2.4" screen with band decoder changes, enabled 28v and 13V Voltage readings for embedded use in high power RF amplifier using the small KitProg board.
-
+*** Note: V2.3 uploaded to Master Branch on 11/6/2020.   See Revision History in teh Wiki pages for full list of changes over time.  This release added LoRa to remote the Nextion screen wirelessly, removed SWR display spikes during TX On/Off transients, updated 3.5" Screen update to match 2.4" screen with band decoder changes, enabled 28v and 13V Voltage readings for embedded use in high power RF amplifier using the small KitProg board.  A few bug fixxes added though 11/13/2020 to make the SWR more relaible during TX-> RX and RX-TX transistions and to force SWR to 0 while in RX.
 
 *** V2.2 uploaded to master Branch on 7/27/2020.  
 This is a PSoC code change only to add initial support for AUX IO BCD pin outputs and Meter band change from N1MM+ logger using the Antennas tab. This should be particularly valuable for N1MM users who do not have a IF radio with native support for transverters.
