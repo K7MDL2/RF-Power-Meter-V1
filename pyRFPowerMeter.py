@@ -15,8 +15,8 @@ import pywsjtx.extra.simple_server
 import tkinter.messagebox
 import ctypes
 
-PowerMeterVersionNum = "1.02"
-# pyRFPowerMeter  Version 2.0  July 1 2020
+PowerMeterVersionNum = "2.3"
+# pyRFPowerMeter  Version 2.3  Nov 18, 2020
 # Author: M. Lewis K7MDL
 #
 #   Companion Desktop app to montor and control the Arduino or PSoC5 version of the RF Wattmeter.
@@ -315,15 +315,15 @@ class Serial_RX(Thread):
                             RefVal_Hi = meter_data_tmp[5]
                             RefVal_Lo = meter_data_tmp[6]  
                             print("Voltages = ", meter_data_tmp)
-                        if meter_data_tmp[1] == "160":   # Cal progress message end
+                        elif meter_data_tmp[1] == "160":   # Cal progress message end
                             cal_flag = 0
-                        if meter_data_tmp[1] == "163":   # Cmd progress message start
+                        elif meter_data_tmp[1] == "163":   # Cmd progress message start
                             cmd_flag = 1       
                             print(" -------------cmd flag = 1 -------------")                            
-                        if meter_data_tmp[1] == "162":   # Cmd progress message end
+                        elif meter_data_tmp[1] == "162":   # Cmd progress message end
                             cmd_flag = 0                            
                             print(" -------------cmd flag = 0 -------------")
-                        if meter_data_tmp[1] == "171":   # voltage, current and temperature data
+                        elif meter_data_tmp[1] == "171":   # voltage, current and temperature data
                             meter_data2 = meter_data_tmp  
                             #print(" HV, 14V, Curr and Temp Data = {}" .format(meter_data_tmp))      
                             for i in range(len(meter_data2)):                    
@@ -331,7 +331,7 @@ class Serial_RX(Thread):
                                     meter_data_fl2[i] = float(meter_data2[i])
                                 else: # Not a float so zero fill the field
                                     meter_data_fl2[i] = 0.0             
-                        if meter_data_tmp[1] == "170":   # normal power data
+                        elif meter_data_tmp[1] == "170":   # normal power data
                             meter_data = meter_data_tmp        
                             for i in range(len(meter_data)):                    
                                 if isfloat(meter_data[i]):                                                                    
