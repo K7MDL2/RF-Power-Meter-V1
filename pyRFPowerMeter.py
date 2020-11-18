@@ -1,3 +1,5 @@
+# pyRFPowerMeter.py
+
 from threading import Thread
 import time
 import socket
@@ -87,14 +89,14 @@ PowerMeterVersionNum = "1.02"
 #       Specify the port name on the command line and it will start up without user interaction
 #  *********************************************************************************************************
 
-# This app is the companion application to the Arduino based RF power meter poject by K7MDL
-#   It has no usage without one or more of the Arduino meters.  This app listens to a serial port and 
+# This app is the companion application to the PSOC5LP and Arduino based RF power meter poject by K7MDL
+#   It has no usage without one or more of the Arduino/PSoC5 meters.  This app listens to a serial port and 
 #   displays the results in a small fixed size GUI window.  
 #   It also sends commands to the meter such as to change calibration sets when you change frequency
 #   You could emulate the same simple data format of 8 string fields and use this for your own device
-#   The deafult serial rate (found at bottom of code below) is 115200 to match the default in my Arduino meter code
+#   The deafult serial rate (found at bottom of code below) is 115200 to match the default in my PSoC5/Arduino meter code
 
-# This app accepts 2 command line arguments --  The serial port to use.  and teh meter ID (100-119).
+# This app accepts 2 command line arguments --  The serial port to use and the meter ID (100-119).
 #   It will prompt for a USB Serial Port if one is not supplied on teh command line
 #   In normal usage you would specify the com port to be used on the command line in a desktop shortcut or a batch file.  
 #   You could also specify the "port_name" in the code at the bottom of this script
@@ -128,18 +130,18 @@ UDP_IP = "127.0.0.1"        # default local machine address
 UDP_PORT = 2334             # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
 # I am using 2334 with JTAlert re-broadcasting
 
-#  This program can optionally use WSJT-X UDP Reporting broadcasts to automatically track your radio's frequency and send a command
-#       to the Arduino RF Power meter to load the approriate calibration set.  10 bands are provided today.  50 is used for HF and 6M.  
-#       The remingin bands are all the VHF+ bands up to 10GHz by default  
+#  This program can optionally use WSJT-X UDP reporting broadcasts to automatically track your radio's frequency and send a command
+#       to the Arduino RF Power meter to load the approriate calibration set.  11 bands are provided today.  
+#       The remaining bands are all the VHF+ bands up to 10GHz by default  
 #       You can change the labels in the code for the button band names to be anything.  Can also change them in the Arduino side.
 #       The name is just a label, in the Arduino side is it used as a more friendly way to say BandX and represent a correspnding set of 
 #           coupling factor + any attenuators + any cal correction factor for the detectors at a given frequency for 
 #           the forward and reflected ports of a particular dual direction coupler.  
 #       If you change couplers be sure to set new calibratiuon factors in the Arduino side as they are frequency sensitive as well as
 #           could have different coupling factors such as 20dB or 30dB on each port.  
-#       Single port couplers can be uses the forward port to zero out the dBm fields when teh Forward port Watts is reported as 0W.  
+#       Single port couplers can be used as the dBm fields will be zero when the Forward port Watts is reported as 0W.  
 #           The values will drift around on the unused port at other time and the SWR value may fluctuate.  Can edit these fields to blank if desired
-#       In a pinch you coudl adjsut the incoming data values here.
+#       In a pinch you could adjsut the incoming data values here.
 #  WSJT uses 2237 to talk to JTAlert.  JTAlert can rebroadcast and uses 2334 by default.  
 #  These ports can be changed in each program
 #  Cannot open both this app and JTAlert on 2237 - bind conflict so set this app's port to 2334 to match the JTAlert
@@ -178,6 +180,8 @@ cmd = ""
 cmd_data = ""
 meter_data = ["","","","","","","","","",""]
 meter_data_fl  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,] # stores the same info in same psotion when possible as a float
+meter_data2 = ["","","","","","","","","",""]
+meter_data_fl2  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,] # stores the same info in same psotion when possible as a float
 cal_flag = 0
 cmd_flag = 0
 FwdVal_Hi = ""
@@ -285,6 +289,8 @@ class Serial_RX(Thread):
     def get_power_data(self, s_data):
         global meter_data
         global meter_data_fl
+        global meter_data2
+        global meter_data_fl2
         #global comms
         global cal_flag
         global cmd_flag
@@ -316,7 +322,15 @@ class Serial_RX(Thread):
                             print(" -------------cmd flag = 1 -------------")                            
                         if meter_data_tmp[1] == "162":   # Cmd progress message end
                             cmd_flag = 0                            
-                            print(" -------------cmd flag = 0 -------------")                                
+                            print(" -------------cmd flag = 0 -------------")
+                        if meter_data_tmp[1] == "171":   # voltage, current and temperature data
+                            meter_data2 = meter_data_tmp  
+                            #print(" HV, 14V, Curr and Temp Data = {}" .format(meter_data_tmp))      
+                            for i in range(len(meter_data2)):                    
+                                if isfloat(meter_data2[i]):                                                                    
+                                    meter_data_fl2[i] = float(meter_data2[i])
+                                else: # Not a float so zero fill the field
+                                    meter_data_fl2[i] = 0.0             
                         if meter_data_tmp[1] == "170":   # normal power data
                             meter_data = meter_data_tmp        
                             for i in range(len(meter_data)):                    
@@ -480,7 +494,8 @@ class App(tk.Frame):
         self.serial_rx = None
         self.receiver = None
         #self.grid()
-        self.pack()
+        self.pack_propagate(0) # don't shrink
+        self.pack(fill=BOTH, expand=1)
         self.createWidgets()
         self.update()
         self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol)
@@ -504,13 +519,13 @@ class App(tk.Frame):
     def createWidgets(self):
         global meter_data
         global meter_data_fl
+        global meter_data2
+        global meter_data_fl2
         global restart_serial
         global own_call
 
-        #self.configure(background='black')
-
         self.btn_font = tkFont.Font(family="Helvetica", size=10, weight='bold')
-        
+
         self.QUIT = tk.Button(self,
                                     text = format("ON"),
                                     font = self.btn_font,
@@ -518,10 +533,10 @@ class App(tk.Frame):
                                     fg = "black",
                                     padx = 4,
                                     #state='disabled',
-                                    command = self.comm)     # Will call the comms procedure to toggle all comms
-        self.QUIT.pack({"side": "left"})    
+                                    command = self.comm)     # Will call the comms procedure to toggle all comms 
+        self.QUIT.place(x=10, y=0, bordermode=OUTSIDE, height=20, width=40) 
         if restart_serial:
-            self.QUIT.configure(fg='black', bg="light grey")
+            self.QUIT.configure(fg='black', bg="light grey") 
         else:
             self.QUIT.configure(fg='white', bg="red") 
         if comms == None:
@@ -531,140 +546,171 @@ class App(tk.Frame):
         self.band_f["text"] = "Band"
         self.band_f["command"] = self.change_band  # Change the band (cycle through them)
         self.band_f.configure(font=self.btn_font)
-        self.band_f.pack({"side": "left"})
+        self.band_f.place(x=50, y=0, bordermode=OUTSIDE, height=20, width=40) 
 
         self.scale = tk.Button(self)
         self.scale["text"] = "Cal?"
         self.scale["command"] = self.get_cal_table  # Change to Watts and change scale
         self.scale.configure(font=self.btn_font)
-        self.scale.pack({"side": "left"})
+        self.scale.place(x=90, y=0, bordermode=OUTSIDE, height=20, width=40) 
 
-        self.swr = tk.Button(self)
-        self.swr["text"] = " Fwd  "
-        self.swr["command"] = self.cpl_Fwd  # Send cmd to change to SWR meter face procedure
-        self.swr.configure(font=self.btn_font, padx = 0)
-        self.swr.pack({"side": "left"})
+#       These bands can be enabled but will need to place them and slide around the voltage, curr and temp
 
-        self.rate_p = tk.Button(self)
-        self.rate_p["text"] = " Ref "
-        self.rate_p["command"] = self.cpl_Ref  # Send cmd to change to slow data output rate
-        self.rate_p.configure(font=self.btn_font)
-        self.rate_p.pack({"side": "left"})
+#        self.band_23G = tk.Button(self)
+#        self.band_23G["text"] = "2.3G"
+#        self.band_23G["command"] = self.band_2300  # Jump to Band X
+#        self.band_23G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
+#        self.scale.place(x=XX, y=0, bordermode=OUTSIDE, height=20, width=40)
 
-        self.band_10G = tk.Button(self)
-        self.band_10G["text"] = "10G"
-        self.band_10G["command"] = self.band_10g  # Jump to Band X
-        self.band_10G.configure(fg='grey',font=self.btn_font, padx=3, state='normal')
-        self.band_10G.pack({"side": "right"})
+#        self.band_34G = tk.Button(self)
+#        self.band_34G["text"] = "3.4G"
+#        self.band_34G["command"] = self.band_3400  # Jump to Band X
+#        self.band_34G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
+#        self.scale.place(x=XX, y=0, bordermode=OUTSIDE, height=20, width=40)
 
-        self.band_57G = tk.Button(self)
-        self.band_57G["text"] = "5.7G"
-        self.band_57G["command"] = self.band_5700  # Jump to Band X
-        self.band_57G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
-        self.band_57G.pack({"side": "right"})
+#        self.band_57G = tk.Button(self)
+#        self.band_57G["text"] = "5.7G"
+#        self.band_57G["command"] = self.band_5700  # Jump to Band X
+#        self.band_57G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
+#        self.scale.place(x=XX, y=0, bordermode=OUTSIDE, height=20, width=40)
 
-        self.band_34G = tk.Button(self)
-        self.band_34G["text"] = "3.4G"
-        self.band_34G["command"] = self.band_3400  # Jump to Band X
-        self.band_34G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
-        self.band_34G.pack({"side": "right"})
-
-        self.band_23G = tk.Button(self)
-        self.band_23G["text"] = "2.3G"
-        self.band_23G["command"] = self.band_2300  # Jump to Band X
-        self.band_23G.configure(fg='grey',font=self.btn_font, padx=1, state='normal')
-        self.band_23G.pack({"side": "right"})
-
-        self.band_1296M = tk.Button(self)
-        self.band_1296M["text"] = "1296"
-        self.band_1296M["command"] = self.band_1296  # Jump to Band X
-        self.band_1296M.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.band_1296M.pack({"side": "right"})
-
-        self.band_902M = tk.Button(self)
-        self.band_902M["text"] = "902"
-        self.band_902M["command"] = self.band_902  # Jump to Band X
-        self.band_902M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
-        self.band_902M.pack({"side": "right"})
-
-        self.band_432M = tk.Button(self)
-        self.band_432M["text"] = "432"
-        self.band_432M["command"] = self.band_432  # Jump to Band X
-        self.band_432M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
-        self.band_432M.pack({"side": "right"})
-
-        self.band_222M = tk.Button(self)
-        self.band_222M["text"] = "222"
-        self.band_222M["command"] = self.band_222  # Jump to Band X
-        self.band_222M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
-        self.band_222M.pack({"side": "right"})
-
-        self.band_144M = tk.Button(self)
-        self.band_144M["text"] = "144"
-        self.band_144M["command"] = self.band_144  # Jump to Band X
-        self.band_144M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
-        self.band_144M.pack({"side": "right"})
-
-        self.band_50M = tk.Button(self)
-        self.band_50M["text"] = " 50 "
-        self.band_50M["command"] = self.band_50  # Jump to Band X
-        self.band_50M.configure(fg='black',font=self.btn_font, padx=2, state='normal')
-        self.band_50M.pack({"side": "right"})
+#        self.band_10G = tk.Button(self)
+#        self.band_10G["text"] = "10G"
+#        self.band_10G["command"] = self.band_10g  # Jump to Band X
+#        self.band_10G.configure(fg='grey',font=self.btn_font, padx=3, state='normal')
+#        self.scale.place(x=XX, y=0, bordermode=OUTSIDE, height=20, width=40)
 
         self.band_HFM = tk.Button(self)
         self.band_HFM["text"] = " HF "
         self.band_HFM["command"] = self.band_HF  # Jump to Band X
         self.band_HFM.configure(fg='black',font=self.btn_font, padx=2, state='normal')
-        self.band_HFM.pack({"side": "right"})
+        self.band_HFM.place(x=135, y=0, bordermode=OUTSIDE, height=20, width=36)
 
-        # Fill in text label to help identify multiple meters.  Text not needed for 1 meter usage    
-        self.SWR_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),pady=0,anchor="e",width = 0)
-        self.SWR_a.configure(font=self.btn_font)
-        self.SWR_a.pack({"side": "right"})
-        
-        self.SWR_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),pady=0,anchor="e",width = 3)
-        self.SWR_a.configure(font=self.btn_font)
-        self.SWR_a.pack({"side": "right"})
-        
-        self.SWR_f = tk.Label(text=' SWR:', font=('Helvetica', 12, 'bold'),pady=0,anchor="w",width = 5)
-        self.SWR_f.configure(font=self.btn_font)
-        self.SWR_f.pack({"side": "right"})
-                         
-        self.R_dBm_f = tk.Label(text='', font=('Helvetica', 9, 'bold'),anchor="w", pady=2, width=9)
-        self.R_dBm_f.configure(fg='cyan', bg="black")
-        self.R_dBm_f.pack({"side": "right"})
+        self.band_50M = tk.Button(self)
+        self.band_50M["text"] = " 50 "
+        self.band_50M["command"] = self.band_50  # Jump to Band X
+        self.band_50M.configure(fg='black',font=self.btn_font, padx=2, state='normal')
+        self.band_50M.place(x=171, y=0, bordermode=OUTSIDE, height=20, width=36)
 
-        self.R_Watts_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),anchor="e",width=5)
-        self.R_Watts_a.configure(fg='yellow', bg="black", pady = 0)        
-        self.R_Watts_a.pack({"side": "right"})
+        self.band_144M = tk.Button(self)
+        self.band_144M["text"] = "144"
+        self.band_144M["command"] = self.band_144  # Jump to Band X
+        self.band_144M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
+        self.band_144M.place(x=208, y=0, bordermode=OUTSIDE, height=20, width=36)
 
-        self.R_Watts_f = tk.Label(text='  REF:', font=('Helvetica', 12, 'bold'),anchor="e",width=6)
-        self.R_Watts_f.configure(font=self.btn_font, pady = 0)        
-        self.R_Watts_f.pack({"side": "right"})
+        self.band_222M = tk.Button(self)
+        self.band_222M["text"] = "222"
+        self.band_222M["command"] = self.band_222  # Jump to Band X
+        self.band_222M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
+        self.band_222M.place(x=245, y=0, bordermode=OUTSIDE, height=20, width=36) 
 
-        self.F_dBm_f = tk.Label(text='(%sdBm)', font=('Helvetica', 9, 'bold'),anchor="w", pady=2, width=9)
-        self.F_dBm_f.configure(fg='cyan', bg="black")
-        self.F_dBm_f.pack({"side": "right"})  
-        
-        self.F_Watts_a = tk.Label(text='', font=('Helvetica', 12, 'bold'),anchor="e", width=7)
-        self.F_Watts_a.configure(fg='yellow', bg="black", pady = 0)          
-        self.F_Watts_a.pack({"side": "right"})
+        self.band_432M = tk.Button(self)
+        self.band_432M["text"] = "432"
+        self.band_432M["command"] = self.band_432  # Jump to Band X
+        self.band_432M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
+        self.band_432M.place(x=282, y=0, bordermode=OUTSIDE, height=20, width=36) 
 
-        self.F_Watts_f = tk.Label(text=' FWD:', font=('Helvetica', 12, 'bold'),anchor="e",width=5)
-        self.F_Watts_f.configure(font=self.btn_font, pady = 0)          
-        self.F_Watts_f.pack({"side": "right"})
+        self.band_902M = tk.Button(self)
+        self.band_902M["text"] = "902"
+        self.band_902M["command"] = self.band_902  # Jump to Band X
+        self.band_902M.configure(fg='black',font=self.btn_font, padx=5, state='normal')
+        self.band_902M.place(x=319, y=0, bordermode=OUTSIDE, height=20, width=36) 
+
+        self.band_1296M = tk.Button(self)
+        self.band_1296M["text"] = "1296"
+        self.band_1296M["command"] = self.band_1296  # Jump to Band X
+        self.band_1296M.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+        self.band_1296M.place(x=356, y=0, bordermode=OUTSIDE, height=20, width=36) 
+
+        #  Voltage, Current and Temp
+        self.hv = tk.Label(self, text='28V:',font=('Helvetica', 10, 'bold'))
+        self.hv.configure(font=self.btn_font)
+        self.hv.place(x=404, y=0, bordermode=OUTSIDE, height=20, width=30)
+
+        self.hv_a = tk.Label(self, text=' ', font=('Helvetica', 10, 'bold'))
+        self.hv_a.configure(fg='yellow', bg="black", pady = 0)  
+        self.hv_a.place(x=434, y=0, bordermode=OUTSIDE, height=20, width=34)
+
+        self.v14 = tk.Label(self, text='12V:',font=('Helvetica', 10, 'bold'))
+        self.v14.configure(font=self.btn_font)
+        self.v14.place(x=476, y=0, bordermode=OUTSIDE, height=20, width=30)
+
+        self.v14_a = tk.Label(self, text=' ', font=('Helvetica', 10, 'bold'))
+        self.v14_a.configure(fg='yellow', bg="black", pady = 0)          
+        self.v14_a.place(x=506, y=0, bordermode=OUTSIDE, height=20, width=34)
  
-        self.band_f = tk.Label(text='Band:',font=('Helvetica', 10, 'bold'),padx = 5,pady = 0, anchor="w", width=7)
-        self.band_f.configure(font=self.btn_font)
-        self.band_f.pack({"side": "right"})    
+        self.curr = tk.Label(self, text='Amps:',font=('Helvetica', 10, 'bold'))
+        self.curr.configure(font=self.btn_font)
+        self.curr.place(x=549, y=0, bordermode=OUTSIDE, height=20, width=40)
+       
+        self.curr_a = tk.Label(self, text=' ', font=('Helvetica', 10, 'bold'))
+        self.curr_a.configure(fg='yellow', bg="black", pady = 0)          
+        self.curr_a.place(x=592, y=0, bordermode=OUTSIDE, height=20, width=34)
         
-        self.meter_id_f = tk.Label(text='Radio: ',font=('Helvetica', 10, 'bold'),pady=0,anchor="w", relief=tk.FLAT, borderwidth=1, width=21)
+        self.temperature = tk.Label(self, text='T:',font=('Helvetica', 10, 'bold'))
+        self.temperature.configure(font=self.btn_font)
+        self.temperature.place(x=634, y=0, bordermode=OUTSIDE, height=20, width=17)
+
+        self.temperature_a = tk.Label(self, text=' ', font=('Helvetica', 10, 'bold'))
+        self.temperature_a.configure(fg='yellow', bg="black", pady = 0)          
+        self.temperature_a.place(x=651, y=0, bordermode=OUTSIDE, height=20, width=48)
+        
+        #This label is just a buffer to prevent the SWR value from touching the right edge of a resized window
+        self.spacer3 = tk.Label(self, text=' ', font=('Helvetica', 10, 'bold'))
+        self.spacer3.place(x=706, y=0, bordermode=OUTSIDE, height=20, width=10)
+        
+        # Fill in text label to help identify multiple meters.  Text not needed for 1 meter usage
+        self.spacer4 = tk.Label(self, text='  ', font=('Helvetica', 10, 'bold'))
+        self.spacer4.place(x=0, y=22, bordermode=OUTSIDE, height=20, width=10)
+               
+        self.meter_id_f = tk.Label(self, text='Radio: ',font=('Helvetica', 10, 'bold'),pady=0,anchor="w", relief=tk.FLAT, borderwidth=1)  #, width=21)
         self.meter_id_f.configure(font=self.btn_font)
-        self.meter_id_f.pack({"side": "right"})
+        self.meter_id_f.place(x=10, y=22, bordermode=OUTSIDE, height=20, width=170) 
+ 
+        self.band_f = tk.Label(self, text='Band:',font=('Helvetica', 10, 'bold'),padx = 5,pady = 0, anchor="w", width=7)
+        self.band_f.configure(font=self.btn_font)
+        self.band_f.place(x=180, y=22, bordermode=OUTSIDE, height=20, width=70)  
+         
+        self.F_Watts_f = tk.Label(self, text=' FWD:', font=('Helvetica', 12, 'bold'),anchor="e",width=5)
+        self.F_Watts_f.configure(font=self.btn_font, pady = 0)          
+        self.F_Watts_f.place(x=250, y=22, bordermode=OUTSIDE, height=20, width=44) 
+
+        self.F_Watts_a = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),anchor="e", width=7)
+        self.F_Watts_a.configure(fg='yellow', bg="black", pady = 0)          
+        self.F_Watts_a.place(x=294, y=22, bordermode=OUTSIDE, height=20, width=60)  
+
+        self.F_dBm_f = tk.Label(self, text='(00.0dBm) ', font=('Helvetica', 9, 'bold'),anchor="w", pady=2, width=9)
+        self.F_dBm_f.configure(fg='cyan', bg="black")
+        self.F_dBm_f.place(x=354, y=22, bordermode=OUTSIDE, height=20, width=80)  
+        
+        self.R_Watts_f = tk.Label(self, text='REF:', font=('Helvetica', 12, 'bold'),anchor="e",width=6)
+        self.R_Watts_f.configure(font=self.btn_font, pady = 0)        
+        self.R_Watts_f.place(x=434, y=22, bordermode=OUTSIDE, height=20, width=40)
+
+        self.R_Watts_a = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),anchor="e",width=5)
+        self.R_Watts_a.configure(fg='yellow', bg="black", pady = 0)        
+        self.R_Watts_a.place(x=477, y=22, bordermode=OUTSIDE, height=20, width=60)
+
+        self.R_dBm_f = tk.Label(self, text='(00.0dBm) ', font=('Helvetica', 9, 'bold'),anchor="w", pady=2, width=9)
+        self.R_dBm_f.configure(fg='cyan', bg="black")
+        self.R_dBm_f.place(x=537, y=22, bordermode=OUTSIDE, height=20, width=80)
+
+        self.SWR_f = tk.Label(self, text='SWR:', font=('Helvetica', 12, 'bold'),pady=0,anchor="w",width = 5)
+        self.SWR_f.configure(font=self.btn_font)
+        self.SWR_f.place(x=626, y=22, bordermode=OUTSIDE, height=20, width=40)
+
+        self.SWR_a = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),pady=0,anchor="e",width = 3)
+        self.SWR_a.configure(font=self.btn_font)
+        self.SWR_a.place(x=666, y=22, bordermode=OUTSIDE, height=20, width=40)
+        
+        #This label is just a buffer to prevent the SWR value from touching the right edge of a resized window
+        self.SWR_s = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),pady=0,anchor="e",width = 0)
+        self.SWR_s.configure(font=self.btn_font)
+        self.SWR_s.place(x=706, y=22, bordermode=OUTSIDE, height=20, width=10)
                 
         self.update_label() 
 
-        # Update GUI text fields with Serial Data from power meter and maybe other places later 
+    # Update GUI text fields with Serial Data from power meter and maybe other places later 
     def update_label(self):
         global restart_serial    
         global own_call    
@@ -710,12 +756,20 @@ class App(tk.Frame):
                 self.F_Watts_a.configure(text='{0:4.1f}W' .format(meter_data_fl[5]), width=7)                        
             self.F_dBm_f.configure(text='(%6sdBm)' % meter_data[3], anchor="e")
             self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)
-            self.R_dBm_f.configure(text='(%6sdBm) ' % meter_data[4], anchor="e")        
+            self.R_dBm_f.configure(text='(%6sdBm)' % meter_data[4], anchor="e")
+            self.hv_a.configure(text='%4s' % meter_data2[2], anchor="e")
+            self.v14_a.configure(text='%4s' % meter_data2[3], anchor="e")
+            self.curr_a.configure(text='%4s' % meter_data2[4], anchor="e") 
+            self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")     
         else:           
             self.F_Watts_a.configure(text='   NA  ', width=7)
             self.F_dBm_f.configure(text='(     dBm)', anchor="e")  
             self.R_Watts_a.configure(text='  NA  ', width=6)
-            self.R_dBm_f.configure(text='(     dBm) ', anchor="e")        
+            self.R_dBm_f.configure(text='(     dBm)', anchor="e")  
+            self.hv_a.configure(text='%4s' % meter_data2[2], anchor="e")
+            self.v14_a.configure(text='%4s' % meter_data2[3], anchor="e")
+            self.curr_a.configure(text='%4s' % meter_data2[4], anchor="e") 
+            self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")
 
         swr = meter_data_fl[7]
         if swr ==  0.0:
@@ -741,7 +795,7 @@ class App(tk.Frame):
 
         self.meter_id_f.after(200, self.update_label)  # refresh the live data display in the GUI window
                
-    # These functions are called by a button to do something with the power nter such as change cal sets for a new band
+    # These functions are called by a button to do something with the power meter such as change cal sets for a new band
 
     def get_cal_table(self):
         rx = Receiver()
@@ -871,7 +925,7 @@ class App(tk.Frame):
         print(name)
 
     def About(self):
-        print("RF Wattmeter Remote\nby K7MDL\nV2.0 July 2020")
+        print("RF Wattmeter Remote\nby K7MDL\nV2.3 November 2020")
         abt = tk.Tk()      
         #   Later improve to save config file and remember the last position 
         screen_width = abt.winfo_screenwidth()
@@ -1120,8 +1174,8 @@ def main():
     screen_height = root.winfo_screenheight()
     print('Screen Width and Height is ', screen_width, screen_height)
     # calculate position x and y coordinates
-    w = 720   # width of our app window
-    h = 49    # height of our app window
+    w = 708   # width of our app window
+    h = 44   # height of our app window
     x = screen_width - (w+10)
     y = 2
     print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
