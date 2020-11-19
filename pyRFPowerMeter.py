@@ -188,6 +188,7 @@ FwdVal_Hi = ""
 FwdVal_Lo = ""
 RefVal_Hi = ""
 RefVal_Lo = ""
+hide_titlebar = FALSE
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -1166,7 +1167,8 @@ class Cfg_Mtr(tk.Frame):
             time.sleep(0.1)                    
         self.Reset_btn.configure(font=('Helvetica', 12, 'bold'), bg="grey94")                                
 
-def main():   
+def main(): 
+    global hide_titlebar 
     root = tk.Tk()
     # Place window in the upper right corner of the desktop display for now.  
     #   Later improve to save config file and remember the last position 
@@ -1185,6 +1187,8 @@ def main():
     menu = Menu(root)  # Menu type top level window
     root.config(menu=menu)
     app.master.title(myTitle)           # title can be edited in string constant at top of this file
+    if (hide_titlebar) == TRUE:
+        root.overrideredirect(1)
     filemenu = Menu(menu)
     menu.add_cascade(label="File", menu=filemenu)
     filemenu.add_command(label="New", command=(app.NewFile))
@@ -1319,7 +1323,8 @@ if __name__ == '__main__':
         return port_name 
 
     def ask_for_input(port_listbox):
-        global comms            
+        global comms
+        global hide_titlebar          
         """
         Show a list of ports and ask the user for a choice. To make selection
         easier on systems with long device names, also allow the input of an
@@ -1377,6 +1382,10 @@ if __name__ == '__main__':
     else:
         #port_name = ask_for_input()      #  No COM port supplied on the command line  (for cmd line usage)
         port_name = com_box()     # No valid COMM port match found 
+
+    if len(sys.argv) > 3:   # If there is a third arg assume it is to hide the title bar if value = 1
+        if (sys.argv[3] == "HIDE" or sys.argv[3] == "hide"):
+            hide_titlebar = TRUE
 
     print("Meter ID final value set to  : " + myRig_meter_ID)
     print("Com Port final value set to : ", port_name)
