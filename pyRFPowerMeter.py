@@ -809,11 +809,6 @@ class App(tk.Frame):
         print("Go to Next Band ")
         # Write command to change Band
         rx.send_meter_cmd("254","", True)
-        #rx.send_meter_cmd("88","26.9", True)   # hv cal
-        #rx.send_meter_cmd("87","13.6", True)   # v14 cal
-        #rx.send_meter_cmd("86","11.2", True)   # current cal
-        #rx.send_meter_cmd("85","", True)   # current zero set
-        #rx.send_meter_cmd("84","113.5", True)   # temperature cal
 
     def cpl_Fwd(self): 
         rx = Receiver()
