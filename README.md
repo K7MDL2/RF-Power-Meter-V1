@@ -20,7 +20,7 @@ I have started work on the next features. It will include N1MM logging program a
 
 DIY Arduino and PSoC based RF SWR\Wattmeter for any band HF through microwave depending on the coupler and detector modules you choose. Reads output from a pair of power detector modules that you assemble into a box. This code is currently using either 1 dual 10Ghz detector (ADL5519) 2 8GHz detector modules (2x AD8318). They are attached to a RF dual directional coupler to read forward and reflected power. Optional Python based remote monitoring and control desktop app monitors the USB serial port output from the meter and can change calibration sets for different frequency bands. If using WSJT-X the app will use the broadcasted dial frequency (over UDP) to automatically set the right calibration set. Also has support for optional OLED and/or Nextion color LCD touch screens. You can see the latest pictures on my web site project pages. The PSoC version with 10GHz detector, OLED and 3.5" touchscreen is here at https://k7mdl2.wixsite.com/k7mdl/rf-wattmeter-on-psoc5lp. With the PSoC5, using the optional bootloader component you can use the Kitprog board (the small 1" square break-off PSoC5 programming board) as the host CPU.
 
-The hardware flow for the latest build is: https://github.com/K7MDL2/RF-Power-Meter-V1/blob/master/RF%20Wattmeter%20Hardware%20Block%20Diagram.JPG and also on the Wiki page https://github.com/K7MDL2/RF-Power-Meter-V1/wiki/Components-of-the-System
+The hardware flow for the latest build is: https://github.com/K7MDL2/RF-Power-Meter-V1/blob/master/Pictures/RF%20Wattmeter%20Hardware%20Block%20Diagram.JPG and also on the Wiki page https://github.com/K7MDL2/RF-Power-Meter-V1/wiki/Components-of-the-System
                                                                       
 For ease of dev I am using a small USB 4 port hub with onboard UART TTL converter with the KitPRog plugged in for dev work.  It reduces 3 or 4 USB connections to 1.  This hub also enables extended scenarios such as N1MM+ logger program interfacing for antenna or transverter control.
 
@@ -48,7 +48,7 @@ For ease of dev I am using a small USB 4 port hub with onboard UART TTL converte
             Now has a separate config screen supporting new auto calibration function for Fwd and Ref power.
             Host CPU will calculate offset and slope. Coupler attenuation is now fixed value (Feature in PSoC only for now).
     
-    *.HMI files: These are config files for the 2.4" and 3.5" Nextion intelligent displays.  They have the same layout/fucntion scaled to size.
+    Nextion Files: The *.HMI files are config files for the 2.4" and 3.5" Nextion intelligent displays.  They have the same layout/fucntion scaled to size.
             The code to support these 2 displays and a 0.96" OLED display exist only in the PSoC version today.
             The original Nextion library for Arduino is on GitHub so would be easy to merge this code into the Arduino platform.
             The Nextion library used for the PSoC is a community sourced adaption from Arduino C++ to C.
