@@ -74,7 +74,7 @@ See Wiki page here https://github.com/K7MDL2/RF-Power-Meter-V1/wiki/Revision-His
 
 2.2 - Added LoRa to remote the Nextion screen wirelessly, removed SWR display spikes during TX On/OFF trnasients, updated 3.5" Screen update to match 2.4" screen with band decoder changes, enabled Voltage readings for embedded use in high power RF amplifier.
 
-2.3 - Added option to hide the titlebar in the desktop app, additional work on voltages and SWR spike control, new serial nmessage to output voltage, current and temp. Desktop app now displays those values.  Current sensor voltage input moved to pin P3_7 since the Kitprog version (which has limited I/O) needed the old pin for SWR output voltage in the amplifier HI SWR circuit.
+2.3 - Added option to hide the titlebar in the desktop app, additional work on voltages and SWR spike control, new serial message to output voltage, current and temp. Desktop app now displays and configures those values.  Current sensor voltage input moved to pin P3_7 since the Kitprog version (which has limited I/O) needed the old pin for SWR output voltage in the amplifier HI SWR circuit.  Clean up files grouping things together some.
 
 ### Info:
 Version 1.0 RF Power Meter code running on a M5Stack (http://M5Stack.com) Arduino Basic Core CPU module.  No extra core modules required.  You will need 2 AD8318 based RF log power detector modules, or suitable alternatives with some code minor adjustments to adapt the calculation for different output V slope and offset and if no slope inversion.
