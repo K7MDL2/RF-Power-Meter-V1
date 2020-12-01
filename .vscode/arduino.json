@@ -1,8 +1,8 @@
 {
-    "board": "esp32:esp32:m5stack-core-esp32",
-    "configuration": "FlashMode=qio,FlashFreq=80,PartitionScheme=default,UploadSpeed=115200,DebugLevel=none",
+    "board": "arduino:avr:mega",
+    "configuration": "cpu=atmega2560",
     "sketch": "RF_Power_Meter\\RF_Power_Meter.ino",
-    "port": "COM6",
+    "port": "COM3",
     "programmer": "AVRISP mkII",
     "output": "..\\build"
 }

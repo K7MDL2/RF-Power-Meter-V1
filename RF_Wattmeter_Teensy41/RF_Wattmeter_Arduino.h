@@ -5,7 +5,6 @@
  *
  * ========================================
 */
-//#pragma once
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -29,9 +28,9 @@
 #endif
 
 #ifdef SSD1306_OLED
-#include "ssd1306.h"
-#define DISPLAY_ADDRESS 0x3C //  for OLED i2C - 011110+SA0+RW - 0x3C or 0x3D NOTE1
-// If you are using a 128x64 OLED screen, the address will be 0x3C or 0x3D, if one does not work try with the other one.
+    #include "ssd1306.h"
+    #define DISPLAY_ADDRESS 0x3C //  for OLED i2C - 011110+SA0+RW - 0x3C or 0x3D NOTE1
+    // If you are using a 128x64 OLED screen, the address will be 0x3C or 0x3D, if one does not work try with the other one.
 #endif
 
 #define CALLSIGN_LEN            (7u)
@@ -76,14 +75,14 @@ unsigned long Timer_X00ms_Last_OLED;
 //#define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 #define METER_RATE 2   // used to skip serial data output to a lower rate
 #define EEADDR 64 // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
-#define MUX_FWD A10       // These are the Analog Mux input assignments
-#define MUX_REF A11
-#define MUX_TEMP A14      // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
-#define MUX_14V A16
-#define MUX_CURR A15
-#define MUX_HV A17
-#define ad_Fwd A10    // Analog 35 pin for channel 0
-#define ad_Ref A11   // Analog 36 pin for channel 1
+#define MUX_FWD 'A10'       // These are the Analog Mux input assignments
+#define MUX_REF 'A11'
+#define MUX_TEMP 'A14'      // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
+#define MUX_14V 'A16'
+#define MUX_CURR 'A15'
+#define MUX_HV 'A17'
+#define ad_Fwd 'A10'    // Analog 35 pin for channel 0
+#define ad_Ref 'A11'   // Analog 36 pin for channel 1
 #define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.
 
 #define Band_Decode_Control 2

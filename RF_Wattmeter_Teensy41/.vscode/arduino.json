@@ -1,5 +1,6 @@
 {
     "board": "arduino:avr:mega",
     "configuration": "cpu=atmega2560",
-    "sketch": "RF_Wattmeter_Teensy41.ino"
+    "sketch": "RF_Wattmeter_Teensy41.ino",
+    "port": "COM32"
 }

@@ -33,7 +33,7 @@ void setup(void)
 #endif
 
     Serial.begin(115200); // For debug or data output
-    Serial3.begin(9600);
+    //Serial3.begin(9600);
     Serial.println(" ");   // Clear our output text from CPU init text
     write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized
       /*   initialize EEPROM storage if not done before - will overwrite default memory table values from EEPROM if EEPROM was written to before */    
@@ -2060,7 +2060,7 @@ void write_Cal_Table_to_EEPROM()
 
     Serial.println(" Write Cal Table to EEPROM - Start " );
     c1_array[0] = 'S';   /* what we just wrote, will overwrite as a block of 16 bytes) */
-    c1_array[EE_RESERVED_BYTE1] = _NULL;
+    c1_array[EE_RESERVED_BYTE1] = NULL;
     c1_array[OP_MODE_OFFSET] = op_mode;  
     c1_array[COUPLERSETNUM_OFFSET] = CouplerSetNum;
     c1_array[SER_DATA_OUT_OFFSET] = ser_data_out;                     

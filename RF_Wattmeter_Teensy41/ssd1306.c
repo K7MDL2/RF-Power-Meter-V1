@@ -38,10 +38,10 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 */
-//#ifdef SSD1306_OLED
+#ifdef SSD1306_OLED
 #include <stdlib.h>
 #include <string.h>
-#include "util\my_types.h"
+//#include "util\my_types.h"
 #include "font.h"
 #include "ssd1306.h"
 extern char cmdbuf[];
@@ -637,5 +637,5 @@ void gfx_println( const char* s ){
     gfx_print( s ); 
     gfx_write( '\n' );
 }
-//#endif
+#endif
 /* [] END OF FILE */

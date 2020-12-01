@@ -5,8 +5,9 @@
  * ========================================
 */
 
-#include "util\my_types.h"
-//#ifdef SSD1306_OLED
+//#include "util\my_types.h"
+#include <stdint.h>
+#ifdef SSD1306_OLED
 #ifndef _SSD1306_H
 #define _SSD1306_H
     
@@ -67,6 +68,6 @@ void gfx_drawTriangle( int16_t x0, int16_t y0,int16_t x1, int16_t y1, int16_t x2
 void gfx_setRotation( unsigned char x );
 
 #endif	// _SSD1306_H
-//#endif // SSD1306_OLED
+#endif // SSD1306_OLED
 
 /* [] END OF FILE */
