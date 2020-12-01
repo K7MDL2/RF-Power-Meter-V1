@@ -1,4 +1,3 @@
-
 #ifndef __NEXCONFIG_H__
 #define __NEXCONFIG_H__
 #include "NexSerial.h"
