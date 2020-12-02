@@ -21,6 +21,10 @@ void Serial_Init()
     LoRaCfg();
 #endif
     nexSerial.begin(9600);
+    //sprintf(cmd, "%s%c%c%c", "bauds=38400", 255, 255, 255);
+    //nexSerial.write(cmd);
+    //delay(100);
+    //nexSerial.begin(38400);
 }
 
 unsigned char Serial_Write(unsigned char c)
@@ -52,6 +56,7 @@ unsigned char Serial_Read()
         rxHead = 0;     // reset buffer if empy or tail > head for some reason
         rxTail = 0;
         c = -1;         // -1 indicates something wrong, ignore C value
+        dbSerial.println("Serial_Read Error ********  ");
     }
     return c;
 }
@@ -60,10 +65,12 @@ unsigned char Serial_Available()
 {   
     //  Shift to Interrupt routine to fill buffer    
     unsigned char c; 
-      
+       
     while ((nexSerial.available()) != 0)
-    {       
+    { 
         c = nexSerial.read();
+        dbSerial.print(c, HEX);
+        dbSerial.print(' ');
         rxBuff[rxHead++] = c;  // fill buffer with next char
         if (rxHead > RxBUFFLEN-1)  // prevent overrun
             rxHead = RxBUFFLEN;

@@ -13,8 +13,8 @@
  * the License, or (at your option) any later version.
  */
 #include "NexHardware.h"
+#include "NexConfig.h"
 #include "Utilities.h"
-//#include "NexSerial.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -36,11 +36,6 @@
 #define NEX_RET_INVALID_VARIABLE (0x1A)
 #define NEX_RET_INVALID_OPERATION (0x1B)
 
-extern unsigned int DLY;  // Set the value in LoRaCfg so only used if LoRa config is used
-// Delay value is critical. For 19.2K 80-100 works good.  9600 500 is good.
-// Less and you start missing events, numbers come back 0.  After a while LoRa data gets backed up, missing events
-// Need flow control on the Nextion end likely.
-
 char txt[32];
 char cmd[64];
 char buf[12];
@@ -48,7 +43,10 @@ char msg[32];
 unsigned char wrData;
 extern unsigned char WAIT;  // traffic flag - if a function is waiting for a response for the display set this flag to hold off display updates
 extern unsigned char pg;
-extern unsigned int DLY;  // Set the value to prevent missed messages. 50 for wired, 500 for LoRa set in LoRaCfg
+extern unsigned int DLY;  // // Set the value to prevent missed messages.  
+// Delay value is critical.   LoRa at 9600 500 is good. 50 for wired connection.
+// Less and you start missing events, numbers come back 0.  After a while LoRa data gets backed up, missing events
+// Need flow control on the Nextion end likely.
 
 /*
  * Receive current page number. 
@@ -286,6 +284,9 @@ unsigned char nexInit(void)
     ret1 = recvRetCommandFinished();
     sendCommand("page 0");
     ret2 = recvRetCommandFinished();
+    sendCommand("touch_j");
+    ret1 = recvRetCommandFinished();
+    nexSerial.begin(38400);
     return ret1 && ret2;
 }
 
@@ -296,7 +297,9 @@ void nexLoop(struct NexObject *nex_listen_list[])
     unsigned int i;
     unsigned char c;
 
-    while (nexSerial_available() > 0)
+
+    if (nexSerial_available() > 6)
+    //while (nexSerial_available() > 0)
     {
         c = nexSerial_read();
         if (c == (unsigned char) -1)
@@ -304,7 +307,8 @@ void nexLoop(struct NexObject *nex_listen_list[])
         
         if (NEX_RET_EVENT_TOUCH_HEAD == c)
         {
-            if (nexSerial_available() >= 6)
+            if (nexSerial_available() != 0)
+            //if (nexSerial_available() >= 6)
             {
                 __buffer[0] = c;
                 for (i = 1; i < 7; i++)
@@ -312,14 +316,24 @@ void nexLoop(struct NexObject *nex_listen_list[])
                     __buffer[i] = nexSerial_read();
                 }
                 __buffer[i] = 0x00;
-                
-                if (__buffer[1] == 0x04 && __buffer[2] == 0x01)  // this is from last page, will chage if a page is added or removed.
-                    pg = 0;  // pick up the page numbers on events to remove the need to ask for page number for screen refreshes and minimize serial traffic
-                else if (__buffer[1] == 0x00 && __buffer[2] == 0x01)
-                    pg = 1;  // left page 0
-                else
-                    pg = __buffer[1];   // all pages between 0 and 4
 
+                dbSerial.println("\n Buffer = ");
+                dbSerial.println((char ) __buffer);
+
+                if (__buffer[1] == 0x04 && __buffer[2] == 0x01)  // this is from last page, will change if a page is added or removed.
+                    pg = 0;  // pick up the page numbers on events to remove the need to ask for page number for screen refreshes and minimize serial traffic
+                else if (__buffer[1] == 0x00 && __buffer[2] == 0x0F)  // from page 0 toConfig_ID = 15
+                    pg = 1; 
+                else if (__buffer[1] == 0x01 && __buffer[2] == 0x06)  // from page 1 toSet1_ID = 6
+                    pg = 2; 
+                else if (__buffer[1] == 0x02 && __buffer[2] == 0x12)  // from page 2 toPwrGraph_ID = 18
+                    pg = 3;  
+                else if (__buffer[1] == 0x03 && __buffer[2] == 0x05)  // from page 3 toPowerCal_ID = 5
+                    pg = 4;                             
+                //else
+                //    pg = 0;
+                dbSerial.print("\n **** Page = ");
+                dbSerial.println(pg);
                 if (0xFF == __buffer[4] && 0xFF == __buffer[5] && 0xFF == __buffer[6])
                 {
                     NexTouch_iterate(nex_listen_list, __buffer[1], __buffer[2], (int32_t)__buffer[3]);

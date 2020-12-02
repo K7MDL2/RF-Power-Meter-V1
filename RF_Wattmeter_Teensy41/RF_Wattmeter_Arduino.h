@@ -197,6 +197,7 @@ float temp_cal_factor;
 static unsigned char sdata[Serial_USB_BUFFER_SIZE], *pSdata=sdata, *pSdata1=sdata, *pSdata2=sdata;
 extern char cmd[64];
 float value1_last;
+char AuxCmd0[20];
 unsigned char AuxNum1, AuxNum2;  // N1MM OTRSP serial protocol control for 4 2 4 bit IO ports for antenna and transverter control.  See OTRSP.C
 unsigned char decoder_band_last = 0;
 
@@ -217,12 +218,14 @@ void write_Cal_Table_from_Default(void);
 void get_remote_cmd(void);
 unsigned int serial_usb_read(void);
 void serial_usb_write(void);
-unsigned char BCDToDecimal(unsigned char BCD);
+unsigned char BCDToDecimal(unsigned char *);
 void Band_Decoder(void);
 float hv_read(void);
 float v14_read(void);
 float curr_read(void);
 float temp_read(void);
+uint8_t OTRSP(void);
+uint8_t OTRSP_Process(void);
 
 #ifdef SWR_ANALOG  // Update SWR Analog output for Amplifier protection when using KitProg board in an amplifier
 float SWR_Fail(void);

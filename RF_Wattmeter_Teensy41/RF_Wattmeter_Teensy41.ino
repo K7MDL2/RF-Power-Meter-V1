@@ -245,7 +245,7 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
 
     // Throttle the time the CPU spends here.   Offset the timing os teh data acquired is just before it is sent out
     Timer_X00ms_InterruptCnt = millis(); 
-    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 200)   // will use our own timestamp.
+    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 100)   // will use our own timestamp.
         return;   // skip out until greater than 100ms since our last visit here
     Timer_X00ms_Last_AD = Timer_X00ms_InterruptCnt;  // time stamp our visit here.  Do not want to come back too soon.  
 
@@ -431,12 +431,11 @@ void loop() {
         
 #ifdef NEXTION
         // Process Nextion Display events
-        //Serial_PullMsg(0);                  
-        //if (EVT_FLAG) 
+
+       
         if (Serial_Available()) 
         {
           nexLoop(nex_listen_list);  // Process Nextion Display  
-          Serial.println(pg);
         }
         if (NewBand != CouplerSetNum)
             update_Nextion(1);
@@ -463,66 +462,19 @@ void loop() {
         ret1 = OTRSP();   // set Aux output pins and change bands to match
         if (ret1)
         {
-            Button_B = YES;  // Process any N1M Aux port commands on UART2
-            NewBand = AuxNum1;
-        }                
+            ret1 = OTRSP_Process();
+            if (ret1)
+            {
+                Button_B = YES;  // Process any N1M Aux port commands on UART2
+                NewBand = AuxNum1;
+                //SerialUSB1.print(" New Band # = ");
+                //SerialUSB1.println(NewBand);
+            }
+        }                    
         // Process any radio band decoder changes
         Band_Decoder();
         
     }   // end of while
-}
-
-void Band_Decoder(void)
-{     
-    // Convert BCD to binary and update the (non-BCD) binary Port for amps and meter selection
-    unsigned char decoder_band;
-    unsigned char decoder_band_binary;
-
-    //decoder_band = Band_BCD_In_Reg_Read();   // Get current radio band value
-    decoder_band = digitalRead(2);   // Get current radio band value
-    if (decoder_band != decoder_band_last)
-    {
-        decoder_band_last = decoder_band;
-        if (decoder_band == 0) // if 0 it is HF
-        {
-            digitalWrite(Band_Decode_Control, 0);  // Deselect the amps and antennas if possible and avold divide by zero
-            digitalWrite(Antenna_Select, 0);
-        }   
-        else
-        {   // not zero (not HF) pick a VHF band now
-            decoder_band = BCDToDecimal(decoder_band);   
-            if (decoder_band > 6)
-                decoder_band = 6;
-            decoder_band_binary = (1 << (decoder_band-1));
-            digitalWrite(Band_Decode_Control, decoder_band_binary);   // Convert BCD to parallel    
-            // Based on band selected, also send out teh antenna select pattern. 
-            // This is hard coded today for 3 SPDT relays to select one of 4 RF sources to connect to an antenna 
-            switch(decoder_band)
-            {   // writing a 1 will cause a ground (logic 0) to be applied to the latching relay board to move it to position 2.
-                case 0: digitalWrite(Antenna_Select, 0); 
-                    break;        // HF  - move all switches to position #1
-                case 1: digitalWrite(Antenna_Select, 0); 
-                    break;        // 50  - move all switches to position #1
-                case 2: digitalWrite(Antenna_Select, 0); 
-                    break;        // 144 - move pair A to #1, B to #1
-                case 3: digitalWrite(Antenna_Select, 1); 
-                    break;        // 222 - move pair A to #2, B to #1
-                case 4: digitalWrite(Antenna_Select, 2); 
-                    break;        // 432 - move pair A to #1, B to #2
-                case 5: digitalWrite(Antenna_Select, 3); 
-                    break;        // 903 - move pair A to #2, B to #2
-                case 6: digitalWrite(Antenna_Select, 0); 
-                    break;        // 1296 - move all switches to position #1
-                default: digitalWrite(Antenna_Select, 0);
-                    break;                
-            }
-        }
-    }
-}   
-        
-unsigned char BCDToDecimal(unsigned char BCD)
-{
-   return (((BCD>>4)*10) + (BCD & 0xF));
 }
 
 #ifdef NEXTION
@@ -1479,7 +1431,7 @@ float temp_read(void)
 void sendSerialData()
 {
     Timer_X00ms_InterruptCnt = millis();
-    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last) > 200 && ser_data_out == 1); //&& EEPROM.read(SER_DATA_OUT_OFFSET) == 'Y' )
+    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last) > 500 && ser_data_out == 1); //&& EEPROM.read(SER_DATA_OUT_OFFSET) == 'Y' )
     {
         Timer_X00ms_Last_USB = Timer_X00ms_InterruptCnt;       
         sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
@@ -2325,11 +2277,6 @@ unsigned char EEPROM_Init_Read(void)
 #define AUXCMDLEN 4
 #define BANDCMDLEN 12
 
-// Function declarations
-void OTRSP_setup(void);
-uint8_t OTRSP(void);
-uint8_t OTRSP_Process(void);
-
 /*
 Convert AUX command from N1MM to 4 bit BCD
 Command format is AUXxnn fixed width. x is the radio number, usually 1.   Example is AUX103 for command 03 for BCD output of 0x03.
@@ -2338,51 +2285,41 @@ uint8_t OTRSP(void)
 {     
     char c;
     static int i;
-    static char AuxCmd0[20];
+    //static char AuxCmd0[20];   // Made a global
+    static char buf[20];
     
     //AuxNum1 = AuxNum2 = 0;  // Global values also used to update status on LCD
     if (SerialUSB1.available() > 0)
     {
-        c = SerialUSB1.read();
-        if ( (c == 'A' && AuxCmd0[0] != 'B') || c == 'B')   // AUXxYY\r or BANDxYYYYY...\r
-        {           
-            i = 0;
-        }
-        AuxCmd0[i++] = c;
-        AuxCmd0[i] = '\0';
-        //SerialUSB1.print("AuxCmd0 = ");
-        //SerialUSB1.println(AuxCmd0);
-          
-        if ( (i == 7) && ((AuxCmd0[0] == 'A') || (AuxCmd0[0] == 'B')) && (AuxCmd0[6] == '\r') )
+        c = SerialUSB1.read();  // Accept AUXyZZ where y is 1 or 2 and ZZ is 00-FF.
+        buf[i] = c;
+        buf[i+1] = '\0';
+        SerialUSB1.print("buf = ");
+        SerialUSB1.println(buf);
+        if (i >= 19)
+              i = 0;  // prevent buffer overrun
+        if (c == '\r' && i > 5)  // look for end of string then look back 6 chars for string parse
         {
-            AuxCmd0[6]='\0';  // Terminate the string (no \r)
-            //SerialUSB1.println(AuxCmd0);
-            OTRSP_Process(AuxCmd0);         // Got a proper string start and end
-            i=8;
+            Serial.println(i);
+            strncpy(AuxCmd0, &buf[i-6], 6);
+            AuxCmd0[6] = '\0';
+            i=0; 
+            // AUXxYY\r or BANDxZ...\r  YY is 00-99 (Should be 00-FF) and Z is 0-9, should be 0-F.
+            if (strncmp(AuxCmd0,"AUX",3) == 0 || strncmp(AuxCmd0,"BAND",4) == 0)               
+            {
+                SerialUSB1.print("AuxCmd0 = ");
+                SerialUSB1.println(AuxCmd0);
+                return 1;   // Signal we have a good string
+            }         
         }
-        else if ( i > 7 || ( i <= 7 && c == '\r') || ( i == 7 && c != '\r')  )   // bail and reset string capture if too long or has a CR too early
-        {
-            //SerialUSB1.println(i);  
-            i = 0;   // reset capture string
-            AuxCmd0[0] = '\0';            
-            return 0;
-        }
-        else if ( i < 7 )   // still collecting chars, go back to the well for more chars.
-        {
-            return 0;
-        }
-        else 
-        {
-            SerialUSB1.print(" Should not be here! i = ");
-            SerialUSB1.print(i);
-        }
+        i++;  
     }
     return 0;
 }
 
-uint8_t OTRSP_Process(char * AuxCmd0)
+uint8_t OTRSP_Process(void)
 {
-    //char AuxCmd0[20];
+    //static char AuxCmd0[20];
     char AuxCmd1[AUXCMDLEN], AuxCmd2[AUXCMDLEN];
     char BndCmd1[BANDCMDLEN], BndCmd2[BANDCMDLEN];
     uint8_t i;
@@ -2392,30 +2329,33 @@ uint8_t OTRSP_Process(char * AuxCmd0)
     SerialUSB1.println(AuxCmd0); 
     if ((AuxCmd0[0] == 'A' || AuxCmd0[0] == 'B') && AuxCmd0[6] == '\0' && strlen(AuxCmd0)==6) // double validate
     {      
-        i=0;
         // Looking only for 2 commands, BAND and AUX.   
         if (strncmp(AuxCmd0,"AUX1",4) == 0)   // process AUX1 where 1 is the radio number.  Each radio has a 4 bit BCD value
         {
             AuxCmd1[0] = AuxCmd0[4];
             AuxCmd1[1] = AuxCmd0[5];
             AuxCmd1[2] = AuxCmd0[6];
-            AuxCmd1[3] = '\0';                    
-            AuxNum1 = atoi(AuxCmd1);   // Convert text 0-255 ASCII to int
+            AuxCmd1[3] = '\0'; 
+            SerialUSB1.print(" OTRSP Processing AUX1 string in BCD: ");
+            SerialUSB1.println(AuxCmd1); 
+            AuxNum1 = BCDToDecimal(AuxCmd1);   // Convert text 0x00-0xFF HEX to Decimal
+            //AuxNum1 = atoi(AuxCmd1);   // Convert text 0-255 ASCII to Decimal
+            SerialUSB1.print(" OTRSP Processing AUX1 string in Decimal: ");
+            SerialUSB1.println(AuxNum1);
+            
             //Aux1_Write(AuxNum1);  // write out to the Control register which in turn writes to the GPIO ports assigned.                      
             for (i=0; i < 20; i++)
-            {
                 AuxCmd0[i] = '\0';
-                delay(1);
-            }
             return(1);  // 1 signals a change
         }
         else if (strncmp(AuxCmd0,"AUX2",4) == 0)   // process AUX comand for radio 2.
         {
             AuxCmd2[0] = AuxCmd0[4];
             AuxCmd2[1] = AuxCmd0[5];
-            AuxCmd1[2] = AuxCmd0[6];
+            AuxCmd2[2] = AuxCmd0[6];
             AuxCmd2[3] = '\0';
-            AuxNum2 = atoi(AuxCmd2);   // Convert 0-15 ASCII to int
+            AuxNum2 = BCDToDecimal(AuxCmd2);   // Convert text 0x00-0xFF HEX to Decimal
+            //AuxNum2 = atoi(AuxCmd2);   // Convert 0-15 ASCII to int
             //Aux2_Write(AuxNum2);  // write out to the Control register which in turn writes to the GPIO ports assigned.                                        
             for (i=0; i< 20; i++)
                 AuxCmd0[i] = '\0' ;
@@ -2441,5 +2381,91 @@ uint8_t OTRSP_Process(char * AuxCmd0)
     }  
     return 0;   // nothing processed 0 is a valid band number so using 255.
 }
+
+unsigned char BCDToDecimal(unsigned char *hex)
+{
+    //char hex[17];
+    long decimal, place;
+    int i = 0, val, len;
+
+    decimal = 0;
+    place = 1;
+    /* Find the length of total number of hex digit */
+    len = strlen(hex);
+    len--;
+    /*
+     * Iterate over each hex digit
+     */
+    for(i=0; hex[i]!='\0'; i++)
+    {
+        /* Find the decimal representation of hex[i] */
+        if(hex[i]>='0' && hex[i]<='9')
+        {
+            val = hex[i] - 48;
+        }
+        else if(hex[i]>='a' && hex[i]<='f')
+        {
+            val = hex[i] - 97 + 10;
+        }
+        else if(hex[i]>='A' && hex[i]<='F')
+        {
+            val = hex[i] - 65 + 10;
+        }
+
+        decimal += val * pow(16, len);
+        len--;
+    }
+   //SerialUSB1.print("DEC = ");
+   //SerialUSB1.println(decimal);
+   return decimal;
+}
+
+void Band_Decoder(void)
+{     
+    // Convert BCD to binary and update the (non-BCD) binary Port for amps and meter selection
+    unsigned char decoder_band;
+    unsigned char decoder_band_binary;
+
+    //decoder_band = Band_BCD_In_Reg_Read();   // Get current radio band value
+    decoder_band = digitalRead(2);   // Get current radio band value
+    if (decoder_band != decoder_band_last)
+    {
+        decoder_band_last = decoder_band;
+        if (decoder_band == 0) // if 0 it is HF
+        {
+            digitalWrite(Band_Decode_Control, 0);  // Deselect the amps and antennas if possible and avold divide by zero
+            digitalWrite(Antenna_Select, 0);
+        }   
+        else
+        {   // not zero (not HF) pick a VHF band now
+            decoder_band = BCDToDecimal(decoder_band);   
+            if (decoder_band > 6)
+                decoder_band = 6;
+            decoder_band_binary = (1 << (decoder_band-1));
+            digitalWrite(Band_Decode_Control, decoder_band_binary);   // Convert BCD to parallel    
+            // Based on band selected, also send out teh antenna select pattern. 
+            // This is hard coded today for 3 SPDT relays to select one of 4 RF sources to connect to an antenna 
+            switch(decoder_band)
+            {   // writing a 1 will cause a ground (logic 0) to be applied to the latching relay board to move it to position 2.
+                case 0: digitalWrite(Antenna_Select, 0); 
+                    break;        // HF  - move all switches to position #1
+                case 1: digitalWrite(Antenna_Select, 0); 
+                    break;        // 50  - move all switches to position #1
+                case 2: digitalWrite(Antenna_Select, 0); 
+                    break;        // 144 - move pair A to #1, B to #1
+                case 3: digitalWrite(Antenna_Select, 1); 
+                    break;        // 222 - move pair A to #2, B to #1
+                case 4: digitalWrite(Antenna_Select, 2); 
+                    break;        // 432 - move pair A to #1, B to #2
+                case 5: digitalWrite(Antenna_Select, 3); 
+                    break;        // 903 - move pair A to #2, B to #2
+                case 6: digitalWrite(Antenna_Select, 0); 
+                    break;        // 1296 - move all switches to position #1
+                default: digitalWrite(Antenna_Select, 0);
+                    break;                
+            }
+        }
+    }
+}   
 
 /* [] END OF FILE */
