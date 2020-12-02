@@ -9,9 +9,10 @@
 
 /*
  *
- * RF Power Meter by K7MDL 11/28/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
+ * RF Power Meter by K7MDL 12/1/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
  *
- * 11/28/2020 -  Begin port back from PSoC5 including OLED and Nextion touchscreen support and band decoder features.
+ * 12/1/2020 -  Ported from PSoC5. Nextion is mostly working, OLED and band decoder features note working yet.  Lots of 
+ *  warnings to sift through, bugs to be found, lots more testing to do.
  *
 */
 
@@ -31,9 +32,8 @@ void setup(void)
     display_clear();    
     display_update();
 #endif
-
+    SerialUSB1.begin(9600);  // open port for OTRSP serial port command input
     Serial.begin(115200); // For debug or data output
-    //Serial3.begin(9600);
     Serial.println(" ");   // Clear our output text from CPU init text
     write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized
       /*   initialize EEPROM storage if not done before - will overwrite default memory table values from EEPROM if EEPROM was written to before */    
@@ -197,7 +197,6 @@ void setup(void)
     // Ensure we are on Page 0 in cas we start and the display is already running such as during dev and test
     //UART1_ClearRxBuffer();
     pg=0;
-    //nexInit();
     NexPage_show(&Main);
     strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
     NexText_setText(&Set1_Bandvar);    // Update Nextion display for new values
@@ -210,8 +209,6 @@ void setup(void)
     Set1_Callback(0);  // initialize our setpoints and meter id so it does not get read back as 0 values later.
     NexPage_show(&Main);
     NexNumber_setValue(&Graph_Timer, 500);   // 300msec for graph update rate.  300 set in display, can override here.
-
-                                // 0 = CPU, 1 = USB converter
 #endif // end Nextion setup section 
   
   adRead(); //get and calculate power + SWR values and display them  
@@ -437,7 +434,10 @@ void loop() {
         //Serial_PullMsg(0);                  
         //if (EVT_FLAG) 
         if (Serial_Available()) 
-            nexLoop(nex_listen_list);  // Process Nextion Display  
+        {
+          nexLoop(nex_listen_list);  // Process Nextion Display  
+          Serial.println(pg);
+        }
         if (NewBand != CouplerSetNum)
             update_Nextion(1);
         else if (!WAIT)   // skip if waiting for response from a diaplsy query to reduce traffic
@@ -471,7 +471,6 @@ void loop() {
         
     }   // end of while
 }
-
 
 void Band_Decoder(void)
 {     
@@ -2328,87 +2327,118 @@ unsigned char EEPROM_Init_Read(void)
 
 // Function declarations
 void OTRSP_setup(void);
-unsigned char OTRSP(void);
-
-// Vars
-//extern unsigned char AuxNum1, AuxNum2;
-
+uint8_t OTRSP(void);
+uint8_t OTRSP_Process(void);
 
 /*
 Convert AUX command from N1MM to 4 bit BCD
 Command format is AUXxnn fixed width. x is the radio number, usually 1.   Example is AUX103 for command 03 for BCD output of 0x03.
 */
-unsigned char OTRSP()
+uint8_t OTRSP(void)
 {     
     char c;
-    int i;
-    char AuxCmd0[20];
-    char AuxCmd1[AUXCMDLEN], AuxCmd2[AUXCMDLEN];
-    char BndCmd1[BANDCMDLEN], BndCmd2[BANDCMDLEN];
-
-    Serial2.begin(9600);
+    static int i;
+    static char AuxCmd0[20];
     
     //AuxNum1 = AuxNum2 = 0;  // Global values also used to update status on LCD
-    if (Serial2.available() > 6)
+    if (SerialUSB1.available() > 0)
     {
-        //c = UART2_GetChar();
-        c = Serial2.read();
-        if (c == 'A' || c == 'B')   // AUXxYYy\r or BANDxYYYYY...\r
-        {            
+        c = SerialUSB1.read();
+        if ( (c == 'A' && AuxCmd0[0] != 'B') || c == 'B')   // AUXxYY\r or BANDxYYYYY...\r
+        {           
             i = 0;
-            AuxCmd0[i++] = c;
-            while (Serial2.available() != 0 && i <= 16 && c != '\r')   // Gather chars up to \r
-            {
-                c = Serial2.read();
-                AuxCmd0[i++] = c;                
-            }
-            if (c == '\r') // Now our command string is built and qualified as a command
-            {  
-                AuxCmd0[i-1]='\0';  // Terminate the string (no \r)
-                // Looking only for 2 commands, BAND and AUX.   
-                if (strncmp(AuxCmd0,"AUX1",4) == 0)   // process AUX1 where 1 is the radio number.  Each radio has a 4 bit BCD value
-                {
-                    AuxCmd1[0] = AuxCmd0[4];
-                    AuxCmd1[1] = AuxCmd0[5];
-                    AuxCmd1[2] = AuxCmd0[6];
-                    AuxCmd1[3] = '\0';                    
-                    AuxNum1 = atoi(AuxCmd1);   // Convert text 0-255 ASCII to int
-                    //Aux1_Write(AuxNum1);  // write out to the Control register which in turn writes to the GPIO ports assigned.                      
-                    for (i=0; i < 20; i++)
-                    {
-                        AuxCmd0[i] = '\0';
-                        delay(1);
-                    }
-                    return(1);  // 1 signals a change
-                }
-                else if (strncmp(AuxCmd0,"AUX2",4) == 0)   // process AUX comand for radio 2.
-                {
-                    AuxCmd2[0] = AuxCmd0[4];
-                    AuxCmd2[1] = AuxCmd0[5];
-                    AuxCmd1[2] = AuxCmd0[6];
-                    AuxCmd2[3] = '\0';
-                    AuxNum2 = atoi(AuxCmd2);   // Convert 0-15 ASCII to int
-                    //Aux2_Write(AuxNum2);  // write out to the Control register which in turn writes to the GPIO ports assigned.                                        
-                    for (i=0; i< 20; i++)
-                        AuxCmd0[i] = '\0' ;
-                    return(1);  // AuxCmd2 now has a translated value - return for band change at meter
-                } // Look for BAND commands ofmr N1MM - so far have not seen any - these are jsut for catching them, they cause not changes
-                else if (strncmp(AuxCmd0,"BAND1",5) == 0)   // process AUX1 where 1 is the radio number.  Each radio has a 4 bit BCD value
-                {
-                    // This will be the bottom frequency (in MHz) of the current radio band.  ie 3.5MHz for 3875KHz
-                    sprintf(BndCmd1,"%s", &AuxCmd0[5]);
-                    AuxCmd0[0]='\0';
-                    return(0);  // TODO = assing band MHZ to a CouplerNUM  Search Band values
-                }
-                else if (strncmp(AuxCmd0,"BAND2",5) == 0)   // process AUX comand for radio 2.
-                {
-                    sprintf(BndCmd2,"%s", &AuxCmd0[5]);
-                    AuxCmd0[0] = '\0' ;
-                    return(0); 
-                }
-            }
+        }
+        AuxCmd0[i++] = c;
+        AuxCmd0[i] = '\0';
+        //SerialUSB1.print("AuxCmd0 = ");
+        //SerialUSB1.println(AuxCmd0);
+          
+        if ( (i == 7) && ((AuxCmd0[0] == 'A') || (AuxCmd0[0] == 'B')) && (AuxCmd0[6] == '\r') )
+        {
+            AuxCmd0[6]='\0';  // Terminate the string (no \r)
+            //SerialUSB1.println(AuxCmd0);
+            OTRSP_Process(AuxCmd0);         // Got a proper string start and end
+            i=8;
+        }
+        else if ( i > 7 || ( i <= 7 && c == '\r') || ( i == 7 && c != '\r')  )   // bail and reset string capture if too long or has a CR too early
+        {
+            //SerialUSB1.println(i);  
+            i = 0;   // reset capture string
+            AuxCmd0[0] = '\0';            
+            return 0;
+        }
+        else if ( i < 7 )   // still collecting chars, go back to the well for more chars.
+        {
+            return 0;
+        }
+        else 
+        {
+            SerialUSB1.print(" Should not be here! i = ");
+            SerialUSB1.print(i);
         }
     }
+    return 0;
+}
+
+uint8_t OTRSP_Process(char * AuxCmd0)
+{
+    //char AuxCmd0[20];
+    char AuxCmd1[AUXCMDLEN], AuxCmd2[AUXCMDLEN];
+    char BndCmd1[BANDCMDLEN], BndCmd2[BANDCMDLEN];
+    uint8_t i;
+    
+    // Now have a full 6 char string starting with A or B
+    SerialUSB1.print(" OTRSP Processing string : ");
+    SerialUSB1.println(AuxCmd0); 
+    if ((AuxCmd0[0] == 'A' || AuxCmd0[0] == 'B') && AuxCmd0[6] == '\0' && strlen(AuxCmd0)==6) // double validate
+    {      
+        i=0;
+        // Looking only for 2 commands, BAND and AUX.   
+        if (strncmp(AuxCmd0,"AUX1",4) == 0)   // process AUX1 where 1 is the radio number.  Each radio has a 4 bit BCD value
+        {
+            AuxCmd1[0] = AuxCmd0[4];
+            AuxCmd1[1] = AuxCmd0[5];
+            AuxCmd1[2] = AuxCmd0[6];
+            AuxCmd1[3] = '\0';                    
+            AuxNum1 = atoi(AuxCmd1);   // Convert text 0-255 ASCII to int
+            //Aux1_Write(AuxNum1);  // write out to the Control register which in turn writes to the GPIO ports assigned.                      
+            for (i=0; i < 20; i++)
+            {
+                AuxCmd0[i] = '\0';
+                delay(1);
+            }
+            return(1);  // 1 signals a change
+        }
+        else if (strncmp(AuxCmd0,"AUX2",4) == 0)   // process AUX comand for radio 2.
+        {
+            AuxCmd2[0] = AuxCmd0[4];
+            AuxCmd2[1] = AuxCmd0[5];
+            AuxCmd1[2] = AuxCmd0[6];
+            AuxCmd2[3] = '\0';
+            AuxNum2 = atoi(AuxCmd2);   // Convert 0-15 ASCII to int
+            //Aux2_Write(AuxNum2);  // write out to the Control register which in turn writes to the GPIO ports assigned.                                        
+            for (i=0; i< 20; i++)
+                AuxCmd0[i] = '\0' ;
+            return(1);  // AuxCmd2 now has a translated value - return for band change at meter
+        } // Look for BAND commands from N1MM - so far have not seen any - these are just for catching them, they cause no changes
+        else if (strncmp(AuxCmd0,"BAND1",5) == 0)   // process AUX1 where 1 is the radio number.  Each radio has a 4 bit BCD value
+        {
+            // This will be the bottom frequency (in MHz) of the current radio band.  ie 3.5MHz for 3875KHz
+            sprintf(BndCmd1,"%s", &AuxCmd0[5]);
+            AuxCmd0[0]='\0';
+            SerialUSB1.print(" OTRSP Processing BAND 1 string : ");
+            SerialUSB1.println(BndCmd1); 
+            return(0);  // TODO = passing band MHZ to a CouplerNUM  Search Band values
+        }
+        else if (strncmp(AuxCmd0,"BAND2",5) == 0)   // process AUX comand for radio 2.
+        {
+            sprintf(BndCmd2,"%s", &AuxCmd0[5]);
+            AuxCmd0[0] = '\0' ;
+            SerialUSB1.print(" OTRSP Processing BAND 2 string : ");
+            SerialUSB1.println(BndCmd2); 
+            return(0); 
+        }
+    }  
     return 0;   // nothing processed 0 is a valid band number so using 255.
 }
 

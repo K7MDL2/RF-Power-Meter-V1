@@ -24,6 +24,7 @@
 
 #ifdef NEXTION
   #define nexSerial Serial3
+  #define dbSerial Serial
   #include <Nextion.h>
 #endif
 
@@ -75,14 +76,14 @@ unsigned long Timer_X00ms_Last_OLED;
 //#define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 #define METER_RATE 2   // used to skip serial data output to a lower rate
 #define EEADDR 64 // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
-#define MUX_FWD 'A10'       // These are the Analog Mux input assignments
-#define MUX_REF 'A11'
-#define MUX_TEMP 'A14'      // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
-#define MUX_14V 'A16'
-#define MUX_CURR 'A15'
-#define MUX_HV 'A17'
-#define ad_Fwd 'A10'    // Analog 35 pin for channel 0
-#define ad_Ref 'A11'   // Analog 36 pin for channel 1
+#define MUX_FWD A10       // These are the Analog Mux input assignments
+#define MUX_REF A11
+#define MUX_TEMP A14      // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
+#define MUX_14V A16
+#define MUX_CURR A15
+#define MUX_HV A17
+#define ad_Fwd A10    // Analog 35 pin for channel 0
+#define ad_Ref A11   // Analog 36 pin for channel 1
 #define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.
 
 #define Band_Decode_Control 2
