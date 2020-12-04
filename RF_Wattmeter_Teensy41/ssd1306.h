@@ -42,21 +42,21 @@ typedef enum{
     SCROLL_PAGE_7   
 }SCROLL_AREA;
 
-void display_init( unsigned char i2caddr );
+void display_init( uint8_t i2caddr );
 void display_update(void);
 void display_clear(void);
 void display_stopscroll(void);
 void display_scroll( SCROLL_AREA start, SCROLL_AREA end, SCROLL_DIR dir, SCROLL_SPEED speed );
-void display_contrast( unsigned char contrast );
-void display_invert( unsigned char invert );
+void display_contrast( uint8_t contrast );
+void display_invert( uint8_t invert );
 
 void gfx_drawPixel(int16_t x, int16_t y, uint16_t color);
 void gfx_drawLine( int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color );
 void gfx_setCursor( int16_t x, int16_t y );
-void gfx_setTextSize( unsigned char size );
+void gfx_setTextSize( uint8_t size );
 void gfx_setTextColor( uint16_t color );
 void gfx_setTextBg( uint16_t background );
-void gfx_write( unsigned char ch );
+void gfx_write( uint8_t ch );
 int16_t gfx_width(void);
 int16_t gfx_height(void);
 void gfx_print( const char* s );
@@ -65,7 +65,7 @@ void gfx_drawRect( int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color );
 void gfx_fillRect( int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color );
 void gfx_drawCircle( int16_t x0, int16_t y0, int16_t r,uint16_t color );
 void gfx_drawTriangle( int16_t x0, int16_t y0,int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color );
-void gfx_setRotation( unsigned char x );
+void gfx_setRotation( uint8_t x );
 
 #endif	// _SSD1306_H
 #endif // SSD1306_OLED

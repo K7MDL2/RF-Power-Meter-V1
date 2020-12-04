@@ -22,9 +22,18 @@ void(* resetFunc) (void) = 0; //declare reset function @ address 0
 
 #define RESET_EEPROM 0
 
+// #define SerialUSB1 SerialUSB1  // assign as needed for your CPU type. 
+                                  // For Teesny set ports to Dual or Triple and Use Serial USB1 and Serial USB2 for 2 and 3rd ports
+
 void setup(void) 
 {
-  pinMode(13,OUTPUT); 
+  pinMode(MUX_FWD,INPUT);
+  pinMode(MUX_REF,INPUT);
+  pinMode(MUX_TEMP,INPUT); 
+  pinMode(MUX_CURR,INPUT);
+  pinMode(MUX_14V,INPUT);
+  pinMode(MUX_HV,INPUT);
+  pinMode(13,OUTPUT);
 #ifdef SSD1306_OLED
     //I2COLED_Start(); 
     display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
@@ -32,22 +41,23 @@ void setup(void)
     display_clear();    
     display_update();
 #endif
-    SerialUSB1.begin(9600);  // open port for OTRSP serial port command input
-    Serial.begin(115200); // For debug or data output
-    Serial.println(" ");   // Clear our output text from CPU init text
+    OTRSP_Serial.begin(9600);  // open port for OTRSP serial port command input
+    Serial3.begin(NexSerialBAUD);   // set in RF wattmter_Arduino.h - must match the Nextion display BAUD or BAUDS parameter set on Main Page
+    RFWM_Serial.begin(115200); // For debug or data output
+    RFWM_Serial.println(" ");   // Clear our output text from CPU init text
     write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized
       /*   initialize EEPROM storage if not done before - will overwrite default memory table values from EEPROM if EEPROM was written to before */    
 
   if (EEPROM.read(0) == 'G') 
   {
-    Serial.println("EEPROM Data is Valid");
+    RFWM_Serial.println("EEPROM Data is Valid");
     EEPROM_Init_Read();
     //get_config_EEPROM();  // set last used values for CouplerSetNum (Band) and op_mode if there is data in the EEPROM
   }
  
   if (EEPROM.read(0) != 'G' || RESET_EEPROM == 1) 
   {    // Test if EEPROM has been initialized with table data yet
-    Serial.println("Write EEPROM");
+    RFWM_Serial.println("Write EEPROM");
     write_Cal_Table_from_Default();  // Copy default values into memory
     write_Cal_Table_to_EEPROM(); // Copy memory into EEPROM if EEPROM is not initialized yet. Byte 0 will get marked with a 'G'
     EE_Save_State();   // use default values to populate state storage area in EEPROM (first 16 bytes reserved for state variables)
@@ -75,140 +85,69 @@ void setup(void)
 
   #ifdef NEXTION
     nexInit();
-    // Set up objects to monitor touch controls from Nextion Display
-    CreateNexObject(savecfg_btn_1, page1_ID, savecfg_btn_1_ID, "savecfg_btn_1");
-    CreateNexObject(savecfg_btn_2, page2_ID, savecfg_btn_2_ID, "savecfg_btn_2");
-    CreateNexObject(savecfg_btn_4, page4_ID, savecfg_btn_4_ID, "savecfg_btn_4");
-    CreateNexObject(fwd_cal, page1_ID, fwd_cal_ID, "fwd_cal");
-    CreateNexObject(ref_cal, page1_ID, ref_cal_ID, "ref_cal");
-    CreateNexObject(fwd_cal_num, page1_ID, fwd_cal_num_ID, "fwd_cal_num");  // slider
-    CreateNexObject(ref_cal_num, page1_ID, ref_cal_num_ID, "ref_cal_num");  // slider
-    CreateNexObject(f_att_minus, page1_ID, f_att_minus_ID, "f_att_minus");
-    CreateNexObject(f_att_plus, page1_ID, f_att_plus_ID, "f_att_plus");
-    CreateNexObject(r_att_minus, page1_ID, r_att_minus_ID, "r_att_minus");
-    CreateNexObject(r_att_plus, page1_ID, r_att_plus_ID, "r_att_plus");
-    CreateNexObject(toConfig, page0_ID, toConfig_ID, "toConfig");
-    CreateNexObject(toSet1, page1_ID, toSet1_ID, "toSet1");
-    CreateNexObject(toPwrGraph, page2_ID, toPwrGraph_ID, "toPwrGraph");
-    CreateNexObject(toPowerCal, page3_ID, toPowerCal_ID, "toPowerCal");
-    CreateNexObject(toMain, page4_ID, toMain_ID, "toMain");
-    CreateNexObject(Main, page0_ID, Main_ID, "Main");
-    CreateNexObject(Coupler, page1_ID, Coupler_ID, "Coupler");
-    CreateNexObject(Set1, page2_ID, Set1_ID, "Set1");
-    CreateNexObject(PwrGraph, page3_ID,PwrGraph_ID, "PwrGraph");
-    CreateNexObject(PowerCal, page4_ID,PowerCal_ID, "PowerCal");
-    CreateNexObject(FactoryRst1, page1_ID, FactoryRst1_ID, "FactoryRst1");
-    CreateNexObject(FactoryRst2, page1_ID, FactoryRst2_ID, "FactoryRst2");
-    CreateNexObject(Set1_Bandvar,page2_ID,Set1_Bandvar_ID,"Set1.Bandvar");
-    CreateNexObject(hv_adj,page2_ID,hv_adj_ID,"hv_adj");  // slider
-    CreateNexObject(v14_adj,page2_ID,v14_adj_ID,"v14_adj"); // slider
-    CreateNexObject(curr_adj,page2_ID,curr_adj_ID,"curr_adj"); // slider
-    CreateNexObject(temp_adj,page2_ID,temp_adj_ID,"temp_adj"); // slider
-    CreateNexObject(hv_max,page2_ID,hv_max_ID,"hv_max");  
-    CreateNexObject(v14_max,page2_ID,v14_max_ID,"v14_max"); 
-    CreateNexObject(curr_max,page2_ID,curr_max_ID,"curr_max"); 
-    CreateNexObject(temp_max,page2_ID,temp_max_ID,"temp_max");
-    CreateNexObject(meterID,page2_ID,meterID_ID,"meterID"); 
-    CreateNexObject(meterID_adj,page2_ID,meterID_adj_ID,"meterID_adj"); // slider
-    CreateNexObject(band_set,page2_ID,band_set_ID,"band_set"); 
-    CreateNexObject(band_set_adj,page2_ID,band_set_adj_ID,"band_set_adj"); // slider
-    CreateNexObject(band, page0_ID, band_ID, "band");
-    CreateNexObject(band_cal,page1_ID,band_cal_ID,"band_cal"); 
-    CreateNexObject(fPwrGraph,page3_ID,fPwrGraph_ID,"fPwrGraph"); 
-    CreateNexObject(fPwr_scale,page3_ID,fPwr_scale_ID,"fPwr_scale"); 
-    CreateNexObject(fscale,page3_ID,fscale_ID,"fscale"); 
-    CreateNexObject(rscale,page3_ID,rscale_ID,"rscale"); 
-    CreateNexObject(fPwrNum,page3_ID,fPwrNum_ID,"fPwrNum"); 
-    CreateNexObject(rPwrNum,page3_ID,rPwrNum_ID,"rPwrNum"); 
-    CreateNexObject(swrNum,page3_ID,swrNum_ID,"swrNum");
-    CreateNexObject(Graph_Timer,page3_ID,Graph_Timer_ID,"Graph_Timer");
-    CreateNexObject(HPPwrTarget, page4_ID, HPPwrTarget_ID,"HPPwrTarget");
-    CreateNexObject(LPPwrTarget, page4_ID, LPPwrTarget_ID,"LPPwrTarget");
-    CreateNexObject(HP_F_VDC, page4_ID, HP_F_VDC_ID,"HP_F_VDC");
-    CreateNexObject(HP_R_VDC, page4_ID, HP_R_VDC_ID,"HP_R_VDC");
-    CreateNexObject(LP_F_VDC, page4_ID, LP_F_VDC_ID,"LP_F_VDC");
-    CreateNexObject(LP_R_VDC, page4_ID, LP_R_VDC_ID,"LP_R_VDC");
-    CreateNexObject(Measure_hi, page4_ID, Measure_hi_ID,"Measure_hi");
-    CreateNexObject(Measure_lo, page4_ID, Measure_lo_ID,"Measure_lo");
-    CreateNexObject(Units, page4_ID, Units_ID,"Units");
-    CreateNexObject(CalcFwd, page4_ID, CalcFwd_ID,"CalcFwd");
-    CreateNexObject(CalcRef, page4_ID, CalcRef_ID,"CalcRef");
-    CreateNexObject(B_HF, page5_ID, B_HF_ID,"B_HF");
-    CreateNexObject(B_50, page5_ID, B_50_ID,"B_50");
-    CreateNexObject(B_144, page5_ID, B_144_ID,"B_144");
-    CreateNexObject(B_222, page5_ID, B_222_ID,"B_222");
-    CreateNexObject(B_432, page5_ID, B_432_ID,"B_432");
-    CreateNexObject(B_902, page5_ID, B_902_ID,"B_902");
-    CreateNexObject(B_1296, page5_ID, B_1296_ID,"B_1296");
-    CreateNexObject(B_2_3G, page5_ID, B_2_3G_ID,"B_2_3G");
-    CreateNexObject(B_3_4G, page5_ID, B_3_4G_ID,"B_3_4G");
-    CreateNexObject(B_5_7G, page5_ID, B_5_7G_ID,"B_5_7G");
-    CreateNexObject(B_10G, page5_ID, B_10G_ID,"B_10G");
-    CreateNexObject(BandSel, page5_ID, BandSel_ID,"BandSel");
-    CreateNexObject(toMain1, page5_ID, toMain1_ID, "toMain1");
-    CreateNexObject(Aux1, page0_ID, Aux1_ID,"Aux1");
-    CreateNexObject(Aux2, page0_ID, Aux2_ID,"Aux2");
-    CreateNexObject(PTT_CW, page0_ID, PTT_CW_ID,"PTT_CW");
-    
+    /*
+    // Set up objects to monitor touch controls from Nextion Display 
+    */
     // Set up Callback mappings
-    NexTouch_attachPop(&savecfg_btn_1, savecfg_btn_1_pop_Callback, 0);   // all 3 page save cfg buttons do the same thing
-    NexTouch_attachPush(&savecfg_btn_1, savecfg_btn_1_push_Callback, 0);  // so call the same functions
-    NexTouch_attachPop(&savecfg_btn_2, savecfg_btn_1_pop_Callback, 0);
-    NexTouch_attachPush(&savecfg_btn_2, savecfg_btn_1_push_Callback, 0);
-    NexTouch_attachPop(&savecfg_btn_4, savecfg_btn_1_pop_Callback, 0);
-    NexTouch_attachPush(&savecfg_btn_4, savecfg_btn_1_push_Callback, 0);
-    NexTouch_attachPop(&fwd_cal, fwd_cal_pop_Callback, 0);
-    NexTouch_attachPop(&ref_cal, ref_cal_pop_Callback, 0);
-    NexTouch_attachPop(&toMain, toMain_push_Callback, 0);
-    NexTouch_attachPop(&toMain1, toMain_push_Callback, 0);
-    NexTouch_attachPop(&toConfig, toConfig_pop_Callback, 0);
-    NexTouch_attachPop(&toSet1, Set1_Callback, 0); 
-    NexTouch_attachPop(&toPwrGraph, toPwrGraph_Callback, 0); 
-    NexTouch_attachPop(&f_att_minus, f_att_minus_pop_Callback, 0);
-    NexTouch_attachPop(&f_att_plus, f_att_plus_pop_Callback, 0);
-    NexTouch_attachPop(&r_att_minus, r_att_minus_pop_Callback, 0);
-    NexTouch_attachPop(&r_att_plus, r_att_plus_pop_Callback, 0);
-    NexTouch_attachPop(&FactoryRst1, FactoryRst1_pop_Callback, 0);
-    NexTouch_attachPop(&FactoryRst2, FactoryRst2_pop_Callback, 0);
-    NexTouch_attachPop(&meterID_adj, meterID_adj_pop_Callback, 0);
-    NexTouch_attachPop(&band_set_adj, band_set_adj_pop_Callback, 0);
-    //NexTouch_attachPop(&band, band_pop_Callback, 0);
-    NexTouch_attachPop(&hv_adj, hv_adj_pop_Callback, 0);
-    NexTouch_attachPop(&v14_adj, v14_adj_pop_Callback, 0);
-    NexTouch_attachPop(&curr_adj, curr_adj_pop_Callback, 0);
-    NexTouch_attachPop(&temp_adj, temp_adj_pop_Callback, 0);
-    NexTouch_attachPop(&Measure_hi, Measure_hi_pop_Callback, 0);
-    NexTouch_attachPop(&Measure_lo, Measure_lo_pop_Callback, 0);
-    NexTouch_attachPop(&CalcFwd, CalcFwd_pop_Callback, 0);
-    NexTouch_attachPop(&CalcRef, CalcRef_pop_Callback, 0);
-    NexTouch_attachPop(&B_HF, BandSelect_HF_pop_Callback, 0);
-    NexTouch_attachPop(&B_50, BandSelect_50_pop_Callback, 0);
-    NexTouch_attachPop(&B_144, BandSelect_144_pop_Callback, 0);
-    NexTouch_attachPop(&B_222, BandSelect_222_pop_Callback, 0);
-    NexTouch_attachPop(&B_432, BandSelect_432_pop_Callback, 0);
-    NexTouch_attachPop(&B_902, BandSelect_902_pop_Callback, 0);
-    NexTouch_attachPop(&B_1296, BandSelect_1296_pop_Callback, 0);
-    NexTouch_attachPop(&B_2_3G, BandSelect_2_3G_pop_Callback, 0);
-    NexTouch_attachPop(&B_3_4G, BandSelect_3_4G_pop_Callback, 0);
-    NexTouch_attachPop(&B_5_7G, BandSelect_5_7G_pop_Callback, 0);
-    NexTouch_attachPop(&B_10G, BandSelect_10G_pop_Callback, 0);
+    savecfg_btn_1.attachPop(savecfg_btn_1_pop_Callback, 0);   // all 3 page save cfg buttons do the same thing
+    savecfg_btn_1.attachPush(savecfg_btn_1_push_Callback, 0);  // so call the same functions
+    savecfg_btn_2.attachPop(savecfg_btn_1_pop_Callback, 0);
+    savecfg_btn_2.attachPush(savecfg_btn_1_push_Callback, 0);
+    savecfg_btn_4.attachPop(savecfg_btn_1_pop_Callback, 0);
+    savecfg_btn_4.attachPush(savecfg_btn_1_push_Callback, 0);
+    fwd_cal.attachPop(fwd_cal_pop_Callback, 0);
+    ref_cal.attachPop(ref_cal_pop_Callback, 0);
+    toMain.attachPop(toMain_push_Callback, 0);
+    toMain1.attachPop(toMain_push_Callback, 0); // go to same callback as Main
+    toConfig.attachPop(toConfig_pop_Callback, 0);
+    toSet1.attachPop(Set1_Callback, 0); 
+    toPwrGraph.attachPop(toPwrGraph_Callback, 0); 
+    f_att_minus.attachPop(f_att_minus_pop_Callback, 0);
+    f_att_plus.attachPop(f_att_plus_pop_Callback, 0);
+    r_att_minus.attachPop(r_att_minus_pop_Callback, 0);
+    r_att_plus.attachPop(r_att_plus_pop_Callback, 0);
+    FactoryRst1.attachPop(FactoryRst1_pop_Callback, 0);
+    FactoryRst2.attachPop(FactoryRst2_pop_Callback, 0);
+    meterID_adj.attachPop(meterID_adj_pop_Callback, 0);
+    band_set_adj.attachPop(band_set_adj_pop_Callback, 0);
+    //band.attachPop(band_pop_Callback, 0);
+    hv_adj.attachPop(hv_adj_pop_Callback, 0);
+    v14_adj.attachPop(v14_adj_pop_Callback, 0);
+    curr_adj.attachPop(curr_adj_pop_Callback, 0);
+    temp_adj.attachPop(temp_adj_pop_Callback, 0);
+    Measure_hi.attachPop(Measure_hi_pop_Callback, 0);
+    Measure_lo.attachPop(Measure_lo_pop_Callback, 0);
+    CalcFwd.attachPop(CalcFwd_pop_Callback, 0);
+    CalcRef.attachPop(CalcRef_pop_Callback, 0);
+    B_HF.attachPop(BandSelect_HF_pop_Callback, 0);
+    B_50.attachPop(BandSelect_50_pop_Callback, 0);
+    B_144.attachPop(BandSelect_144_pop_Callback, 0);
+    B_222.attachPop(BandSelect_222_pop_Callback, 0);
+    B_432.attachPop(BandSelect_432_pop_Callback, 0);
+    B_902.attachPop(BandSelect_902_pop_Callback, 0);
+    B_1296.attachPop(BandSelect_1296_pop_Callback, 0);
+    B_2_3G.attachPop(BandSelect_2_3G_pop_Callback, 0);
+    B_3_4G.attachPop(BandSelect_3_4G_pop_Callback, 0);
+    B_5_7G.attachPop(BandSelect_5_7G_pop_Callback, 0);
+    B_10G.attachPop(BandSelect_10G_pop_Callback, 0);
     
-    digitalWrite(Nextion_Switch, 0);   // Switches the Nextion display serial port between the CPU and the USB converter (For display uploads via USB)
-    // Ensure we are on Page 0 in cas we start and the display is already running such as during dev and test
-    //UART1_ClearRxBuffer();
+    //digitalWrite(Nextion_Switch, 0);   // Switches the Nextion display serial port between the CPU and the USB converter (For display uploads via USB)
     pg=0;
-    NexPage_show(&Main);
-    strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
-    NexText_setText(&Set1_Bandvar);    // Update Nextion display for new values
-    NexButton_setText(&band, Band_Cal_Table[CouplerSetNum].BandName);
+    Main.show();
+    Main.show();
+    //RFWM_Serial.print("**Set1_Bandvar = ");
+    //RFWM_Serial.println(cmd);
+    delay(10);
     sprintf(cmd, " ");  // Clear the RX/TX/CW satus field until we get a valid OTRSP command otherwise
-    NexText_setText(&PTT_CW);  // Get PTT first.  If CW present then next line will overwrite
-    NexText_Set_font_color_pco(&PTT_CW, 2016);  // Set text to LT Green for RX
-    NexText_Set_background_color_bco(&PTT_CW, 0);  // Set background color to black for RX
-    NexSlider_setMaxval(&band_set_adj, (long) NUM_SETS);  // Ensure the control know the same num bands the host does.
-    Set1_Callback(0);  // initialize our setpoints and meter id so it does not get read back as 0 values later.
-    NexPage_show(&Main);
-    NexNumber_setValue(&Graph_Timer, 500);   // 300msec for graph update rate.  300 set in display, can override here.
+    PTT_CW.setText(cmd);  // Get PTT first.  If CW present then next line will overwrite
+    PTT_CW.Set_font_color_pco(2016);  // Set text to LT Green for RX
+    PTT_CW.Set_background_color_bco(0);  // Set background color to black for RX
+    band_set_adj.setMaxval((uint32_t) NUM_SETS);  // Ensure the control know the same num bands the host does.
+    //Set1_Callback(0);  // initialize our setpoints and meter id so it does not get read back as 0 values later.
+    band.setText(Band_Cal_Table[CouplerSetNum].BandName);
+    strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
+    Set1_Bandvar.setText(cmd);    // Update Nextion display for new values
+    //Graph_Timer.setCycle(500);   // 300msec for graph update rate.  300 set in display, can override here.
 #endif // end Nextion setup section 
   
   adRead(); //get and calculate power + SWR values and display them  
@@ -226,12 +165,12 @@ float read_vcc()
     return 3.3;  // ToDo Fix this for Teensy
 }
 
-float ADC_RF_Power_CountsTo_Volts(unsigned long counts)
+float ADC_RF_Power_CountsTo_Volts(uint32_t counts)
 {
   float Volts, VRef;
   VRef = 3.3;      
   Volts = (counts/ADC_COUNTS) * VRef;
-  //Serial.println(Volts);
+  //RFWM_Serial.println(Volts);
   return Volts;
 }
 
@@ -239,9 +178,10 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
 {
     float a;
     float b;
-    unsigned int c;
+    uint16_t c;
     float tmp, retry=0;
-    unsigned long ad_counts=0;
+    uint32_t ad_counts=0;
+    uint16_t i;
 
     // Throttle the time the CPU spends here.   Offset the timing os teh data acquired is just before it is sent out
     Timer_X00ms_InterruptCnt = millis(); 
@@ -255,7 +195,7 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
         total_Ref -= readings_Ref[readIndex_Ref];// subtract the last reading:    
     c = 1; // read from the sensor:
     a = 0;
-    for (int i = 0; i < c; ++i)  {
+    for (i = 0; i < c; ++i)  {
         // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC                    
         ad_counts = analogRead(ad_Ref);  // single read but has locked up with N1MM commands at times               
         RefVal = ADC_RF_Power_CountsTo_Volts(ad_counts);         
@@ -345,7 +285,7 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     
 #ifdef SWR_ANALOG  // Update SWR Analog output for Amplifier protection when using KitProg board in an amplifier
     float SWR_val_temp = 0;
-    unsigned char SWR_analog_value = 0;
+    uint8_t SWR_analog_value = 0;
     
     // DAC is configured for 0-4.0VDC output.  Amp board will be adjusted to suit this.
     // SWR_Val should be 0-100 type of number.  We care about 0 to 5 since the amp trip point will be about 3.0/
@@ -370,7 +310,7 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
 
 void loop() { 
 
-    unsigned char ret1;
+    uint8_t ret1;
     
     while (1) 
     {
@@ -405,7 +345,7 @@ void loop() {
             
 #ifdef NEXTION
             strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
-            NexText_setText(&Set1_Bandvar);    // Update Nextion display for new values            
+            Set1_Bandvar.setText(cmd);    // Update Nextion display for new values            
             toConfig_pop_Callback(0);  // when on the Config pages will update them
             Set1_Callback(0);   
             update_Nextion(1);                        
@@ -433,7 +373,7 @@ void loop() {
         // Process Nextion Display events
 
        
-        if (Serial_Available()) 
+        if (nexSerial.available()) 
         {
           nexLoop(nex_listen_list);  // Process Nextion Display  
         }
@@ -444,17 +384,17 @@ void loop() {
 #endif
 
 /*
-        unsigned int ret16;
+        uint16_t ret16;
         // N1MM CW and PTT and AUX message handling
         //ret16 = Serial_USB_GetLineControl();    // look for DTR and RTS for N1MM control of CW and PTT. 
                                                 // Can only happen on USB serial since the external USB UART has only TX and RX lines connected to CPU
         // Check state of USB Serial Port DTR register for N1MM CW keying state
-        if ((unsigned char)ret16 & Serial_USB_LINE_CONTROL_DTR)                    
+        if ((uint8_t)ret16 & Serial_USB_LINE_CONTROL_DTR)                    
             CW_Key_Out_Write(1);          
         else
             CW_Key_Out_Write(0);                       
          Check state of USB Serial Port RTS register for N1MM PTT state
-        if ((unsigned char)ret16 & Serial_USB_LINE_CONTROL_RTS)     
+        if ((uint8_t)ret16 & Serial_USB_LINE_CONTROL_RTS)     
             PTT_Out_Write(1);        
         else
             PTT_Out_Write(0);       
@@ -481,162 +421,144 @@ void loop() {
     
 void hv_adj_pop_Callback(void *ptr)
 {
-    long number;    
-    //ptr += 1; // get rid of compiler error about unused ptr    
-    NexSlider_getValue(&hv_adj, &number);
+    uint32_t number;    
+ 
+    hv_adj.getValue(&number);
     // Change meter ID with this info
     set_hv_max = number;
     set_hv_max /= 10.0;
-    NexSlider_setValue(&hv_adj, (uint16_t) (set_hv_max*10));
+    hv_adj.setValue((uint16_t) (set_hv_max*10));
 }
 
 void v14_adj_pop_Callback(void *ptr)
 {
-    long number;
+    uint32_t number;
     //ptr += 1; // get rid of compiler error about unused ptr    
-    NexSlider_getValue(&v14_adj, &number);
+    v14_adj.getValue(&number);
     // Change meter ID with this info
     set_v14_max = number;
     set_v14_max /= 10.0;
-    NexSlider_setValue(&v14_adj, (uint16_t) (set_v14_max*10));
+    v14_adj.setValue((uint16_t) (set_v14_max*10));
 }
 
 void curr_adj_pop_Callback(void *ptr)
 {
-    long number;    
+    uint32_t number;    
     //ptr += 1; // get rid of compiler error about unused ptr    
-    NexSlider_getValue(&curr_adj, &number);
+    curr_adj.getValue(&number);
     // Change meter ID with this info
     set_curr_max = number;
     set_curr_max /= 10;
-    NexSlider_setValue(&curr_adj, (uint16_t) (set_curr_max*10));
+    curr_adj.setValue((uint16_t) (set_curr_max*10));
 
 }  
 
 void temp_adj_pop_Callback(void *ptr)
 {
-    long number;    
+    uint32_t number;    
     
     //ptr += 1; // get rid of compiler error about unused ptr    
-    NexSlider_getValue(&temp_adj, &number);
+    temp_adj.getValue(&number);
     // Change meter ID with this info
-    set_temp_max = (unsigned char)number;
-    NexSlider_setValue(&temp_adj, (unsigned char) (set_temp_max));
+    set_temp_max = (uint8_t)number;
+    temp_adj.setValue((uint8_t) (set_temp_max));
 }  
   
 void band_set_adj_pop_Callback(void *ptr)
 {
-    long number;    
-    //ptr += 1; // get rid of compiler error about unused ptr    
-    NexSlider_getValue(&band_set_adj, &number); 
-    NewBand = (unsigned char) number;   // get input for new band from Set1 page
+    uint32_t number;    
+  
+    band_set_adj.getValue(&number); 
+    NewBand = (uint8_t) number;   // get input for new band from Set1 page
     Button_B = YES; // set flag for main loop to process band change request.  
     // If there is a connection to radio (via serial or wireless) then it will override this at each update.                                                               
 }
 
 void band_pop_Callback(void *ptr) 
 {
-    char buf[32];    
-    //ptr += 1; // get rid of compiler error about unused ptr        
-    //CouplerSetNum = constrain(CouplerSetNum, 0, NUM_SETS);  
-    //NewBand = CouplerSetNum +1;    // Update Newband to current value.  Will be incrmented in button function                          
-    //if (NewBand >= NUM_SETS) 
-   //     NewBand = 0;  // cycle back to lowest band
-    //Button_B = YES; // set flag for main loop to process band change request.  
-    // If there is a connection to radio (via serial or wireless) then it will override this at each update.   
-    NexButton_setText(&band, itoa(CouplerSetNum, buf, 10)); 
+    char buf[32];     
+    
+    band.setText(itoa(CouplerSetNum, buf, 10)); 
     pg=5;
 }
 
 void BandSelect_HF_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
 {
-    //ptr += 1; // get rid of compiler error about unused ptr 
     BandSelect(0);
 }
 
 void BandSelect_50_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
-{
-    //ptr += 1; // get rid of compiler error about unused ptr     
+{    
     BandSelect(1);
 }
 
 void BandSelect_144_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
-{
-    //ptr += 1; // get rid of compiler error about unused ptr     
+{     
     BandSelect(2);
 }
 
 void BandSelect_222_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
-{
-    //ptr += 1; // get rid of compiler error about unused ptr     
+{     
     BandSelect(3);
 }
 
 void BandSelect_432_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
-{
-    //ptr += 1; // get rid of compiler error about unused ptr     
+{    
     BandSelect(4);
 }
 
 void BandSelect_902_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
-{
-    //ptr += 1; // get rid of compiler error about unused ptr     
+{    
     BandSelect(5);
 }
 
 void BandSelect_1296_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
 {
-    //ptr += 1; // get rid of compiler error about unused ptr     
     BandSelect(6);
 }
 
 void BandSelect_2_3G_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
 {
-    //ptr += 1; // get rid of compiler error about unused ptr     
     BandSelect(7);
 }
 
 void BandSelect_3_4G_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
 {
-    //ptr += 1; // get rid of compiler error about unused ptr     
     BandSelect(8);
 }
 
 void BandSelect_5_7G_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
 {
-    //ptr += 1; // get rid of compiler error about unused ptr     
     BandSelect(9);
 }
 
 void BandSelect_10G_pop_Callback(void *ptr)   // Get var BandSel assigned by each band button to set NewBand var
 {
-    //ptr += 1; // get rid of compiler error about unused ptr 
     BandSelect(10);
 }
 
-void BandSelect(unsigned char sband)   // Get var BandSel assigned by each band button to set NewBand var
+void BandSelect(uint8_t sband)   // Get var BandSel assigned by each band button to set NewBand var
 {
-    //long number;
     char buf[32];
-    //NexNumber_getValue(&BandSel,&number);        
+    //BandSel.getValue(&number);        
     NewBand = sband;    // Update Newband to current value.  Will be incremented in button function
     if (NewBand >= NUM_SETS) 
         NewBand = 0;  // cycle back to lowest band
     Button_B = YES; // set flag for main loop to process band change request.  
     // If there is a connection to radio (via serial or wireless) then it will override this at each update.   
-    NexButton_setText(&band, itoa(NewBand, buf, 10));
+    band.setText(itoa(NewBand, buf, 10));
     pg=0;
     update_Nextion(1);
 }
 
 void Measure_hi_pop_Callback(void *ptr)
 {   
-    long number; 
-    //ptr += 1; // get rid of compiler error about unused ptr
+    uint32_t number; 
+
     //NexButton_setText(&savecfg_button, "Saved Config");
-    NexNumber_getValue(&HPPwrTarget, &number);
+    HPPwrTarget.getValue(&number);
     Pwr_hi = number;
-    NexNumber_getValue(&Units, &number);
+    Units.getValue(&number);
     if (number==0)  // convert to dBm if in Watts (0 value)
     {
         // Get target lo power level from user in Watts, convert to dBm then measure and save ADC                                
@@ -645,20 +567,20 @@ void Measure_hi_pop_Callback(void *ptr)
     // Now value is in dBm proceed
     adRead();  // update our high power readings for forward and reflected power for the current band
     FwdVal_hi = FwdVal; // save for calc     
-    NexNumber_setValue(&HP_F_VDC, (int)(FwdVal_hi*100000));  // display ADC raw voltage on screen
+    HP_F_VDC.setValue((int)(FwdVal_hi*100000));  // display ADC raw voltage on screen
     RefVal_hi = RefVal;  // save for calc    
-    NexNumber_setValue(&HP_R_VDC, (int)(RefVal_hi*100000));
+    HP_R_VDC.setValue((int)(RefVal_hi*100000));
     print_Cal_Table_progress(1);  // end of loop   
 }
 
 void Measure_lo_pop_Callback(void *ptr)
 {   
-    long number;  
-    //ptr += 1; // get rid of compiler error about unused ptr
+    uint32_t number;  
+
     //NexButton_setText(&savecfg_button, "Saved Config");
-    NexNumber_getValue(&LPPwrTarget, &number);
+    LPPwrTarget.getValue(&number);
     Pwr_lo = number;        
-    NexNumber_getValue(&Units, &number);
+    Units.getValue(&number);
     if (number==0)
     {
         // Get target lo power level from user in Watts, convert to dBm then measure and save ADC                                
@@ -667,15 +589,14 @@ void Measure_lo_pop_Callback(void *ptr)
     // Now value is in dBm proceed
     adRead();  // update our high power readings for foprward and reflected power for the current band
     FwdVal_lo = FwdVal; // save for calc  
-    NexNumber_setValue(&LP_F_VDC, (int)(FwdVal_lo*100000));
+    LP_F_VDC.setValue((int)(FwdVal_lo*100000));
     RefVal_lo = RefVal;  // save for calc    
-    NexNumber_setValue(&LP_R_VDC, (int)(RefVal_lo*100000));
+    LP_R_VDC.setValue((int)(RefVal_lo*100000));
     print_Cal_Table_progress(1);  // end of loop
 }
 
 void CalcFwd_pop_Callback(void *ptr)
 {
-    //ptr += 1; // get rid of compiler error about unused ptr 
     if (Pwr_hi != 0) // ensure we have a valid high power number before calculating.
     {                      
         // Calculate Slope and Offset
@@ -689,7 +610,6 @@ void CalcFwd_pop_Callback(void *ptr)
 
 void CalcRef_pop_Callback(void *ptr)
 {
-    //ptr += 1; // get rid of compiler error about unused ptr 
     if (Pwr_hi != 0) // ensure we have a valid high power number before calculating.
     {                             
         // Calculate Slope and Offset
@@ -703,23 +623,21 @@ void CalcRef_pop_Callback(void *ptr)
 
 void meterID_adj_pop_Callback(void *ptr)
 {
-    long number;    
-    //ptr += 1; // get rid of compiler error about unused ptr    
-    NexSlider_getValue(&meterID, &number);
+    uint32_t number;    
+ 
+    meterID.getValue(&number);
     // Change meter ID with this info
     //METERID = number;
 }   
     
 void FactoryRst1_pop_Callback(void *ptr)
-{    
-    //ptr += 1; // get rid of compiler error about unused ptr    
+{      
     // Sequenctionally pressing thse adn Rst2 hotspot areas is the same as 2 button reset of M5Stack or remote commands 193+195
     Reset_Flag = 1;
 }
 
 void FactoryRst2_pop_Callback(void *ptr)
 {
-    //ptr += 1; // get rid of compiler error about unused ptr
     if (Reset_Flag == 1) 
         reset_EEPROM();
         delay(1000);
@@ -730,7 +648,6 @@ void FactoryRst2_pop_Callback(void *ptr)
 
 void savecfg_btn_1_push_Callback(void *ptr)
 {    
-    //ptr += 1; // get rid of compiler error about unused ptr
     //NexButton_setText(&savecfg_button, "Saving");
     /*
     LED_Write(0);
@@ -749,75 +666,67 @@ void savecfg_btn_1_push_Callback(void *ptr)
 
 void savecfg_btn_1_pop_Callback(void *ptr)
 {   
-    //ptr += 1; // get rid of compiler error about unused ptr
     //NexButton_setText(&savecfg_button, "Saved Config");
     //LED_Write(1);    // write to both ports for KitProg and Main Board onboard LEDs
     //LED_1_Write(1);
 }
 
-void fwd_cal_pop_Callback(void *ptr) // Slider for Fwd Coupler Cal Value
-{      
-    //ptr += 1; // get rid of compiler error about unused ptr   
+void fwd_cal_pop_Callback(void *ptr)    // Slider for Fwd Coupler Cal Value
+{
     // Read value of slider sent in event and set in Cal table then echo it back to textbox
-    NexSlider_getValue(&fwd_cal, &rcv_num); ;
+    fwd_cal.getValue(&rcv_num);
     Band_Cal_Table[CouplerSetNum].Cpl_Fwd = rcv_num;
     sprintf(cmd, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Fwd, '\0');  // Update lable with decimal value text
-    NexText_setText(&fwd_cal_num);    
+    fwd_cal_num.setText(cmd);    
     Cal_Table();
     toConfig_pop_Callback(0);
 }
 
 void ref_cal_pop_Callback(void *ptr) // Slider for Ref Coupler Cal Value
 {
-    //ptr += 1; // get rid of compiler error about unused ptr
     // Read value of slider sent in event and set in Cal table then echo it back to textbox
-    NexSlider_getValue(&ref_cal, &rcv_num);  
+    ref_cal.getValue(&rcv_num);  
     Band_Cal_Table[CouplerSetNum].Cpl_Ref = rcv_num;    
     sprintf(cmd, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Ref, '\0');  // Update lable with decimal value text
-    NexText_setText(&ref_cal_num);    
+    ref_cal_num.setText(cmd);    
     Cal_Table();
     toConfig_pop_Callback(0);
 }
 
 void f_att_minus_pop_Callback(void *ptr) // fine tune slider by 0.1dB
 {
-    //ptr += 1; // get rid of compiler error about unused ptr
     Band_Cal_Table[CouplerSetNum].Cpl_Fwd -= 0.1;
     sprintf(cmd, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Fwd, '\0');  // Update lable with decimal value text
-    NexText_setText(&fwd_cal_num);     
+    fwd_cal_num.setText(cmd);     
     Cal_Table();
 }
 
 void f_att_plus_pop_Callback(void *ptr)
-{    
-    //ptr += 1; // get rid of compiler error about unused ptr          
+{        
     Band_Cal_Table[CouplerSetNum].Cpl_Fwd += 0.1;    
     sprintf(cmd, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Fwd, '\0');  // Update lable with decimal value text
-    NexText_setText(&fwd_cal_num);    
+    fwd_cal_num.setText(cmd);    
     Cal_Table();
 }
 
 void r_att_minus_pop_Callback(void *ptr)
-{      
-    //ptr += 1; // get rid of compiler error about unused ptr    
+{  
     Band_Cal_Table[CouplerSetNum].Cpl_Ref -= 0.1;
     sprintf(cmd, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Ref, '\0');  // Update lable with decimal value text
-    NexText_setText(&ref_cal_num); 
+    ref_cal_num.setText(cmd); 
     Cal_Table();
 }
 
 void r_att_plus_pop_Callback(void *ptr)
 {
-    //ptr += 1; // get rid of compiler error about unused ptr   
     Band_Cal_Table[CouplerSetNum].Cpl_Ref += 0.1;    
     sprintf(cmd, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Ref, '\0');  // Update lable with decimal value text
-    NexText_setText(&ref_cal_num); 
+    ref_cal_num.setText(cmd); 
     Cal_Table();
 }
 
 void toMain_push_Callback(void *ptr)
 {
-    //ptr += 1; // get rid of compiler error about unused ptr
     pg = 0;   // flag Update function to only update when page is active 
     update_Nextion(1);
     //NexPage_show(&page0);
@@ -825,9 +734,8 @@ void toMain_push_Callback(void *ptr)
 
 void toConfig_pop_Callback(void *ptr)   // Got event to change to Config Page from somewhere
 {
-    //unsigned char number;
-    //unsigned char ret1;    
-    //ptr += 1; // get rid of compiler error about unused ptr
+    //uint8_t number;
+    //uint8_t ret1;    
     
     // Update the sliders to current values. SLider callbacks wil update after here.
     //strcpy(cmd, "sendme");
@@ -837,18 +745,18 @@ void toConfig_pop_Callback(void *ptr)   // Got event to change to Config Page fr
     //if ((ret1 == 1) && (number = 1))  // ensure we are on the correct page)
     if (1 == 1)  // force to true, should only be in this fucntion if a page event sent us to here
     {       
-        rcv_num = (long)(Band_Cal_Table[CouplerSetNum].Cpl_Fwd);
-        NexSlider_setValue(&fwd_cal, rcv_num);  // Update slider knob position  0-100
+        rcv_num = (uint32_t)(Band_Cal_Table[CouplerSetNum].Cpl_Fwd);
+        fwd_cal.setValue(rcv_num);  // Update slider knob position  0-100
          
         snprintf(cmd, 21, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Fwd, '\0');  // Update label with decimal value text
-        NexText_setText(&fwd_cal_num);
+        fwd_cal_num.setText(cmd);
       
         // Initialize the sliders to the current band value for Reflected
         rcv_num = Band_Cal_Table[CouplerSetNum].Cpl_Ref;
-        NexSlider_setValue(&ref_cal, rcv_num);
+        ref_cal.setValue(rcv_num);
         
         snprintf(cmd, 20, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Ref, '\0');  // Update label with decimal value text
-        NexText_setText(&ref_cal_num);       
+        ref_cal_num.setText(cmd);       
     }
 }
 
@@ -859,81 +767,70 @@ void toConfig_pop_Callback(void *ptr)   // Got event to change to Config Page fr
 */
 void Set1_Callback(void *ptr)
 {   
-    //unsigned char number;
-    //ptr += 1; // get rid of compiler error about unused ptr
+    uint32_t number;
     
-    /*
-    if (pg != 1)
+    if (pg != 2)
     {
         strcpy(cmd, "sendme");
         sendCommand(cmd);    
-        //CyDelay(10);
-        if (!recvPageNumber(&number))
+        if (!recvRetNumber(&number))
             return;
     }
-    */
-    //if (number == 2 || pg == 2) // only send this group of data while on page 2
-    if (pg == 1)  // should only be here because a touch event called us.
+    
+    if (number == 2 || pg == 2) // only send this group of data while on page 2
+    //if (pg == 2)  // should only be here because a touch event called us.
     {
         //NexPage_show(&Set1);
         delay(25);
-        //ptr += 1; // get rid of compiler error about unused ptr
         // The XYZ_max fields are considered the source for the slider to get its initial data from through the     
         //    the display's "Setpoints" page (page2) preinitialization section. After that the slider sends changes real time to the display
         //    not bothering the CPU until movement stops when an event is sent to the CPU where the slider callback will 
         //    get the XYZ_max value and store it in EEPROM.
         // For xfloat type object in Nextion, multiply the float x10 to get an integer it can use with teh slider
         // The display will format it with decimal point according to its config (num places to left and right of decimal point)
-        NexSlider_setValue(&hv_adj, (uint16_t) (set_hv_max*10));
-        NexNumber_setValue(&hv_max, (uint16_t) (set_hv_max*10));
+        hv_adj.setValue((uint16_t) (set_hv_max*10));
+        hv_max.setValue((uint16_t) (set_hv_max*10));
 
-        NexSlider_setValue(&v14_adj, (uint16_t) (set_v14_max*10));
-        NexNumber_setValue(&v14_max, (uint16_t) (set_v14_max*10));
+        v14_adj.setValue((uint16_t) (set_v14_max*10));
+        v14_max.setValue((uint16_t) (set_v14_max*10));
 
-        NexSlider_setValue(&curr_adj, (uint16_t) (set_curr_max*10));
-        NexNumber_setValue(&curr_max, (uint16_t) (set_curr_max*10));
+        curr_adj.setValue((uint16_t) (set_curr_max*10));
+        curr_max.setValue((uint16_t) (set_curr_max*10));
 
-        NexSlider_setValue(&temp_adj, (uint16_t) set_temp_max);
-        NexNumber_setValue(&temp_max, (uint16_t) set_temp_max);
+        temp_adj.setValue((uint16_t) set_temp_max);
+        temp_max.setValue((uint16_t) set_temp_max);
        
-        NexSlider_setValue(&meterID_adj, METERID);
-        NexNumber_setValue(&meterID, (uint16_t) METERID);
+        meterID_adj.setValue(METERID);
+        meterID.setValue((uint16_t) METERID);
         
         // fix up initial position of slider knob for Band Slider
-        NexSlider_setValue(&band_set_adj, CouplerSetNum);
+        band_set_adj.setValue(CouplerSetNum);
         strcpy(cmd, Band_Cal_Table[CouplerSetNum].BandName);
-        NexText_setText(&band_set);    
-        strcpy(cmd, Band_Cal_Table[CouplerSetNum].BandName);
-        NexText_setText(&band_cal);    
+        band_set.setText(cmd);    
+        //strcpy(cmd, Band_Cal_Table[CouplerSetNum].BandName);
+        //band_cal.setText(cmd);    
     }
 }
 
 void toPwrGraph_Callback(void *ptr)
 {
-    //ptr += 1; // get rid of compiler error about unused ptr
     pg=3;
     return;
 }
 
-unsigned char update_Nextion(unsigned char force_update)
+uint8_t update_Nextion(uint8_t force_update)
 {
-    static float d;
-    unsigned char temp_value_old = 0, set_temp_max_old = 0;
+    uint8_t temp_value_old = 0, set_temp_max_old = 0;
     float value;
-    long number32;
-    //unsigned char ret;
+    uint32_t number32;
     static float FwdPwr_old, RefPwr_old, SWRVal_old, hv_value_old, V14_value_old, curr_value_old, Fwd_dBm_old, Ref_dBm_old;
-    static unsigned char AuxNum1_old, AuxNum2_old, NewBand_old;
+    static uint8_t AuxNum1_old, AuxNum2_old, NewBand_old;
     static float set_curr_max_old, set_hv_max_old, set_v14_max_old;
       
     if (!force_update)
     {
         // throttle update rate
-        if (DLY < 5)
-            d = 5;
-        else 
-            d= DLY/5;
-        if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_Nex) < d)
+        if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_Nex) < 300)
            return 0;   // skip out until greater than 100ms since our last visit here
         Timer_X00ms_Last_Nex = Timer_X00ms_InterruptCnt;
   /*      if (pg != number)
@@ -941,7 +838,7 @@ unsigned char update_Nextion(unsigned char force_update)
             strcpy(cmd, "sendme");
             sendCommand(cmd);
         
-            CyDelay(5);
+            delay(5);
             ret = recvPageNumber(&number);
             if (ret == 1)  // good page num returned
                 pg = number;    // else just skip this and use the pg value
@@ -968,7 +865,7 @@ unsigned char update_Nextion(unsigned char force_update)
                 sprintf(cmd, "fwdpwr.txt=\"%.0fW\"", FwdPwr);
             else
                 sprintf(cmd, "fwdpwr.txt=\"%.1fW\"", FwdPwr);
-            //NexText_setText(FwdPwr, cmd);   // alternative way to update val;ue using the library commands
+            //xx.setText(FwdPwr, cmd);   // alternative way to update val;ue using the library commands
             sendCommand(cmd);
         }
         if (round(RefPwr*16) != round(RefPwr_old*16) && !WAIT)
@@ -1118,7 +1015,7 @@ unsigned char update_Nextion(unsigned char force_update)
             sendCommand(cmd); 
             
             strcpy(cmd,Band_Cal_Table[NewBand].BandName);
-            NexText_setText(&Set1_Bandvar);      
+            Set1_Bandvar.setText(cmd);      
         }
         else
         {
@@ -1126,7 +1023,7 @@ unsigned char update_Nextion(unsigned char force_update)
             sendCommand(cmd); 
             
             strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
-            NexText_setText(&Set1_Bandvar);      
+            Set1_Bandvar.setText(cmd);      
         }
         
         if (NewBand_old != CouplerSetNum || force_update == 1)
@@ -1141,21 +1038,21 @@ unsigned char update_Nextion(unsigned char force_update)
         }
         
         // Update Display for state of AUX 1 and 2 ports
-        if ((AuxNum1 != AuxNum1_old || force_update == 1) && !WAIT)
+        if ((AuxNum1 != AuxNum1_old || force_update == 1) && !WAIT)        
         {
             AuxNum1_old = AuxNum1;
-            number32 = (long) AuxNum1;
-            NexNumber_setValue(&Aux1, number32);
+            number32 = (uint32_t) AuxNum1;
+            Aux1.setValue(number32);
         }
         if ((AuxNum2 != AuxNum2_old || force_update == 1) && !WAIT)
         {
             AuxNum2_old = AuxNum2;    
-            number32 = (long) AuxNum2;
-            NexNumber_setValue(&Aux2, number32);
+            number32 = (uint32_t) AuxNum2;
+            Aux2.setValue(number32);
         } 
  #ifdef USBSTUFF       
         // Update display for state of PTT and CW IO lines
-        unsigned char state;
+        uint8_t state;
         state = Serial_USB_IsLineChanged();              /* Check for Line settings changed */
         if(state != 0u)
         {  
@@ -1165,30 +1062,30 @@ unsigned char update_Nextion(unsigned char force_update)
                 if (((state & Serial_USB_LINE_CONTROL_RTS) == 2) && ((state & Serial_USB_LINE_CONTROL_DTR) == 0)) // PTT on and CW off
                 {
                     sprintf(cmd, "TX");
-                    NexText_setText(&PTT_CW);  // Get PTT first.  If CW present then next line will overwrite
-                    NexText_Set_font_color_pco(&PTT_CW, 65504);  // Set text to Yellow for tx                    
-                    NexText_Set_background_color_bco(&PTT_CW, 63488);  // Set bkgnd to RED for tx                    
+                    PTT_CW.setText(cmd);  // Get PTT first.  If CW present then next line will overwrite
+                    PTT_CW.Set_font_color_pco(65504);  // Set text to Yellow for tx                    
+                    PTT_CW.background_color_bco(63488);  // Set bkgnd to RED for tx                    
                 }
                 else if (((state & Serial_USB_LINE_CONTROL_RTS) == 0) && ((state & Serial_USB_LINE_CONTROL_DTR) == 0)) // PTT on and CW off
                 {
                     sprintf(cmd, "RX");
-                    NexText_setText(&PTT_CW);  // Get PTT first.  If CW present then next line will overwrite
-                    NexText_Set_font_color_pco(&PTT_CW, 2016);  // Set text to LT Green for RX
-                    NexText_Set_background_color_bco(&PTT_CW, 0);  // Set background color to black for RX
+                    PTT_CW.setText(cmd);  // Get PTT first.  If CW present then next line will overwrite
+                    PTT_CW.Set_font_color_pco(2016);  // Set text to LT Green for RX
+                    PTT_CW.background_color_bco(0);  // Set background color to black for RX
                 }                                        
                 if (((state & Serial_USB_LINE_CONTROL_RTS) == 2) && ((state & Serial_USB_LINE_CONTROL_DTR) == 1)) // PTT on and CW off
                 {
                     sprintf(cmd, "CW");
-                    NexText_setText(&PTT_CW);  // Get PTT first.  If CW present then next line will overwrite
-                    NexText_Set_font_color_pco(&PTT_CW, 2047);  // Set text to RED for tx  
-                    NexText_Set_background_color_bco(&PTT_CW, 63488);  // Set background color to black for RX                  
+                    PTT_CW.setText(cmd);  // Get PTT first.  If CW present then next line will overwrite
+                    PTT_CW.Set_font_color_pco(2047);  // Set text to RED for tx  
+                    PTT_CW.background_color_bco(63488);  // Set background color to black for RX                  
                 }
                 else if (((state & Serial_USB_LINE_CONTROL_RTS) == 0) && ((state & Serial_USB_LINE_CONTROL_DTR) == 1)) // PTT on and CW off
                 {
                     sprintf(cmd, "CW");
-                    NexText_setText(&PTT_CW);  // Get PTT first.  If CW present then next line will overwrite
-                    NexText_Set_font_color_pco(&PTT_CW, 2047);  // Set text to REd for TX.  Then check PTT again for RX state
-                    NexText_Set_background_color_bco(&PTT_CW, 0);  // Set background color to black for RX
+                    PTT_CW.setText(cmd));  // Get PTT first.  If CW present then next line will overwrite
+                    PTT_CW.Set_font_color_pco(2047);  // Set text to REd for TX.  Then check PTT again for RX state
+                    PTT_CW.background_color_bco(0);  // Set background color to black for RX
                 }
             }
         }  
@@ -1202,35 +1099,35 @@ unsigned char update_Nextion(unsigned char force_update)
         
         if (FwdPwr > 1999.9)        
         {                                 
-            NexNumber_setValue(&fPwrNum,1999); 
+            fPwrNum.setValue(1999); 
         }
         else
-            NexNumber_setValue(&fPwrNum,FwdPwr);
+            fPwrNum.setValue(FwdPwr);
             
         if (RefPwr > 999.9)        
         {   // graphing only accepts integer betwen 0 and 255. using 1000W max                    
-            NexNumber_setValue(&rPwrNum,999); 
+            rPwrNum.setValue(999); 
         }
         else
-            NexNumber_setValue(&rPwrNum,RefPwr);             
+            rPwrNum.setValue(RefPwr);             
                    
         // Just post up the value, the display will handle the math and graphing in a timer
-        NexNumber_setValue(&swrNum,SWRVal*10); // uses xfloat so mult by 10 to shift decimal point      
+        swrNum.setValue(SWRVal*10); // uses xfloat so mult by 10 to shift decimal point      
     }    
     else if (pg == 4) // only send this group of data while on page 4
     {   
         // Page 4 is ADC calibration 
-        if (!recvRetNumber(&number32))
-            return 0;
-        else
+        //if (!recvRetNumber(&number32))
+        //    return 0;
+        //else
             return 1;
     }
     else if (pg == 5) // only send this group of data while on page 5
     {   
         // Page 5 is Quick Band Select
-        if (!recvRetNumber(&number32))
-            return 0;
-        else
+        //if (!recvRetNumber(&number32))
+        //    return 0;
+        //else
             return 1;
     }
     else if (pg == 1)  // on the Config Page #1
@@ -1321,29 +1218,29 @@ void OLED(void)
 *  None.
 *
 *******************************************************************************/
-unsigned int serial_usb_read(void)
+uint16_t serial_usb_read(void)
 {
      rx_count = 0;
      int count = 0;
      int i=0;  
      /* Check for input data from host. */
-     count = Serial.available();
-     rx_buffer[0] = NULL;
+     count = RFWM_Serial.available();
+     rx_buffer[0] = _NULL;
      if (count > 0)
      {
           while (i < count)
           {
-              rx_buffer[i++] = Serial.read();
+              rx_buffer[i++] = RFWM_Serial.read();
               rx_buffer[i] = '\0';
           }
           rx_count = i;          
-          //Serial.println(rx_count);
-          //Serial.println((char *) rx_buffer);
+          RFWM_Serial.println(rx_count);
+          RFWM_Serial.println((char *) rx_buffer);
           // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData         
           memcpy(pSdata2, rx_buffer, rx_count+1);   // append the new buffer data to current end marked by pointer 2        
           pSdata2 += rx_count;   // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
           rx_count = pSdata2 - pSdata1;  // update count for total unread chars. 
-          //Serial.println(rx_count);  
+          //RFWM_Serial.println(rx_count);  
      }
      rx_buffer[0] = '\0';
      return rx_count;
@@ -1367,16 +1264,16 @@ unsigned int serial_usb_read(void)
 void serial_usb_write(void)
 {      
     tx_count = strlen((char *) tx_buffer);
-    
+
     if (0u != tx_count)
     {
-        Serial.write(tx_buffer, tx_count);         /* Send data back to host. */
+        RFWM_Serial.write(tx_buffer, tx_count);         /* Send data back to host. */
     }
 }
 
 float hv_read(void)
 {
-    long ad_counts=0;
+    uint32_t ad_counts=0;
     
     // Read voltage by ADC via MUX (If connected)
     delay(5);
@@ -1386,7 +1283,7 @@ float hv_read(void)
 
 float v14_read(void)
 {
-    long ad_counts=0;
+    uint32_t ad_counts=0;
     
     // Read voltage by ADC via MUX (If connected)
     delay(5);
@@ -1396,7 +1293,7 @@ float v14_read(void)
 
 float curr_read(void)
 {
-    long ad_counts=0;
+    uint32_t ad_counts=0;
     
     // Read ADC via MUX (If connected)
     delay(5);
@@ -1408,7 +1305,7 @@ float temp_read(void)
 {
 #ifdef DETECTOR_TEMP_CONNECTED
   float tmp;
-    long ad_counts=0;
+    uint32_t ad_counts=0;
     // Read detector temperature (If connected)
     delay(5);
     ad_counts = analogRead(MUX_TEMP);  // single read but has locked up with N1MM commands   
@@ -1443,24 +1340,22 @@ void sendSerialData()
 
 void get_remote_cmd()
 {
-    unsigned char cmd1;
+    uint8_t cmd1;
     float cmd2;
-    unsigned char cmd_str_len;
-    unsigned char i = 0; 
-    unsigned char j = 0;
+    uint8_t cmd_str_len, i = 0, j = 0;
     char cmd_str[BUF_LEN] = {};
     
     if (rx_count >=0) 
     { 
-        pSdata = strchr(pSdata1, '\n');   // find string terminator position 
+        pSdata = (uint8_t *) strchr((char *) pSdata1, '\n');   // find string terminator position 
         if (pSdata) { 
             *pSdata = '\0';
             cmd_str_len = pSdata - pSdata1;                     
-            strncpy(cmd_str, pSdata1, cmd_str_len);   // copy chars between p1 and the terminator
+            strncpy(cmd_str, (char *) pSdata1, cmd_str_len);   // copy chars between p1 and the terminator
             pSdata1 += (cmd_str_len+1);  // reset ch pointer back to strat of string for char parsing
             if (pSdata1 >= pSdata2 || cmd_str_len > BUF_LEN)  // if we have caught up to the end p2 then reset to beginning of buffer position.
                 pSdata1 = pSdata2 = sdata;           
-            if (strlen(sdata) >= BUF_LEN-1) {
+            if (strlen((char *) sdata) >= BUF_LEN-1) {
                 //pSdata = sdata;
                 sdata[0] = '\0';
                 //printf("BUFFER OVERRRUN\n");
@@ -1475,8 +1370,8 @@ void get_remote_cmd()
                     cmd_str[j++] = (sdata[i]);                 
             }
             cmd_str[j] = '\0';  
-            //Serial.print(" Meter ID  ");
-            //Serial.println("%s\n",cmd_str);
+            //RFWM_Serial.print(" Meter ID  ");
+            //RFWM_Serial.println("%s\n",cmd_str);
             if (atoi(cmd_str) == METERID) {
                 if (i < cmd_str_len) {
                     j = 0;
@@ -1883,7 +1778,7 @@ void Cal_Table_write(void)
 
 void print_cal_table()
 {
-    unsigned char   i;
+    uint8_t   i;
 
     // example output format : "101,150,TEXT,55.4,35.4,3.3,2.2"
     // #150 for msg_type field to signal this is data dump, not power levels or other type messages.
@@ -1899,7 +1794,7 @@ void print_cal_table()
 Start or end of cal message output to serial port.  1 is start, 0 is end.  Message type is 161 and 160.
  used to adjust dBm levels to match watts target using existing slope and offset.
 */
-void print_Cal_Table_progress(unsigned char flag)
+void print_Cal_Table_progress(uint8_t flag)
 {   // uses current Offset and slope
     flag +=160;   // translate to start or end of cal procedure message type.   161 start, 160 end
     // example output format : "101,150,TEXT,55.4,35.4,3.3,2.2"
@@ -1914,7 +1809,7 @@ void print_Cal_Table_progress(unsigned char flag)
 Start or end of cal message output to serial port.  1 is start, 0 is end.  Message type is 161 and 160.
  used to adjust dBm levels to match watts target using existing slope and offset.
 */
-void print_Cmd_Progress(unsigned char flag)
+void print_Cmd_Progress(uint8_t flag)
 {   // uses current Offset and slope
     flag +=162;   // translate to start or end of cal procedure message type.   163 start, 162 end
     // example output format : "101,162,TEXT"
@@ -1930,12 +1825,12 @@ void read_Cal_Table_from_EEPROM()
 {
     int   i;
     int   j;  
-    unsigned char  eepromArray[sizeof Band_Cal_Table];
-    int   Arr_Size;
+    uint8_t  eepromArray[sizeof Band_Cal_Table];
+    //int   Arr_Size;
     char  setpoint_buf[SETPOINT_LEN+1];
     int   len_ee;
    
-    Serial.println("read_Cal_Table_from_EEPROM - Start");
+    RFWM_Serial.println("read_Cal_Table_from_EEPROM - Start");
 
     for(j=0; j<EEADDR; j++)
         {              
@@ -1985,33 +1880,33 @@ void read_Cal_Table_from_EEPROM()
       {
          len_ee = EEADDR+(sizeof(Band_Cal_Table)*i);
          EEPROM.get(len_ee, Band_Cal_Table[i]);  
-         //Serial.print(EEPROM.length());       
-         //Serial.println("EEPROM Read");
-         Serial.println(Band_Cal_Table[i].BandName);
-         Serial.println(Band_Cal_Table[i].Cpl_Fwd);
-         Serial.println(Band_Cal_Table[i].Cpl_Ref);        
+         //RFWM_Serial.print(EEPROM.length());       
+         //RFWM_Serial.println("EEPROM Read");
+         RFWM_Serial.println(Band_Cal_Table[i].BandName);
+         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
+         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
          delay(10); 
       }
    }
-   Serial.println("read_Cal_Table_from_EEPROM - End");
+   RFWM_Serial.println("read_Cal_Table_from_EEPROM - End");
 }
 
 // Copy cal data in memory to EEPROM to preserve user changes (save state is another function)
 void write_Cal_Table_to_EEPROM()
 {
-    unsigned int i;
-    unsigned int len_ee;
-    unsigned char   ee_row;
-    unsigned char   c1_array[16]; /* stores 1 row of 16 bytes for eeprom write and reads */
-    unsigned int    j;    
-    unsigned char   eepromArray[NUM_SETS * (sizeof Band_Cal_Table)];  // 396 bytes
-    unsigned int    Arr_Size;
-    unsigned char   result;
-    unsigned char   setpoint_buf[SETPOINT_LEN+1];
+    uint16_t    i;
+    uint16_t    len_ee;
+    uint8_t   ee_row;
+    uint8_t   c1_array[16]; /* stores 1 row of 16 bytes for eeprom write and reads */
+    uint16_t    j;    
+    //uint8_t   eepromArray[NUM_SETS * (sizeof Band_Cal_Table)];  // 396 bytes
+    //uint16_t    Arr_Size;
+    //uint8_t   result;
+    char   setpoint_buf[SETPOINT_LEN+1];
 
-    Serial.println(" Write Cal Table to EEPROM - Start " );
+    RFWM_Serial.println(" Write Cal Table to EEPROM - Start " );
     c1_array[0] = 'S';   /* what we just wrote, will overwrite as a block of 16 bytes) */
-    c1_array[EE_RESERVED_BYTE1] = NULL;
+    c1_array[EE_RESERVED_BYTE1] = 0;
     c1_array[OP_MODE_OFFSET] = op_mode;  
     c1_array[COUPLERSETNUM_OFFSET] = CouplerSetNum;
     c1_array[SER_DATA_OUT_OFFSET] = ser_data_out;                     
@@ -2033,12 +1928,12 @@ void write_Cal_Table_to_EEPROM()
 
     /*
     // Read it back to display for test
-    unsigned char tempvar4[20];
+    uint8_t tempvar4[20];
     for(j=0; j<16; j++)
     {              
          EEPROM.get(j+(ee_row*16),tempvar4[j]);     
-         Serial.print(" Row 0 BYTES  = ");
-         Serial.println(tempvar4[j]);     
+         RFWM_Serial.print(" Row 0 BYTES  = ");
+         RFWM_Serial.println(tempvar4[j]);     
     }
     */
     memcpy(c1_array,Callsign, CALLSIGN_LEN);   /*  7 bytes */     
@@ -2060,12 +1955,12 @@ void write_Cal_Table_to_EEPROM()
     }
 /*
     // Read it back to display for test
-   //unsigned char tempvar4[20];
+   //uint8_t tempvar4[20];
     for(j=0; j<16; j++)
     {              
          EEPROM.get(j+(ee_row*16),tempvar4[j]);     
-         Serial.print(" Row 1 BYTES  = ");
-         Serial.println(tempvar4[j]);     
+         RFWM_Serial.print(" Row 1 BYTES  = ");
+         RFWM_Serial.println(tempvar4[j]);     
     }
 */    
     // Prep and write Row 2 (0x0020 to 2F)
@@ -2081,7 +1976,7 @@ void write_Cal_Table_to_EEPROM()
          
     if (temp_cal_factor == 0) 
         temp_cal_factor = 1.0;
-    sprintf(setpoint_buf, "%01.2f", temp_cal_factor);                           // convert float to 4 byte ascii
+    sprintf(setpoint_buf, "%01.2f", (float)temp_cal_factor);                           // convert float to 4 byte ascii
     memcpy(&c1_array[TEMP_CAL_OFFSET-0x0020],setpoint_buf, SETPOINT_LEN);      
       
     sprintf(setpoint_buf, "%01.2f", curr_zero_offset);    // fill spare byte with test pattern for debug
@@ -2098,29 +1993,29 @@ void write_Cal_Table_to_EEPROM()
     for(j=0; j<16; j++)
     {              
          EEPROM.get(j+(ee_row*16),tempvar4[j]);     
-         Serial.print(" Row 2 BYTES  = ");
-         Serial.println(tempvar4[j]);     
+         RFWM_Serial.print(" Row 2 BYTES  = ");
+         RFWM_Serial.println(tempvar4[j]);     
     }
 */  
    for (i=0; i< NUM_SETS; i++) {
       if (i < EEPROM.length()) {
          len_ee = EEADDR+(sizeof(Band_Cal_Table)*i);
          EEPROM.put(len_ee, Band_Cal_Table[i]);       
-         Serial.println("EEPROM Written");
-         Serial.println(Band_Cal_Table[i].BandName);
-         Serial.println(Band_Cal_Table[i].Cpl_Fwd);
-         Serial.println(Band_Cal_Table[i].Cpl_Ref);        
+         RFWM_Serial.println("EEPROM Written");
+         RFWM_Serial.println(Band_Cal_Table[i].BandName);
+         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
+         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
          delay(10);
          EEPROM.update(0,'G');
       }
    }    
-   Serial.println("Write Cal Table to EEPROM - End " );
+   RFWM_Serial.println("Write Cal Table to EEPROM - End " );
 }
 
 // Copy hard coded al data to memory
 void write_Cal_Table_from_Default()
 {
-    unsigned int i;
+    uint16_t i;
   
     for (i=0;i<NUM_SETS;i++) 
     {
@@ -2148,58 +2043,58 @@ void write_Cal_Table_from_Default()
     temp_cal_factor=1;
     curr_zero_offset=2.5;
     /*  for debug
-    Serial.println(" Write Cal From Default");
-    Serial.println(op_mode);
-    Serial.println(CouplerSetNum); 
-    Serial.println(ser_data_out);
-    Serial.println(set_hv_max);            
-    Serial.println(set_v14_max);
-    Serial.println(set_temp_max);
-    Serial.println(METERID);  
-    Serial.println(Callsign);
-    Serial.println(set_curr_max);
-    Serial.println(hv_cal_factor);          
-    Serial.println(v14_cal_factor);
-    Serial.println(curr_cal_factor);        
-    Serial.println(temp_cal_factor);
-    Serial.println(curr_zero_offset);
+    RFWM_Serial.println(" Write Cal From Default");
+    RFWM_Serial.println(op_mode);
+    RFWM_Serial.println(CouplerSetNum); 
+    RFWM_Serial.println(ser_data_out);
+    RFWM_Serial.println(set_hv_max);            
+    RFWM_Serial.println(set_v14_max);
+    RFWM_Serial.println(set_temp_max);
+    RFWM_Serial.println(METERID);  
+    RFWM_Serial.println(Callsign);
+    RFWM_Serial.println(set_curr_max);
+    RFWM_Serial.println(hv_cal_factor);          
+    RFWM_Serial.println(v14_cal_factor);
+    RFWM_Serial.println(curr_cal_factor);        
+    RFWM_Serial.println(temp_cal_factor);
+    RFWM_Serial.println(curr_zero_offset);
     */
-    Serial.println("write_Cal_Table_from_Default - Completed");
+    RFWM_Serial.println("write_Cal_Table_from_Default - Completed");
 }
 
 // Read state in EEPROM
 void get_config_EEPROM()
 {
     CouplerSetNum = EEPROM.read(COUPLERSETNUM_OFFSET);
-    //Serial.print("CouplerSetNum Read = ");
-    //Serial.println(CouplerSetNum);
+    //RFWM_Serial.print("CouplerSetNum Read = ");
+    //RFWM_Serial.println(CouplerSetNum);
     op_mode = EEPROM.read(OP_MODE_OFFSET);
-    //Serial.print("op_mode Read = ");
-    //Serial.println(op_mode);
+    //RFWM_Serial.print("op_mode Read = ");
+    //RFWM_Serial.println(op_mode);
     //EEPROM.commit();
 }
 
 // Save state in EEPROM
-unsigned char EE_Save_State()
+uint8_t EE_Save_State()
 {
   return 1;
     //char buf[3];
-    Serial.println("EE_Save_State - Start");
+    RFWM_Serial.println("EE_Save_State - Start");
     CouplerSetNum = constrain(CouplerSetNum,0,NUM_SETS);
     EEPROM.update(COUPLERSETNUM_OFFSET, CouplerSetNum);
-    Serial.print("CouplerSetNum Write =");
-    Serial.println(CouplerSetNum);
+    RFWM_Serial.print("CouplerSetNum Write =");
+    RFWM_Serial.println(CouplerSetNum);
     op_mode = constrain(op_mode,1,3);
     if (op_mode == 1 || op_mode == 2) {
         EEPROM.update(OP_MODE_OFFSET, op_mode);
-        Serial.print("op_mode Write = ");
-        Serial.println(op_mode);
+        RFWM_Serial.print("op_mode Write = ");
+        RFWM_Serial.println(op_mode);
     }
     EEPROM.update(SER_DATA_OUT_OFFSET, ser_data_out);
-    Serial.print("ser_data_out Write =");
-    Serial.println(ser_data_out);
+    RFWM_Serial.print("ser_data_out Write =");
+    RFWM_Serial.println(ser_data_out);
     Cal_Table();
-    Serial.println("EE_Save_State - End");
+    RFWM_Serial.println("EE_Save_State - End");
     return 1;
 }
 
@@ -2235,23 +2130,23 @@ void toggle_ser_data_output(char force_on)
       if (ser_data_out == 0 || force_on == 1)
       {
         EEPROM.update(SER_DATA_OUT_OFFSET, 1);
-        Serial.println("Enabled Serial Data Output");
+        RFWM_Serial.println("Enabled Serial Data Output");
         ser_data_out = 1;
       }
       else { 
         EEPROM.update(SER_DATA_OUT_OFFSET, 0);
-        Serial.println("Disabled Serial Data Output");
+        RFWM_Serial.println("Disabled Serial Data Output");
         ser_data_out = 0;
       } 
 }
 
-unsigned char EEPROM_Init_Write(void)
+uint8_t EEPROM_Init_Write(void)
 {
     write_Cal_Table_to_EEPROM();
     return 1;
 }
 
-unsigned char EEPROM_Init_Read(void)
+uint8_t EEPROM_Init_Read(void)
 {
     read_Cal_Table_from_EEPROM();
     return 1;
@@ -2287,28 +2182,30 @@ uint8_t OTRSP(void)
     static int i;
     //static char AuxCmd0[20];   // Made a global
     static char buf[20];
-    
+
     //AuxNum1 = AuxNum2 = 0;  // Global values also used to update status on LCD
-    if (SerialUSB1.available() > 0)
+    if (OTRSP_Serial.available() > 0)
     {
-        c = SerialUSB1.read();  // Accept AUXyZZ where y is 1 or 2 and ZZ is 00-FF.
+        c = OTRSP_Serial.read();  // Accept AUXyZZ where y is 1 or 2 and ZZ is 00-FF.
         buf[i] = c;
         buf[i+1] = '\0';
-        SerialUSB1.print("buf = ");
-        SerialUSB1.println(buf);
+        //OTRSP_Serial.print("buf = ");
+        OTRSP_Serial.print(c);   //echo input chars
+        if (c=='\r')
+          OTRSP_Serial.print('\n');
         if (i >= 19)
               i = 0;  // prevent buffer overrun
         if (c == '\r' && i > 5)  // look for end of string then look back 6 chars for string parse
         {
-            Serial.println(i);
+            //OTRSP_Serial.println(i);
             strncpy(AuxCmd0, &buf[i-6], 6);
             AuxCmd0[6] = '\0';
             i=0; 
             // AUXxYY\r or BANDxZ...\r  YY is 00-99 (Should be 00-FF) and Z is 0-9, should be 0-F.
             if (strncmp(AuxCmd0,"AUX",3) == 0 || strncmp(AuxCmd0,"BAND",4) == 0)               
             {
-                SerialUSB1.print("AuxCmd0 = ");
-                SerialUSB1.println(AuxCmd0);
+                OTRSP_Serial.print("AuxCmd0 = ");
+                OTRSP_Serial.println(AuxCmd0);
                 return 1;   // Signal we have a good string
             }         
         }
@@ -2325,8 +2222,8 @@ uint8_t OTRSP_Process(void)
     uint8_t i;
     
     // Now have a full 6 char string starting with A or B
-    SerialUSB1.print(" OTRSP Processing string : ");
-    SerialUSB1.println(AuxCmd0); 
+    OTRSP_Serial.print(" OTRSP Process string : ");
+    OTRSP_Serial.println(AuxCmd0); 
     if ((AuxCmd0[0] == 'A' || AuxCmd0[0] == 'B') && AuxCmd0[6] == '\0' && strlen(AuxCmd0)==6) // double validate
     {      
         // Looking only for 2 commands, BAND and AUX.   
@@ -2336,12 +2233,12 @@ uint8_t OTRSP_Process(void)
             AuxCmd1[1] = AuxCmd0[5];
             AuxCmd1[2] = AuxCmd0[6];
             AuxCmd1[3] = '\0'; 
-            SerialUSB1.print(" OTRSP Processing AUX1 string in BCD: ");
-            SerialUSB1.println(AuxCmd1); 
+            OTRSP_Serial.print(" OTRSP Process AUX1 string in BCD: ");
+            OTRSP_Serial.println(AuxCmd1); 
             AuxNum1 = BCDToDecimal(AuxCmd1);   // Convert text 0x00-0xFF HEX to Decimal
             //AuxNum1 = atoi(AuxCmd1);   // Convert text 0-255 ASCII to Decimal
-            SerialUSB1.print(" OTRSP Processing AUX1 string in Decimal: ");
-            SerialUSB1.println(AuxNum1);
+            OTRSP_Serial.print(" OTRSP Process AUX1 string in Decimal: ");
+            OTRSP_Serial.println(AuxNum1);
             
             //Aux1_Write(AuxNum1);  // write out to the Control register which in turn writes to the GPIO ports assigned.                      
             for (i=0; i < 20; i++)
@@ -2366,32 +2263,32 @@ uint8_t OTRSP_Process(void)
             // This will be the bottom frequency (in MHz) of the current radio band.  ie 3.5MHz for 3875KHz
             sprintf(BndCmd1,"%s", &AuxCmd0[5]);
             AuxCmd0[0]='\0';
-            SerialUSB1.print(" OTRSP Processing BAND 1 string : ");
-            SerialUSB1.println(BndCmd1); 
+            OTRSP_Serial.print(" OTRSP Processing BAND 1 string : ");
+            OTRSP_Serial.println(BndCmd1); 
             return(0);  // TODO = passing band MHZ to a CouplerNUM  Search Band values
         }
         else if (strncmp(AuxCmd0,"BAND2",5) == 0)   // process AUX comand for radio 2.
         {
             sprintf(BndCmd2,"%s", &AuxCmd0[5]);
             AuxCmd0[0] = '\0' ;
-            SerialUSB1.print(" OTRSP Processing BAND 2 string : ");
-            SerialUSB1.println(BndCmd2); 
+            OTRSP_Serial.print(" OTRSP Processing BAND 2 string : ");
+            OTRSP_Serial.println(BndCmd2); 
             return(0); 
         }
     }  
     return 0;   // nothing processed 0 is a valid band number so using 255.
 }
 
-unsigned char BCDToDecimal(unsigned char *hex)
+uint8_t BCDToDecimal(char *hex)
 {
     //char hex[17];
-    long decimal, place;
-    int i = 0, val, len;
+    uint8_t decimal;   //place;
+    uint16_t i = 0, val = 0, len = 0;
 
     decimal = 0;
-    place = 1;
+    //place = 1;
     /* Find the length of total number of hex digit */
-    len = strlen(hex);
+    len = (uint16_t) strlen(hex);
     len--;
     /*
      * Iterate over each hex digit
@@ -2423,9 +2320,8 @@ unsigned char BCDToDecimal(unsigned char *hex)
 void Band_Decoder(void)
 {     
     // Convert BCD to binary and update the (non-BCD) binary Port for amps and meter selection
-    unsigned char decoder_band;
-    unsigned char decoder_band_binary;
-
+    uint8_t decoder_band, decoder_band_binary;
+    
     //decoder_band = Band_BCD_In_Reg_Read();   // Get current radio band value
     decoder_band = digitalRead(2);   // Get current radio band value
     if (decoder_band != decoder_band_last)
@@ -2438,7 +2334,7 @@ void Band_Decoder(void)
         }   
         else
         {   // not zero (not HF) pick a VHF band now
-            decoder_band = BCDToDecimal(decoder_band);   
+            //decoder_band = BCDToDecimal(decoder_band);   
             if (decoder_band > 6)
                 decoder_band = 6;
             decoder_band_binary = (1 << (decoder_band-1));

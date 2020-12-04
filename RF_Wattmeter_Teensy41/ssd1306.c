@@ -83,16 +83,16 @@ extern char cmdbuf[];
 #define TRANSFER_ERROR    (0xFFu)
 
 
-static long display_write_buf( unsigned char* buf, uint16_t size );
+static uint32_t display_write_buf( uint8_t* buf, uint16_t size );
 
 void gfx_init( int16_t width, int16_t height );
 
-static unsigned char _i2caddr;
+static uint8_t _i2caddr;
 
 // display memory buffer ( === MUST INCLUDE === the preceding I2C 0x40 control byte for the display)
-static unsigned char SSD1306_buffer[DISPLAYHEIGHT * DISPLAYWIDTH / 8 + 1] = { 0x40 };
+static uint8_t SSD1306_buffer[DISPLAYHEIGHT * DISPLAYWIDTH / 8 + 1] = { 0x40 };
 // pointer to actual display memory buffer
-static unsigned char* _displaybuf = SSD1306_buffer+1;
+static uint8_t* _displaybuf = SSD1306_buffer+1;
 static uint16_t _displaybuf_size = sizeof(SSD1306_buffer) - 1;
 
 // see data sheet page 25 for Graphic Display Data RAM organization
@@ -112,12 +112,12 @@ static uint16_t _displaybuf_size = sizeof(SSD1306_buffer) - 1;
 
 
 // call before first use of other functions
-void display_init( unsigned char i2caddr ){
+void display_init( uint8_t i2caddr ){
     
     _i2caddr = i2caddr;
     gfx_init( DISPLAYWIDTH, DISPLAYHEIGHT );
     
-    unsigned char cmdbuf[] = {
+    uint8_t cmdbuf[] = {
         0x00,
         SSD1306_DISPLAYOFF,
         SSD1306_SETDISPLAYCLOCKDIV,
@@ -154,9 +154,9 @@ void display_init( unsigned char i2caddr ){
 //  buf[0] must be 0x00
 // for submitting bulk data (writing to display RAM):
 //  buf[0] must be 0x40
-static long display_write_buf( unsigned char* buf, uint16_t size ){
+static uint32_t display_write_buf( uint8_t* buf, uint16_t size ){
 
-    long status = TRANSFER_ERROR;
+    uint32_t status = TRANSFER_ERROR;
     //I2COLED_MasterSendStart(_i2caddr,I2COLED_WRITE_XFER_MODE);
     
     for(int i=0; i<size; i++){  
@@ -194,9 +194,9 @@ void display_clear(void){
 
 
 // contrast: 0 ...255
-void display_contrast( unsigned char contrast ){
+void display_contrast( uint8_t contrast ){
         
-    unsigned char cmdbuf[] = {
+    uint8_t cmdbuf[] = {
         0x00,  
         SSD1306_SETCONTRAST,
         contrast
@@ -206,9 +206,9 @@ void display_contrast( unsigned char contrast ){
 
 
 // invert <> 0 for inverse display, invert == 0 for normal display
-void display_invert( unsigned char invert ){
+void display_invert( uint8_t invert ){
 
-    unsigned char cmdbuf[] = {
+    uint8_t cmdbuf[] = {
         0x00,  
         0
     };
@@ -219,7 +219,7 @@ void display_invert( unsigned char invert ){
 
 void display_update(void) {
       
-    unsigned char cmdbuf[] = {
+    uint8_t cmdbuf[] = {
         0x00,
         SSD1306_COLUMNADDR,
         0,                      // start
@@ -240,18 +240,18 @@ static void display_line( int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16
 
     if( x1 == x2 ){
         // vertical
-        unsigned char* pstart = GDDRAM_ADDRESS(x1,y1);
-        unsigned char* pend = GDDRAM_ADDRESS(x2,y2);       
-        unsigned char* dptr = pstart;             
+        uint8_t* pstart = GDDRAM_ADDRESS(x1,y1);
+        uint8_t* pend = GDDRAM_ADDRESS(x2,y2);       
+        uint8_t* dptr = pstart;             
         
         while( dptr <= pend ){
             
-            unsigned char mask;
+            uint8_t mask;
             if( dptr == pstart ){
                 // top
-                unsigned char lbit = y1 % 8;
+                uint8_t lbit = y1 % 8;
                 // bottom (line can be very short, all inside this one byte)
-                unsigned char ubit = lbit + y2 - y1;
+                uint8_t ubit = lbit + y2 - y1;
                 if( ubit >= 7 )
                     ubit = 7;
                 mask = ((1 << (ubit-lbit+1)) - 1) << lbit;    
@@ -279,11 +279,11 @@ static void display_line( int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16
         }
     }else{
         // horizontal
-        unsigned char* pstart = GDDRAM_ADDRESS(x1,y1);
-        unsigned char* pend = pstart + x2 - x1;
-        unsigned char pixmask = GDDRAM_PIXMASK(y1);    
+        uint8_t* pstart = GDDRAM_ADDRESS(x1,y1);
+        uint8_t* pend = pstart + x2 - x1;
+        uint8_t pixmask = GDDRAM_PIXMASK(y1);    
 
-        unsigned char* dptr = pstart;
+        uint8_t* dptr = pstart;
         while( dptr <= pend ){
             switch( color ){
                 case WHITE:     *dptr |= pixmask; break;
@@ -299,7 +299,7 @@ static void display_line( int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16
 
 void display_stopscroll(void){
 
-    unsigned char cmdbuf[] = {
+    uint8_t cmdbuf[] = {
         0x00,
         SSD1306_DEACTIVATE_SCROLL
     };
@@ -308,7 +308,7 @@ void display_stopscroll(void){
 
 void display_scroll( SCROLL_AREA start, SCROLL_AREA end, SCROLL_DIR dir, SCROLL_SPEED speed ){
    
-    unsigned char cmdbuf[] = {
+    uint8_t cmdbuf[] = {
         0x00,
         dir,                    // 0x26 or 0x2a
         0x00,                   // dummy byte
@@ -331,9 +331,9 @@ int16_t WIDTH, HEIGHT; // This is the 'raw' display w/h - never changes
 static int16_t _width, _height; // Display w/h as modified by current rotation
 static int16_t cursor_x, cursor_y;
 static uint16_t textcolor, textbgcolor;
-static unsigned char textsize;
-unsigned char rotation;
-unsigned char wrap; // If set, 'wrap' text at right edge of display
+static uint8_t textsize;
+uint8_t rotation;
+uint8_t wrap; // If set, 'wrap' text at right edge of display
 
 
 
@@ -359,7 +359,7 @@ int16_t gfx_height(void){
     return _height;
 }
 
-unsigned char gfx_rotation(void){
+uint8_t gfx_rotation(void){
     return rotation;
 }
 
@@ -368,7 +368,7 @@ void gfx_setCursor( int16_t x, int16_t y ){
     cursor_y = y;
 }
 
-void gfx_setTextSize( unsigned char size ){
+void gfx_setTextSize( uint8_t size ){
     textsize = (size > 0) ? size : 1;
 }
 
@@ -382,11 +382,11 @@ void gfx_setTextBg( uint16_t color ){
     textbgcolor = color;
 }
 
-void gfx_setTextWrap( unsigned char w ){
+void gfx_setTextWrap( uint8_t w ){
     wrap = w;
 }
 
-void gfx_setRotation( unsigned char x ){
+void gfx_setRotation( uint8_t x ){
     
     rotation = (x & 3);
     switch( rotation ){
@@ -574,7 +574,7 @@ void gfx_drawTriangle( int16_t x0, int16_t y0,int16_t x1, int16_t y1, int16_t x2
 
 
 // Draw a character
-void gfx_drawChar( int16_t x, int16_t y, unsigned char c,uint16_t color, uint16_t bg, unsigned char size) {
+void gfx_drawChar( int16_t x, int16_t y, uint8_t c,uint16_t color, uint16_t bg, uint8_t size) {
     if( (x >= _width) || // Clip right
         (y >= _height) || // Clip bottom
         ((x + 6 * size - 1) < 0) || // Clip left
@@ -583,7 +583,7 @@ void gfx_drawChar( int16_t x, int16_t y, unsigned char c,uint16_t color, uint16_
 
     int8_t i = 0;
     for( i = 0 ; i < 6 ; i++ ){
-        unsigned char line;
+        uint8_t line;
         if( i == 5 )
             line = 0x0;
         else
@@ -608,7 +608,7 @@ void gfx_drawChar( int16_t x, int16_t y, unsigned char c,uint16_t color, uint16_
     }
 }
 
-void gfx_write( unsigned char ch ){
+void gfx_write( uint8_t ch ){
     if( ch == '\n' ){
         cursor_y += textsize*8;
         cursor_x = 0;
@@ -626,8 +626,8 @@ void gfx_write( unsigned char ch ){
 
 void gfx_print( const char* s ){
     
-    unsigned int len = strlen( s );
-    unsigned int i = 0; 
+    uint16_t len = strlen( s );
+    uint16_t i = 0; 
     for( i = 0 ; i < len ; i++ ){
         gfx_write( s[i] );
     }
