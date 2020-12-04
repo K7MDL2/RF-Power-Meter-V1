@@ -9,10 +9,11 @@
 
 /*
  *
- * RF Power Meter by K7MDL 12/1/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
+ * RF Power Meter by K7MDL 12/4/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
  *
- * 12/1/2020 -  Ported from PSoC5. Nextion is mostly working, OLED and band decoder features note working yet.  Lots of 
- *  warnings to sift through, bugs to be found, lots more testing to do.
+ * 12/4/2020 -  Ported from PSoC5 C code. All seems to be working except OLED and band decoder output features which need to be finished porting over. 
+ * Switched to standard Arduino Nextion Library with a few mods for nex_listen function to detect page number on nav button presses
+ * and to resolve compiler warnings. OTRSP uses SerialUSB1 obbained by setting the Teensy USB port to Dual Ports setting.
  *
 */
 
