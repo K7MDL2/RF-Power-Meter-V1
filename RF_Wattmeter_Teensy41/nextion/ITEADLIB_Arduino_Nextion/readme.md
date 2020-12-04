@@ -2,6 +2,7 @@
 
 # Nextion
 
+12/2020 - Has minor changes to suit the RF Wattmeter project and to fix some compile time warnings, otherwise this is the standard Arduino Nextion library.
 --------------------------------------------------------------------------------
 
 # Introduction
