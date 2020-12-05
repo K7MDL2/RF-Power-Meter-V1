@@ -20,22 +20,32 @@
 #define DETECTOR_TEMP_CONNECTED
 //#define LORA   // This is set in Serial.c also
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
-//#define AMP1296    // enables specific hartd coded cal values for voltages for 1296 amp
+//#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
 
 #define RFWM_Serial Serial
 #define OTRSP_Serial SerialUSB1
 
 #ifdef NEXTION
-  //#define nexSerial Serial3   // defined in NexConfig.h
-  //#define dbSerial Serial     // defined in NexConfig.h
-  #include <Nextion.h>
-  #define NexSerialBAUD 38400
+    //#define nexSerial Serial3   // defined in NexConfig.h
+    //#define dbSerial Serial     // defined in NexConfig.h
+    #include <Nextion.h>
+    #define NexSerialBAUD 38400
 #endif
 
 #ifdef SSD1306_OLED
-    #include "ssd1306.h"
-    #define DISPLAY_ADDRESS 0x3C //  for OLED i2C - 011110+SA0+RW - 0x3C or 0x3D NOTE1
+    //#include "ssd1306.h"
+    //#define DISPLAY_ADDRESS 0x3C //  for OLED i2C - 011110+SA0+RW - 0x3C or 0x3D NOTE1
     // If you are using a 128x64 OLED screen, the address will be 0x3C or 0x3D, if one does not work try with the other one.
+    #include <SPI.h>
+    #include <Wire.h>
+    #include <Adafruit_GFX.h>
+    #include <Adafruit_SSD1306.h>
+    #define SCREEN_WIDTH 128 // OLED display width, in pixels
+    #define SCREEN_HEIGHT 64 // OLED display height, in pixels
+    
+    // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+    #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
+    Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #endif
 
 #define CALLSIGN_LEN            (7u)

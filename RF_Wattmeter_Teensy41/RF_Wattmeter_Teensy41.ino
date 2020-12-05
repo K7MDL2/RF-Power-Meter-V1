@@ -36,14 +36,27 @@ void setup(void)
   pinMode(MUX_HV,INPUT);
   pinMode(13,OUTPUT);
 #ifdef SSD1306_OLED
-    //I2COLED_Start(); 
-    display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
-    //gfx_setRotation(1);
-    display_clear();    
-    display_update();
+    //display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
+
+    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3D)) { // Address 0x3D for 128x64
+        Serial.println(F("SSD1306 allocation failed"));
+      for(;;); // Don't proceed, loop forever
+    }
+    // Show initial display buffer contents on the screen --
+    // the library initializes this with an Adafruit splash screen.
+    display.display();
+    delay(2000); // Pause for 2 seconds
+    // display.display() is NOT necessary after every single drawing command,
+    // unless that's what you want...rather, you can batch up a bunch of
+    // drawing operations and then update the screen all at once by calling
+    // display.display().
+
+    // Clear the buffer
+    display.clearDisplay();
 #endif
-    OTRSP_Serial.begin(9600);  // open port for OTRSP serial port command input
-    Serial3.begin(NexSerialBAUD);   // set in RF wattmter_Arduino.h - must match the Nextion display BAUD or BAUDS parameter set on Main Page
+
+    OTRSP_Serial.begin(9600);  // open port for OTRSP serial port command input    
     RFWM_Serial.begin(115200); // For debug or data output
     RFWM_Serial.println(" ");   // Clear our output text from CPU init text
     write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized
@@ -85,6 +98,7 @@ void setup(void)
   NewBand = CouplerSetNum;
 
   #ifdef NEXTION
+    Serial3.begin(NexSerialBAUD);   // set in RF wattmter_Arduino.h - must match the Nextion display BAUD or BAUDS parameter set on Main Page
     nexInit();
     /*
     // Set up objects to monitor touch controls from Nextion Display 
@@ -134,7 +148,6 @@ void setup(void)
     
     //digitalWrite(Nextion_Switch, 0);   // Switches the Nextion display serial port between the CPU and the USB converter (For display uploads via USB)
     pg=0;
-    Main.show();
     Main.show();
     //RFWM_Serial.print("**Set1_Bandvar = ");
     //RFWM_Serial.println(cmd);
@@ -301,9 +314,8 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
         SWR_analog_value = 0;
     if (SWR_analog_value > 255)
         SWR_analog_value = 255;                
-    SWR_Fail_Analog_Output_SetValue(SWR_analog_value);     
+    analogWrite(A11, SWR_analog_value);     // Dummy call for now until Band ecoder and DAC outputs are sorted after port from PSoC5 code.
 #endif
-    
     SWR_Serial_Val = SWRVal;
     FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
     sendSerialData();   // send this data to the serial port for remote monitoring
@@ -1160,55 +1172,56 @@ void OLED(void)
     char s[24]; 
     float value;
         
-    display_clear();    
-    gfx_drawRect( 0, 17, 127, 47, WHITE);
+    display.clearDisplay();    
+    display.drawRect( 0, 17, 127, 47, SSD1306_WHITE);
     
     // Top row is Yellow with Power in Watts, size 2 font
-    gfx_setTextColor(WHITE);
+    display.setTextColor(SSD1306_WHITE);
     snprintf(s, 12, "  %*.1fW%c", 6, FwdPwr, '\0');
-    gfx_setTextSize(2);    
-    gfx_setCursor(4,0);
-    gfx_println(s);
+    display.setTextSize(2);    
+    display.setCursor(4,0);
+    display.cp437(true);         // Use full 256 char 'Code Page 437' font
+    display.println(s);
     
     //sprintf(s,"  Fwd    Ref    SWR");    
-    gfx_setTextSize(1);    
-    gfx_setCursor(16,20);
-    gfx_println("Fwd");
-    gfx_setCursor(58,20);
-    gfx_println("Ref");
-    gfx_setCursor(95,20);
-    gfx_println("SWR");
+    display.setTextSize(1);    
+    display.setCursor(16,20);
+    display.println("Fwd");
+    display.setCursor(58,20);
+    display.println("Ref");
+    display.setCursor(95,20);
+    display.println("SWR");
     
     if (FwdPwr <= 0.1)
         sprintf(s, " %*.1f%*.1f%*s%c", 5, 0.0, 7, 0.0, 5, "NA", '\0'); 
     else
         sprintf(s, " %*.1f%*.1f%*.1f%c", 5, Fwd_dBm, 7, Ref_dBm, 6, SWRVal, '\0');    
-    gfx_setTextSize(1);
-    gfx_setCursor(1,30);
-    gfx_println(s);
+    display.setTextSize(1);
+    display.setCursor(1,30);
+    display.println(s);
     
     value = temp_read();
     value *= temp_cal_factor;
     sprintf(s,"%*.0fF%c", 3, value, '\0');   // temp from the ADL5519 board (not the PA heat sink, maybe later from amp control board)
-    gfx_setTextSize(1);
-    gfx_setCursor(5,49);
-    gfx_println(s);
+    display.setTextSize(1);
+    display.setCursor(5,49);
+    display.println(s);
         
     value = v14_read();
     value *= v14_cal_factor;
     sprintf(s,"%*.1fVDC%c", 4, value, '\0');   // 28V via Voltage divider
-    gfx_setTextSize(1);
-    gfx_setCursor(33,49);
-    gfx_println(s);
+    display.setTextSize(1);
+    display.setCursor(33,49);
+    display.println(s);
     
     value = hv_read();
     value *= hv_cal_factor;
     sprintf(s,"%*.1fVDC%c", 4, value, '\0');   // 28V via Voltage divider
-    gfx_setTextSize(1);
-    gfx_setCursor(81,49);
-    gfx_println(s);
+    display.setTextSize(1);
+    display.setCursor(81,49);
+    display.println(s);
     
-    display_update();    // NOTE: You should remember to update the display in order to see the results on the oled. 
+    display.display();    // NOTE: You should remember to update the display in order to see the results on the oled. 
 }
 #endif // end SSD1306_OLED section
 
