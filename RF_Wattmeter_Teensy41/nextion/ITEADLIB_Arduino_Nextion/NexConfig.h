@@ -29,7 +29,7 @@
 /**
  * Define dbSerial for the output of debug messages. 
  */
-#define dbSerial Serial
+#define dbSerial SerialUSB1
 
 /**
  * Define nexSerial for communicate with Nextion touch panel. 

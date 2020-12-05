@@ -35,17 +35,64 @@
 
 
 // added for K7MDL version 12/2020 - some of this is carry over fro mPSoC5, otehrs are for LoRA form the PSoC5 so far.
-//char txt[32];
-//char cmd[64];
-//char buf[12];
-//char msg[32];
-//unsigned char wrData;
 //extern unsigned char WAIT;  // traffic flag - if a function is waiting for a response for the display set this flag to hold off display updates
 extern unsigned char pg;
 //extern unsigned int DLY;  // // Set the value to prevent missed messages.  
 // Delay value is critical.   LoRa at 9600 500 is good. 50 for wired connection.
 // Less and you start missing events, numbers come back 0.  After a while LoRa data gets backed up, missing events
 // Need flow control on the Nextion end likely.
+
+/*
+ * Receive page number. 
+ * 
+ * @param number - save uint32_t data. 
+ * @param timeout - set timeout time. 
+ *
+ * @retval true - success. 
+ * @retval false - failed.
+ *
+ */
+bool recvPageNumber(uint32_t *number, uint32_t timeout)
+{
+    bool ret = false;
+    uint8_t temp[5] = {0};
+
+    if (!number)
+    {
+        goto __return;
+    }
+    
+    nexSerial.setTimeout(timeout);
+    if (sizeof(temp) != nexSerial.readBytes((char *)temp, sizeof(temp)))
+    {
+        goto __return;
+    }
+
+    if (temp[0] == NEX_RET_CURRENT_PAGE_ID_HEAD
+        && temp[2] == 0xFF
+        && temp[3] == 0xFF
+        && temp[4] == 0xFF
+        )
+    {
+        *number = ((uint32_t)temp[1]);
+        ret = true;
+    }
+
+__return:
+
+    if (ret) 
+    {
+        dbSerialPrint("recvPageNumber :");
+        dbSerialPrintln(*number);
+    }
+    else
+    {
+        dbSerialPrintln("recvPageNumber err");
+        dbSerialPrintln(temp[1]);
+    }
+    
+    return ret;
+}
 
 /*
  * Receive uint32_t data. 
@@ -186,6 +233,7 @@ void sendCommand(const char* cmd)
     nexSerial.write(0xFF);
     nexSerial.write(0xFF);
     nexSerial.write(0xFF);
+    dbSerialPrintln(cmd);
 }
 
 
@@ -269,21 +317,23 @@ void nexLoop(NexTouch *nex_listen_list[])
                     __buffer[i] = nexSerial.read();
                 }
                 __buffer[i] = 0x00;
-
-                if (__buffer[1] == 0x04 && __buffer[2] == 0x01)  // this is from last page, will change if a page is added or removed.
+                
+                
+                if (__buffer[1] == page4_ID && __buffer[2] == toMain_ID)  // this is from last page, will change if a page is added or removed.
                     pg = 0;  // pick up the page numbers on events to remove the need to ask for page number for screen refreshes and minimize serial traffic
-                else if (__buffer[1] == 0x00 && __buffer[2] == toConfig_ID)  // from page 0 toConfig_ID = 15
+                else if (__buffer[1] == page0_ID && __buffer[2] == toConfig_ID)  // from page 0 toConfig_ID = 15
                     pg = 1; 
-                else if (__buffer[1] == 0x01 && __buffer[2] == 0x06)  // from page 1 toSet1_ID = 6
+                else if (__buffer[1] == page1_ID && __buffer[2] == toSet1_ID)  // from page 1 toSet1_ID = 6
                     pg = 2; 
-                else if (__buffer[1] == 0x02 && __buffer[2] == 0x12)  // from page 2 toPwrGraph_ID = 18
+                else if (__buffer[1] == page2_ID && __buffer[2] == toPwrGraph_ID)  // from page 2 toPwrGraph_ID = 18
                     pg = 3;  
-                else if (__buffer[1] == 0x03 && __buffer[2] == 0x05)  // from page 3 toPowerCal_ID = 5
+                else if (__buffer[1] == page3_ID && __buffer[2] == toPowerCal_ID)  // from page 3 toPowerCal_ID = 5
                     pg = 4;                             
-                //else
-                //    pg = 0;
-                dbSerial.print("\n **** Page = ");
-                dbSerial.println(pg);
+                else
+                    pg = __buffer[1];  // any other event should be from current page
+                
+                dbSerialPrint("\n **** Page = ");
+                dbSerialPrintln(pg);
                 
                 if (0xFF == __buffer[4] && 0xFF == __buffer[5] && 0xFF == __buffer[6])
                 {

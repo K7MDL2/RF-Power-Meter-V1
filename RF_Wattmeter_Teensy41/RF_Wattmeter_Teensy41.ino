@@ -351,7 +351,6 @@ void loop() {
             Set1_Callback(0);   
             update_Nextion(1);                        
 #endif       
-
             EE_Save_State();
         }
         if (Button_C == YES) 
@@ -372,12 +371,8 @@ void loop() {
         
 #ifdef NEXTION
         // Process Nextion Display events
-
-       
         if (nexSerial.available()) 
-        {
           nexLoop(nex_listen_list);  // Process Nextion Display  
-        }
         if (NewBand != CouplerSetNum)
             update_Nextion(1);
         else if (!WAIT)   // skip if waiting for response from a diaplsy query to reduce traffic
@@ -735,16 +730,19 @@ void toMain_push_Callback(void *ptr)
 
 void toConfig_pop_Callback(void *ptr)   // Got event to change to Config Page from somewhere
 {
-    //uint8_t number;
-    //uint8_t ret1;    
+    uint32_t number;
+    uint8_t ret1;    
     
     // Update the sliders to current values. SLider callbacks wil update after here.
-    //strcpy(cmd, "sendme");
-    //sendCommand(cmd);
-    //CyDelay(2);
-    //ret1 = recvPageNumber(&number);    
-    //if ((ret1 == 1) && (number = 1))  // ensure we are on the correct page)
-    if (1 == 1)  // force to true, should only be in this fucntion if a page event sent us to here
+    if (pg!=1)
+    {
+        strcpy(cmd, "sendme");
+        sendCommand(cmd);
+        ret1 = recvPageNumber(&number);  
+        if (ret1)
+          pg = number;  
+    }
+    else  // ensure we are on the correct page
     {       
         rcv_num = (uint32_t)(Band_Cal_Table[CouplerSetNum].Cpl_Fwd);
         fwd_cal.setValue(rcv_num);  // Update slider knob position  0-100
@@ -757,7 +755,10 @@ void toConfig_pop_Callback(void *ptr)   // Got event to change to Config Page fr
         ref_cal.setValue(rcv_num);
         
         snprintf(cmd, 20, "%.1fdB%c", Band_Cal_Table[CouplerSetNum].Cpl_Ref, '\0');  // Update label with decimal value text
-        ref_cal_num.setText(cmd);       
+        ref_cal_num.setText(cmd);   
+
+        // Refresh Band info in case it changes.
+        band_cal.setText(Band_Cal_Table[CouplerSetNum].BandName);
     }
 }
 
@@ -768,26 +769,29 @@ void toConfig_pop_Callback(void *ptr)   // Got event to change to Config Page fr
 */
 void Set1_Callback(void *ptr)
 {   
-    uint32_t number;
+    uint32_t number32;
     
     if (pg != 2)
     {
         strcpy(cmd, "sendme");
         sendCommand(cmd);    
-        if (!recvRetNumber(&number))
-            return;
-    }
-    
-    if (number == 2 || pg == 2) // only send this group of data while on page 2
-    //if (pg == 2)  // should only be here because a touch event called us.
+        if (recvPageNumber(&number32))
+          pg = (uint8_t) number32;
+        else
+        {
+          sendCommand("sendme");   //retry once first failure         
+          if (recvPageNumber(&number32))    // good page num returned
+              pg = (uint8_t) number32;    // else just skip this and use the pg value   
+        }
+    }  
+    else if (pg == 2)
     {
-        //NexPage_show(&Set1);
         delay(25);
         // The XYZ_max fields are considered the source for the slider to get its initial data from through the     
         //    the display's "Setpoints" page (page2) preinitialization section. After that the slider sends changes real time to the display
         //    not bothering the CPU until movement stops when an event is sent to the CPU where the slider callback will 
         //    get the XYZ_max value and store it in EEPROM.
-        // For xfloat type object in Nextion, multiply the float x10 to get an integer it can use with teh slider
+        // For xfloat type object in Nextion, multiply the float x10 to get an integer it can use with the slider
         // The display will format it with decimal point according to its config (num places to left and right of decimal point)
         hv_adj.setValue((uint16_t) (set_hv_max*10));
         hv_max.setValue((uint16_t) (set_hv_max*10));
@@ -807,9 +811,7 @@ void Set1_Callback(void *ptr)
         // fix up initial position of slider knob for Band Slider
         band_set_adj.setValue(CouplerSetNum);
         strcpy(cmd, Band_Cal_Table[CouplerSetNum].BandName);
-        band_set.setText(cmd);    
-        //strcpy(cmd, Band_Cal_Table[CouplerSetNum].BandName);
-        //band_cal.setText(cmd);    
+        band_set.setText(cmd);     
     }
 }
 
@@ -821,12 +823,13 @@ void toPwrGraph_Callback(void *ptr)
 
 uint8_t update_Nextion(uint8_t force_update)
 {
-    uint8_t temp_value_old = 0, set_temp_max_old = 0;
+    uint8_t temp_value_old = 0, set_temp_max_old = 0, ret;
     float value;
     uint32_t number32;
     static float FwdPwr_old, RefPwr_old, SWRVal_old, hv_value_old, V14_value_old, curr_value_old, Fwd_dBm_old, Ref_dBm_old;
     static uint8_t AuxNum1_old, AuxNum2_old, NewBand_old;
     static float set_curr_max_old, set_hv_max_old, set_v14_max_old;
+    static uint8_t pg_last;
       
     if (!force_update)
     {
@@ -834,24 +837,27 @@ uint8_t update_Nextion(uint8_t force_update)
         if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_Nex) < 300)
            return 0;   // skip out until greater than 100ms since our last visit here
         Timer_X00ms_Last_Nex = Timer_X00ms_InterruptCnt;
-  /*      if (pg != number)
-        {
-            strcpy(cmd, "sendme");
-            sendCommand(cmd);
-        
-            delay(5);
-            ret = recvPageNumber(&number);
-            if (ret == 1)  // good page num returned
-                pg = number;    // else just skip this and use the pg value
-        }
-        */
     }
     else
     {
         // force all status tracking variables to 0 forcing them to update on this pass.
         //FwdPwr_old=RefPwr_old=SWRVal_old=hv_value_old=V14_value_old=temp_value_old=curr_value_old=NewBand_old=0;
     }
-    
+    if (pg != pg_last)
+    {
+        sendCommand("sendme");
+        ret = recvPageNumber(&number32);
+        if (ret == 1)  // good page num returned
+          pg = (uint8_t) number32;    // else just skip this and use the pg value   
+        else 
+        { 
+            sendCommand("sendme");   //retry once first failure
+            ret = recvPageNumber(&number32);
+            if (ret == 1)  // good page num returned
+                pg = (uint8_t) number32;    // else just skip this and use the pg value   
+        }
+        pg_last = pg;
+    }      
     // use page number to refresh each applicable page
     if (force_update || pg == 0) // only send this group of data while on page 0 every 250 ms at most
     { 
@@ -1094,7 +1100,8 @@ uint8_t update_Nextion(uint8_t force_update)
         return 1;
     }
     else if (pg == 3) // only send this group of data while on page 3
-    {   // Page 3 is the Graphing page
+    {   
+        // Page 3 is the Graphing page
         // Post up power and SWR values.  Display will read the values on a timer and update teh graph.  
         // It will also read the scale and cap the values to the scale max and scale the graph with its own math        
         
@@ -1113,11 +1120,15 @@ uint8_t update_Nextion(uint8_t force_update)
             rPwrNum.setValue(RefPwr);             
                    
         // Just post up the value, the display will handle the math and graphing in a timer
-        swrNum.setValue(SWRVal*10); // uses xfloat so mult by 10 to shift decimal point      
+        swrNum.setValue(SWRVal*10); // uses xfloat so mult by 10 to shift decimal point   
+        
+        Curr_band.setText(Band_Cal_Table[CouplerSetNum].BandName); 
     }    
     else if (pg == 4) // only send this group of data while on page 4
     {   
         // Page 4 is ADC calibration 
+        Curr_band.setText(Band_Cal_Table[CouplerSetNum].BandName); 
+                
         //if (!recvRetNumber(&number32))
         //    return 0;
         //else
@@ -1329,7 +1340,7 @@ float temp_read(void)
 void sendSerialData()
 {
     Timer_X00ms_InterruptCnt = millis();
-    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last) > 500 && ser_data_out == 1); //&& EEPROM.read(SER_DATA_OUT_OFFSET) == 'Y' )
+    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last) > 1000 && ser_data_out == 1); //&& EEPROM.read(SER_DATA_OUT_OFFSET) == 'Y' )
     {
         Timer_X00ms_Last_USB = Timer_X00ms_InterruptCnt;       
         sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       

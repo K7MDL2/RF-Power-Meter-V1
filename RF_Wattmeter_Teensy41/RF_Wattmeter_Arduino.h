@@ -370,6 +370,7 @@ struct Band_Cal Band_Cal_Table[NUM_SETS];
     NexButton fPwr_scale = NexButton(page3_ID,fPwr_scale_ID,"fPwr_scale"); 
     NexText fscale = NexText(page3_ID,fscale_ID,"fscale"); 
     NexText rscale = NexText(page3_ID,rscale_ID,"rscale"); 
+    NexText Curr_band = NexText(page3_ID,Curr_band_ID,"Curr_band"); 
     NexNumber fPwrNum = NexNumber(page3_ID,fPwrNum_ID,"fPwrNum"); 
     NexNumber rPwrNum = NexNumber(page3_ID,rPwrNum_ID,"rPwrNum"); 
     NexNumber swrNum = NexNumber(page3_ID,swrNum_ID,"swrNum");

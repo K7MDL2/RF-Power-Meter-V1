@@ -97,6 +97,7 @@ ________________________________________________________________________________
     #define rscale_ID 8
     #define Graph_Timer_ID 19
     #define toPowerCal_ID 5
+    #define Curr_band_ID 24
     
     // Page 4 PowerCal object IDs
     #define PowerCal_ID 0
