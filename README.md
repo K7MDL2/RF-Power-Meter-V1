@@ -41,14 +41,24 @@ The hardware flow for the latest build is: https://github.com/K7MDL2/RF-Power-Me
 For ease of dev I am using a small USB 4 port hub with onboard UART TTL converter with the KitPRog plugged in for dev work.  It reduces 3 or 4 USB connections to 1.  This hub also enables extended scenarios such as N1MM+ logger program interfacing for antenna or transverter control.
 
 
-### Key files
-    RF_Power_meter.ino: Main Arduino code that runs on the M5Stack with graphics and buttons.
+### Key files and folders
+    
+    RF_Wattmeter_Teensy41: Arduino verson on the Teensy 4.1 CPU.  Ported over from the PSoC5 version Dec 2020. 
+            Will attempt to keep this version in sync with the PSoC5 version.  OLED, Nextion and headless display options as before.
+            In this verson I am using the standard Nextion Arduino library (included) with some minor changes to better track page
+            changes and resolve compiler warnings.  No Nextion serial line switching feature for firmware updates in this hardware.  
+            ADC is only 10-bits but seems to have low noise so might work for you well enough when measuring RF power.  
+            Be prepared to add an external 16bit ADC module for more accurate RF power measurements if needed (such as the ADS1115 or ADS1100).
+            Works fine for votlage, current and temp measurements.  I wil be using this version to monitor a Bird peak reading wattmeter
+            buffered output which is in Watts, so it is a linear output vs. the usual log output from a normal Rf detector.
+    
+    RF_Power_meter.ino: Arduino code that runs on the M5Stack with graphics and buttons.
             Has some new ADS1100 files to support external I2C connected ADSS1100 16bit ADC units from M5Stack.  
             They work really well, 0-12V inputs, 15 bit useful range. I have a 4 channel version module very similar
             to try out based on the ADS1115. Intended for adding measurements for voltage and temperature.
             Some of the features from the PSoC are merged into the M5Stack at times.
 
-    RF_Nano_Headless.ino: Arduino code ported to the Nano CPU. 
+    RF_Nano_Headless: Arduino code ported to the Nano CPU. 
             All screen and button code removed, complete remote control.
             Could be merged with the other version's features as needed but for now is not being updated.
 
