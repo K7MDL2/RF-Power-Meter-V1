@@ -2,7 +2,34 @@
 
 *** Release V2 created July 1, 2020 ***
 
-*** V2.4 uploaded to Master Branch on 12/4/2020.   This is the first working port from the PSoC5 to Arduino Teensy 4.1.  I have switched to the standard Arduino Nextion library fixing and resolved all warnings in the Nextion libary and the project compile. Everything seems to be working now except LoRa which is still the PSoC5 version so should remain disabled for now.  The OTRSP code has been reworked as well and now seems very robust and can decode BANDxY and AUXxYY commands from a 2nd serial port.  For the Teensy 4.1, in the Arduino IDE setup Dual USB ports. Serial is the main port, SerialUSB1 is the 2nd assigned to OTRSP comms.  The Desktop App works equally well with PSoC5 or this Teensy Arduino build.  Band decoding input should work but the output requires more coding and pin assignments. More below.  
+New for 12/12/2020 - 
+Added full featured Band Decoder functionality
+
+Now either OTRSP or the 6 Band-Input pins can work to change bands and will send data out 3x 8-bit ports, A, B and C.
+
+By default port A will mirror the input pins, useful for intercepting a BCD or 1-of-8 Band decoder from a radio on the input port then pass it on through Port A to a stack of transverters, or the Q5 Signal 5-Band transverter.
+
+2 additional ports of 8 pins can serve amps and antennas or power meter coupler selection.
+
+A cool feature is the variety of translation modes for every port.  Each port generally has 4 translation modes. 
+1. Transparent
+2. 1-of-8 decode
+3. Custom pattern (per band),
+4. OTRSP value from AUX commands.
+
+This is all stored in EEPROM.  Also fixed a bug where I calculated the EEPROM size of the main data table wrong causing a lack of EEPROM storage.  There is plenty after this fix.
+
+This work is tailored for the Teensy 4.1 and changes wil be ported back to the PSoC5 platform.  Other Arduinos might work but I am using 2 USB serial ports (Main data an OTRSP), 1 hardware port (Nextion, optional) and over 1K of EEPROM.
+
+The Toggle Serial feature is used to suppress the data ouput to make seeing debug messages easier.
+ This is disabled for now becaue teh Desktop app cannot seems to rx chracters or it cannot serve commands including turning the data back on.  Teh CPU is OK, can manually toggle data OK.
+
+Work remains to create configuration screens on the Nextion and the Desktop App. New serial port commands 62-69 exist to support this.
+
+An area left to debug is the CW and PTT control from N1MM serial ports using DTR and RTS signals.  This works on the PSoC5 but I have yet to make it work on the Arduino.
+
+
+*** V2.4 updated on Master Branch on 12/12/2020.   This is the first working port from the PSoC5 to Arduino Teensy 4.1.  I have switched to the standard Arduino Nextion library fixing and resolved all warnings in the Nextion libary and the project compile. Everything seems to be working now except LoRa which is still the PSoC5 version so should remain disabled for now.  The OTRSP code has been reworked as well and now seems very robust and can decode BANDxY and AUXxYY commands from a 2nd serial port.  For the Teensy 4.1, in the Arduino IDE setup Dual USB ports. Serial is the main port, SerialUSB1 is the 2nd assigned to OTRSP comms.  The Desktop App works equally well with PSoC5 or this Teensy Arduino build.  Band decoding input should work but the output requires more coding and pin assignments. More below.  
 
 The SSD1306 OLED library has been replaced with the Adafruit_GFX and Adafruit_SSD1306 libraries and compiles OK, do not have a display to test it with, should work though. So other than the LoRa wireless extension for the Nextion and hardware band decoding, this is working good now. Several minor tweaks to reduce missed page events and now have very few missing page events or display write errors noted. 
 
