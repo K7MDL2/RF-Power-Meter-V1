@@ -16,17 +16,23 @@
   User edited values here for Callsign and Meter ID number and Some Setpoints
 ******************************************************************************/
 //#define SSD1306_OLED
-#define NEXTION
+//#define NEXTION
 #define DETECTOR_TEMP_CONNECTED
 //#define LORA   // This is set in Serial.c also
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
+//#define TEENSY4_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands
 
-#define RFWM_Serial Serial
-#define OTRSP_Serial SerialUSB1
+// On the Teensy 4X these are USB Serial so no pin assignments needed.  Teensy 4 can have up to 3 Serial USB ports
+// Serial is main.  SerialUSB1 and SerialUSB2 are the others.
+#define RFWM_Serial Serial   // RF Wattmeter data output.  Also accepts control commands and debug output in Serial Monitor.
+#define OTRSP_Serial SerialUSB1    // OTRSP Serial protocol from programs like N1MM+ for transveter or antenna control
+#define BAND_DEC_Serial SerialUSB2   // when and if serial band decoder methods used
 
 #ifdef NEXTION
-    //#define nexSerial Serial3   // defined in NexConfig.h
+    //#define nexSerial Serial1   // defined in NexConfig.h
+    #define SERIAL1_RX_PIN 0
+    #define SERIAL1_TX_PIN 1
     //#define dbSerial Serial     // defined in NexConfig.h
     #include <Nextion.h>
     #define NexSerialBAUD 38400
@@ -48,6 +54,7 @@
     Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #endif
 
+//#define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 #define CALLSIGN_LEN            (7u)
 char   Callsign[CALLSIGN_LEN] = "K7MDL\0";
 uint8_t default_METERID = 100; // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
@@ -64,8 +71,6 @@ Non-user edit section
 void Clear_buf(void);
 void OTRSP_setup(void);
 uint8_t OTRSP(void);
-uint8_t Translate_Band(uint8_t);
-
 
 #ifdef DETECTOR_TEMP_CONNECTED
 float TempVal = 0.0;    
@@ -87,24 +92,70 @@ uint32_t Timer_X00ms_Last_Nex;
 uint32_t Timer_X00ms_Last_OLED;
 
 // Rest of program...
-//#define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 #define METER_RATE 2   // used to skip serial data output to a lower rate
-#define EEADDR 64 // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
-#define MUX_FWD A10       // These are the Analog Mux input assignments for Teensy 4.1
-#define MUX_REF A11
-#define MUX_TEMP A14      // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
-#define MUX_CURR A15
-#define MUX_14V A16
-#define MUX_HV A17
-#define ad_Fwd A10    // Analog 35 pin for channel 0
-#define ad_Ref A11   // Analog 36 pin for channel 1
+#define EEADDR CAL_TBL_ARR_OFFSET // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
 #define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.
 
-#define Band_Decode_Control 2
-#define Antenna_Select 3
-#define Nextion_Switch 4
+// Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
+#define ADC_FWD A0       // These are the Analog Mux input assignments for Teensy 4.1
+#define ADC_REF A1
+#define ADC_TEMP A2      // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
+#define ADC_CURR A3
+#define ADC_14V A6
+#define ADC_HV A7
 
-#define TEST_EEPROM 0  // change to 1 and reprogram, then set back to 0 to reset EEPROM data to default
+// I2C pins for use with OLED or other IO
+#define SDA_PIN A4
+#define SCL_PIN A5
+
+// Band Decoder Input Pins
+#define BAND_DEC_IN_0   2   // 6 input pins.  Can take any pattern to be translated to various ports.  Example, BCD on 3 pins for transverter/amp, last 3 BCD for antenna switch
+#define BAND_DEC_IN_1   3
+#define BAND_DEC_IN_2   4
+#define BAND_DEC_IN_3   5
+#define BAND_DEC_IN_4   6
+#define BAND_DEC_IN_5   7
+#define BAND_DEC_IN_6 99  // spare
+#define BAND_DEC_IN_7 99  // spare
+
+// Band Decoder Banks A and B and C
+#define BAND_DEC_A_0    8
+#define BAND_DEC_A_1    9
+#define BAND_DEC_A_2    10
+#define BAND_DEC_A_3    11
+#define BAND_DEC_A_4    12
+#define BAND_DEC_A_5    24
+#define BAND_DEC_A_6    25
+#define BAND_DEC_A_7    26
+
+#define BAND_DEC_B_0    27
+#define BAND_DEC_B_1    28
+#define BAND_DEC_B_2    29
+#define BAND_DEC_B_3    30
+#define BAND_DEC_B_4    31
+#define BAND_DEC_B_5    32
+#define BAND_DEC_B_6    33
+#define BAND_DEC_B_7    34
+
+#define BAND_DEC_C_0    35
+#define BAND_DEC_C_1    36
+#define BAND_DEC_C_2    37
+#define BAND_DEC_C_3    38
+#define BAND_DEC_C_4    39
+#define BAND_DEC_C_5    40
+#define BAND_DEC_C_6    41
+#define BAND_DEC_C_7    23
+
+// Arduino Band Decoder and CW/PTT output Pin Assignments
+#define PTT_OUT         13
+#define CW_KEY_OUT      22
+
+//uint8_t translateBCD = 0;
+uint8_t Band_Dec_In_Byte;   // Byte storing decoder input pattern
+uint8_t Band_Dec_OutA_Byte;    // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)
+uint8_t Band_Dec_OutB_Byte;
+uint8_t Antenna_Select;    // byte value pattern overlaid on any nnumber of port pins.  Set bit commands break out which pins are used
+
 #define SWR 2
 #define PWR 1
 #define MENU 3
@@ -131,23 +182,24 @@ uint32_t Timer_X00ms_Last_OLED;
 #define CURR_MAX_OFFSET         (0x0017)  // 17, 18, 19, 1A - 4 bytes each needed for ASCII version of floats  ex: 113 degrees or 78.2 dB or 28.6 VDC
 #define HV_CAL_OFFSET           (0x001B)  // byte 1B, 1C, 1D, 1E
 #define SPARE1_OFFSET           (0x001F)  // byte 1F spare
-// end row 1 data 
+// end row 1 data start row 2
 #define V14_CAL_OFFSET          (0x0020)  // byte 20, 21, 22, 23
 #define CURR_CAL_OFFSET         (0x0024)  // byte 24, 25, 26, 27
 #define TEMP_CAL_OFFSET         (0x0028)  // byte 28, 29, 2A, 2B
-#define CURR_0_OFFSET           (0x002C)  // byte 2C, 2D, 2E, 2F spare
+#define CURR_0_OFFSET           (0x002C)  // byte 2C, 2D, 2E, 2F
+// Start Row 3
+#define TRANS_INPUT             (0x0030)  // byte 30,
+#define TRANS_A                 (0x0031)  // byte 31,
+#define TRANS_B                 (0x0032)  // byte 32,
+#define TRANS_C                 (0x0033)  // byte 33
 
-// bytes 2C to 3F spare 
-
-// start row 5 data (whole table)
+// start row 4 data
 #define CAL_TBL_ARR_OFFSET      (0x0040)  /* start row 2 and beyond  */
 #define EE_SAVE_YES             (65u)
 #define TEST_LEN                (14u)
 #define CFG_ARR_TEST_STRING     "01234567890123"
-#define Serial_USB_DEVICE       (0u)
 /* The buffer size is equal to the maximum packet size of the IN and OUT bulk
-* endpoints.
-*/
+* endpoints.*/
 #define Serial_USB_BUFFER_SIZE  (64)
 #define LINE_STR_LENGTH         (20u)
 #define BUF_LEN  Serial_USB_BUFFER_SIZE
@@ -159,6 +211,7 @@ float Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP3
 uint8_t METERID = 100;    // tracks current Meter ID number   Resets to default_METERID.
 uint8_t CouplerSetNum = 0;   // 0 is the default set on power up.  
 uint8_t ser_data_out = 0;
+//uint8_t translate;  // mask to optionally translate input to output pins - ex - BCD to Bitwise or straight through
 uint8_t Reset_Flag = 0;
 uint32_t updateTime = 0;       // time for next update
 float Fwd_dBm = 0;
@@ -209,14 +262,17 @@ float curr_cal_factor;
 float curr_zero_offset;
 float temp_cal_factor;
 static uint8_t sdata[Serial_USB_BUFFER_SIZE], *pSdata=sdata, *pSdata1=sdata, *pSdata2=sdata;
-static char cmd[64];
 float value1_last;
 char AuxCmd0[20];
 uint8_t AuxNum1, AuxNum2;  // N1MM OTRSP serial protocol control for 4 2 4 bit IO ports for antenna and transverter control.  See OTRSP.C
 uint8_t decoder_band_last = 0;
+volatile uint8_t CW_KEY_OUT_state = 0;  //  Normally only set by ISR after init.
+volatile uint8_t PTT_OUT_state = 0;     //  Normally only set by ISR after init.
+uint8_t PTT_OUT_state_last = 0;
+uint8_t CW_KEY_OUT_state_last = 0;
 
 // Function declarations
-void toggle_ser_data_output(char);
+void toggle_ser_data_output(uint8_t);
 void setup(void);
 void adRead(void);
 void read_Cal_Table_from_EEPROM(void);
@@ -233,7 +289,7 @@ void get_remote_cmd(void);
 uint16_t serial_usb_read(void);
 void serial_usb_write(void);
 uint8_t BCDToDecimal(char *hex);
-void Band_Decoder(void);
+uint8_t Band_Decoder(void);
 float hv_read(void);
 float v14_read(void);
 float curr_read(void);
@@ -310,24 +366,28 @@ struct Band_Cal {
     float Cpl_Ref;
     float Slope_R;
     float Offset_R;
-} Band_Cal_Table_Def[NUM_SETS] = {
-     {"HF", 72.0, -0.02145, 0.48840, 73.6, -0.02145, 0.48840},
-     {"50MHz", 72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408},
-     {"144MHz", 63.4, -0.02149, 0.48256, 63.4, -0.02202, 0.50459},
-     {"222MHz", 60.5, -0.02160, 0.48026, 60.5, -0.02192, 0.50488},
-     {"432MHz", 59.6, -0.02154, 0.45122, 59.6, -0.02171, 0.48347},
-     {"902MHz", 59.2, -0.02149, 0.43525, 59.2, -0.02291, 0.45729},
+    uint8_t band_input_pattern;  // pattern for band decoder input pins to find match against and change bands if there is a match
+    uint8_t band_A_output_pattern;  // pattern per band for band decode output Port A pins
+    uint8_t band_B_output_pattern;  // pattern per band for band decode output Port B pins
+    uint8_t band_C_output_pattern;  // pattern per band for band decode output Port C pins
+} Band_Cal_Table_Def[NUM_SETS] = {   // set up defaults for EEPROM
+     {"HF",     72.0, -0.02145, 0.48840, 73.6, -0.02145, 0.48840, 0x00, 0x00, 1, 0},
+     {"50MHz",  72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408, 0x01, 0x01, 2, 1},
+     {"144MHz", 63.4, -0.02149, 0.48256, 63.4, -0.02202, 0.50459, 0x02, 0x02, 3, 2},
+     {"222MHz", 60.5, -0.02160, 0.48026, 60.5, -0.02192, 0.50488, 0x03, 0x03, 4, 3},
+     {"432MHz", 59.6, -0.02154, 0.45122, 59.6, -0.02171, 0.48347, 0x04, 0x04, 5, 4},
+     {"902MHz", 59.2, -0.02149, 0.43525, 59.2, -0.02291, 0.45729, 0x05, 0x05, 6, 5},
 #ifdef SWR_ANALOG    
-    {"1296MHz",61.5, -0.02224, 0.40569, 51.5, -0.02607, 0.38766},  // for KitProg
+    {"1296MHz", 61.5, -0.02224, 0.40569, 51.5, -0.02607, 0.38766, 0x06, 0x06, 7, 6},  // for KitProg
 #elif !SWR_ANALOG    
-    {"1296MHz",72.6, -0.02144, 0.43581, 72.6, -0.02174, 0.45506},  // for normal board
+    {"1296MHz", 72.6, -0.02144, 0.43581, 72.6, -0.02174, 0.45506, 0x06, 0x06, 7, 6},  // for normal board
 #endif    
-     {"2.3GHz", 60.1, -0.02514, 0.644, 60.1, -0.02514, 0.644},
-     {"3.4GHz", 60.2, -0.02514, 0.644, 60.2, -0.02514, 0.644},
-     {"5.7GHz", 60.3, -0.02514, 0.644, 60.3, -0.02514, 0.644},
-     {"10GHz", 60.4, -0.02514, 0.644, 60.4, -0.02514, 0.644}
+     {"2.3GHz", 60.1, -0.02514, 0.644, 60.1, -0.02514, 0.644, 0x07, 0x07, 8, 7},
+     {"3.4GHz", 60.2, -0.02514, 0.644, 60.2, -0.02514, 0.644, 0x08, 0x08, 9, 8},
+     {"5.7GHz", 60.3, -0.02514, 0.644, 60.3, -0.02514, 0.644, 0x09, 0x09, 10, 9},
+     {"10GHz",  60.4, -0.02514, 0.644, 60.4, -0.02514, 0.644, 0x0A, 0x0A, 11, 10}
     };
-struct Band_Cal Band_Cal_Table[NUM_SETS];
+struct Band_Cal Band_Cal_Table[NUM_SETS];   // Calibration table, one for each band
 
 #ifdef SSD1306_OLED
     void OLED(void);
@@ -337,6 +397,7 @@ struct Band_Cal Band_Cal_Table[NUM_SETS];
   #include <RF_Wattmeter_Nextion.h>
 // For Nextion Display usage
     uint32_t rcv_num;
+    static char cmd[64];
     NexButton savecfg_btn_1 = NexButton(page1_ID, savecfg_btn_1_ID, "savecfg_btn_1");
     NexButton savecfg_btn_2 = NexButton(page2_ID, savecfg_btn_2_ID, "savecfg_btn_2");
     NexButton savecfg_btn_4 = NexButton(page4_ID, savecfg_btn_4_ID, "savecfg_btn_4");
