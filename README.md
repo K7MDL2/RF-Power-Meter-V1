@@ -17,9 +17,9 @@ A cool feature is the variety of translation modes for every port.  Each port ge
 3. Custom pattern (per band),
 4. OTRSP value from AUX commands.
 
-This is all stored in EEPROM.  Also fixed a bug where I calculated the EEPROM size of the main data table wrong causing a lack of EEPROM storage.  There is plenty after this fix.
+This is all stored in EEPROM.  Also fixed a bug where I calculated the EEPROM size of the main data table wrong causing a lack of EEPROM storage.  There is plenty of EEPROM after this fix, 11 bands and state variables consume a tad over 1K.
 
-This work is tailored for the Teensy 4.1 and changes will be ported back to the PSoC5 platform.  Other Arduinos might work but I am using 2 USB serial ports (Main data an OTRSP), 1 hardware port (Nextion, optional) and over 1K of EEPROM.
+This work is tailored for the Teensy 4.1 and changes will be ported back to the PSoC5 platform.  Other Arduinos might work but I am using 2 USB serial ports (Main data and OTRSP), 1 hardware port (Nextion, optional) and over 1K of EEPROM.
 
 The Toggle Serial feature is used to suppress the data ouput to make seeing debug messages easier. This is disabled for now becaue the Desktop app cannot seems to rx chracters or it cannot serve commands including turning the data back on.  Teh CPU is OK, can manually toggle data OK.
 
