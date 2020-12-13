@@ -2660,8 +2660,12 @@ void Band_Decode_A_Output(uint8_t pattern)
         {}  // do nothing, pass straight through
     else if (EEPROM.read(TRANS_A) == 1)  
         pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection
-    else if (EEPROM.read(TRANS_A) == 2)  // 2 is not used here
+    else if (EEPROM.read(TRANS_A) == 2)  // Ignore OTRSP, follow Current  Band
         pattern = Band_Cal_Table[CouplerSetNum].band_A_output_pattern;  // Use stored pattern for this band 
+    else if (EEPROM.read(TRANS_A) == 3)        
+        pattern = Band_Cal_Table[AuxNum1].band_A_output_pattern;  // Use OTRSP Aux1 as index to Cal table for this band 
+    else if (EEPROM.read(TRANS_A) == 4)        
+        pattern = AuxNum1;  // Use OTRSP Aux1 number for this band 
     else 
     {
         RFWM_Serial.print("No Valid Matching Rule for Band A Output translation = 0b");   
@@ -2701,12 +2705,17 @@ void Band_Decode_B_Output(uint8_t pattern)
     else if (EEPROM.read(TRANS_B) == 1)  
         pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection
     else if (EEPROM.read(TRANS_B) == 2)
-        pattern = Band_Cal_Table[CouplerSetNum].band_B_output_pattern;  // Use stored pattern for this band
+        pattern = Band_Cal_Table[CouplerSetNum].band_B_output_pattern;  // Use stored pattern for this band, Ignore AuxNum1 (effectively ignore OTRSP)
     else if (EEPROM.read(TRANS_B) == 3)        
-        pattern = Band_Cal_Table[AuxNum1].band_B_output_pattern;  // Use OTRSP Aux2 as index to Cal table for this band 
+        pattern = Band_Cal_Table[AuxNum1].band_B_output_pattern;  // Use OTRSP Aux1 as index to Cal table for this band 
     else if (EEPROM.read(TRANS_B) == 4)        
         pattern = AuxNum1;  // Use OTRSP Aux1 number for this band 
-    else return;
+    else
+    {
+        RFWM_Serial.print("No Valid Matching Rule for Band B Output translation = 0b");   
+        RFWM_Serial.println(EEPROM.read(TRANS_B), BIN);
+        return;
+    }
     
     RFWM_Serial.print("Band B pattern from Aux1 = 0b");
     RFWM_Serial.println(pattern, BIN);
@@ -2728,15 +2737,19 @@ void Band_Decode_C_Output(uint8_t pattern)
     if (EEPROM.read(TRANS_C) == 0)  // bit 0 and 1 is for Group A translation (or not).
         {}  // do nothing, pass straight through
     else if (EEPROM.read(TRANS_C) == 1)  
-        pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection
+        pattern = bit(pattern)>>1;    // Translate to 1 of 8 pins at a time only such as for amp or transverter selection
     else if (EEPROM.read(TRANS_C) == 2)
-        pattern = Band_Cal_Table[CouplerSetNum].band_C_output_pattern;  // Use Cal_Table stored pattern for this band        
+        pattern = Band_Cal_Table[CouplerSetNum].band_C_output_pattern;  // Use custom pattern for this band, Ignore AuxNum1 (effectively ignore OTRSP)     
     else if (EEPROM.read(TRANS_C) == 3) 
         pattern = Band_Cal_Table[AuxNum2].band_C_output_pattern;  // Use OTRSP Aux2 as index to Cal_Table for this band 
     else if (EEPROM.read(TRANS_C) == 4) 
-        pattern = AuxNum2;  // Use OTRSP Aux2 number for this band 
+        pattern = AuxNum2;  // Use OTRSP Aux2 number for this band
     else
-      return;
+    {
+        RFWM_Serial.print("No Valid Matching Rule for Band C Output translation = 0b");   
+        RFWM_Serial.println(EEPROM.read(TRANS_C), BIN);
+        return;
+    }
     
     RFWM_Serial.print("Band C pattern from Aux2 = 0b");
     RFWM_Serial.println(pattern, BIN);

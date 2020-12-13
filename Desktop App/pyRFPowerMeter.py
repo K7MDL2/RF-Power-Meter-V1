@@ -1056,6 +1056,38 @@ class Cfg_Mtr(tk.Frame):
         print("Calculate Ref Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
         rx.send_meter_cmd("74","", True)    
 
+    def Set_B_Dec_In_Mode(self):
+        rx = Receiver()
+        print("Applying Translation Mode {} to Band Decode Input Port".format(self.BDec_In.get()))
+        rx.send_meter_cmd("65",self.BDec_In.get(), True)    
+        if self.BDec_In.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Input Port using {}".format(self.CustomIn.get()))
+            rx.send_meter_cmd("69",self.CustomIn.get(), True)    
+
+    def Set_B_Dec_A_Mode(self):
+        rx = Receiver()
+        print("Applying Translation Mode {} to Band Decode Output Port A".format(self.BDec_A.get()))
+        rx.send_meter_cmd("64",self.BDec_A.get(), True)    
+        if self.BDec_A.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Output Port A using {}".format(self.CustomA.get()))
+            rx.send_meter_cmd("68",self.CustomA.get(), True)   
+
+    def Set_B_Dec_B_Mode(self):
+        rx = Receiver()
+        print("Applying Translation Mode {} to Band Decode Output Port B".format(self.BDec_B.get()))
+        rx.send_meter_cmd("63",self.BDec_B.get(), True)    
+        if self.BDec_B.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Output Port B using {}".format(self.CustomB.get()))
+            rx.send_meter_cmd("67",self.CustomB.get(), True)    
+
+    def Set_B_Dec_C_Mode(self):
+        rx = Receiver()
+        print("Applying Translation Mode {} to Band Decode Output Port C".format(self.BDec_C.get()))
+        rx.send_meter_cmd("62",self.BDec_C.get(), True)    
+        if self.BDec_C.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Output Port C using {}".format(self.CustomC.get()))
+            rx.send_meter_cmd("66",self.CustomC.get(), True)     
+
     def Save_to_Meter(self):   # Commit to EEPROM
         rx = Receiver()
         print("Save cal table changes to Meter's EEPROM")
@@ -1081,9 +1113,9 @@ class Cfg_Mtr(tk.Frame):
         screen_width = cfg.winfo_screenwidth()
         screen_height = cfg.winfo_screenheight()                
         w = 1000   # width of our app window
-        h = 520   # height of our app window
+        h = 800   # height of our app window
         x = screen_width/3
-        y = screen_height/4
+        y = screen_height/8
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
         cfg.title("Remote Wattmeter Configuration Editor")
         cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
@@ -1220,7 +1252,110 @@ class Cfg_Mtr(tk.Frame):
         self.CalV_Text = tk.Label(cfg,text='After measuring push the Save to Meter button\n to commit changes to EEPROM', font=('Helvetica', 10))  #, 'bold'))
         self.CalV_Text.place(x=600, y=425, height=60)
 
+        #  Band Decoder Configuration
+        self.CustomIn = StringVar(cfg)
+        self.CustomIn.set(0)  # default entry
+        self.CustomA = StringVar(cfg)
+        self.CustomA.set(0)  # default entry
+        self.CustomB = StringVar(cfg)
+        self.CustomB.set(0)  # default entry
+        self.CustomC = StringVar(cfg)
+        self.CustomC.set(0)  # default entry
+        self.BDec_In = IntVar(cfg)
+        self.BDec_In.set(0)
+        self.BDec_A = IntVar(cfg)
+        self.BDec_A.set(0)
+        self.BDec_B = IntVar(cfg)
+        self.BDec_B.set(0)
+        self.BDec_C = IntVar(cfg)
+        self.BDec_C.set(0)
+
+        self.B_Decode_Text = tk.Label(cfg,text='------------Band Decoder Configuration------------', font=('Helvetica', 12, 'bold'))
+        self.B_Decode_Text.place(x=340, y=490, height=60)
+
+        self.B_Decode1_Text = tk.Label(cfg,text='Choose the Translation Mode ports will use on this band. If \'Custom\' then enter the pattern in decimal form.  Press Apply when complete', font=('Helvetica', 10))
+        self.B_Decode1_Text.place(x=80, y=530, height=60)
+
+        self.B_Dec_In_Text = tk.Label(cfg,text='Input Port Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_In_Text.place(x=25, y=570, height=40, width=210)                        
+        self.B_Dec_In_Radio = tk.Radiobutton(cfg, text="Transparent", variable=self.BDec_In, value=0, font=('Helvetica', 10))
+        self.B_Dec_In_Radio.place(x=220, y=570, height=40)
+        self.B_Dec_In_Radio = tk.Radiobutton(cfg, text="1-of-8", variable=self.BDec_In, value=1, font=('Helvetica', 10))
+        self.B_Dec_In_Radio.place(x=335, y=570, height=40)
+        self.B_Dec_In_Radio = tk.Radiobutton(cfg, text="Custom", variable=self.BDec_In, value=2, font=('Helvetica', 10))
+        self.B_Dec_In_Radio.place(x=670, y=570, height=40)
+        self.B_Dec_In_Entry = tk.Entry(cfg, textvariable=self.CustomIn, font=('Helvetica', 10))
+        self.B_Dec_In_Entry.place(x=750, y=580, height=20, width=60)         
+        self.B_Dec_In_Entry.bind('<Return>', self.get_CustomIn)                
+        self.B_Dec_In_btn = tk.Button(cfg, text='Apply', command=self.Set_B_Dec_In_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_In_btn.place(x=840, y=575, height=30, width=100)
+
+        self.B_Decode2_Text = tk.Label(cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode2_Text.place(x=80, y=603, height=13)
+
+        self.B_Dec_A_Text = tk.Label(cfg,text='Port A Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_A_Text.place(x=25, y=620, height=40, width=210)      
+        self.B_Dec_A_Radio = tk.Radiobutton(cfg, text="Transparent", variable=self.BDec_A, value=0, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=220, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(cfg, text="1-of-8", variable=self.BDec_A, value=1, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=335, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(cfg, text="OTRSP Lookup", variable=self.BDec_A, value=3, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=410, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(cfg, text="OTRSP Direct", variable=self.BDec_A, value=4, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=540, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(cfg, text="Custom", variable=self.BDec_A, value=2, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=670, y=620, height=40)
+        self.B_Dec_A_Entry = tk.Entry(cfg, textvariable=self.CustomA, font=('Helvetica', 10))
+        self.B_Dec_A_Entry.place(x=750, y=630, height=20, width=60)         
+        self.B_Dec_A_Entry.bind('<Return>', self.get_CustomA)                
+        self.B_Dec_A_btn = tk.Button(cfg, text='Apply', command=self.Set_B_Dec_A_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_A_btn.place(x=840, y=625, height=30, width=100)
+
+        self.B_Decode3_Text = tk.Label(cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode3_Text.place(x=80, y=653, height=13)
+
+        self.B_Dec_B_Text = tk.Label(cfg,text='Port B Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_B_Text.place(x=25, y=670, height=40, width=210)
+        self.B_Dec_B_Radio = tk.Radiobutton(cfg, text="Transparent", variable=self.BDec_B, value=0, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=220, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(cfg, text="1-of-8", variable=self.BDec_B, value=1, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=335, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(cfg, text="OTRSP Lookup", variable=self.BDec_B, value=3, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=410, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(cfg, text="OTRSP Direct", variable=self.BDec_B, value=4, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=540, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(cfg, text="Custom", variable=self.BDec_B, value=2, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=670, y=670, height=40)
+        self.B_Dec_B_Entry = tk.Entry(cfg, textvariable=self.CustomB, font=('Helvetica', 10))
+        self.B_Dec_B_Entry.place(x=750, y=680, height=20, width=60)         
+        self.B_Dec_B_Entry.bind('<Return>', self.get_CustomB)                
+        self.B_Dec_B_btn = tk.Button(cfg, text='Apply', command=self.Set_B_Dec_B_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_B_btn.place(x=840, y=675, height=30, width=100)
+
+        self.B_Decode4_Text = tk.Label(cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode4_Text.place(x=80, y=703, height=13)
+
+        self.B_Dec_C_Text = tk.Label(cfg,text='Port C Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_C_Text.place(x=25, y=720, height=40, width=210)
+        self.B_Dec_C_Radio = tk.Radiobutton(cfg, text="Transparent", variable=self.BDec_C, value=0, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=220, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(cfg, text="1-of-8", variable=self.BDec_C, value=1, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=335, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(cfg, text="OTRSP Lookup", variable=self.BDec_C, value=3, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=410, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(cfg, text="OTRSP Direct", variable=self.BDec_C, value=4, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=540, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(cfg, text="Custom", variable=self.BDec_C, value=2, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=670, y=720, height=40)
+        self.B_Dec_C_Entry = tk.Entry(cfg, textvariable=self.CustomC, font=('Helvetica', 10))
+        self.B_Dec_C_Entry.place(x=750, y=730, height=20, width=60)         
+        self.B_Dec_C_Entry.bind('<Return>', self.get_CustomC)                
+        self.B_Dec_C_btn = tk.Button(cfg, text='Apply', command=self.Set_B_Dec_C_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_C_btn.place(x=840, y=725, height=30, width=100)
+ 
+
         self.update_cfg_win()
+
 
     def update_cfg_win(self):
         self.Cfg_Band_label.config(text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
@@ -1279,6 +1414,34 @@ class Cfg_Mtr(tk.Frame):
             temp_val = 1
         self.Curr0.set(temp_val)             
         print(self.Curr0.get())
+
+    def get_CustomIn(self, event):
+        temp_val = self.CustomIn_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomIn.set(temp_val)             
+        print(self.CustomIn.get())
+
+    def get_CustomA(self, event):
+        temp_val = self.CustomA_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomA.set(temp_val)             
+        print(self.CustomA.get())
+
+    def get_CustomB(self, event):
+        temp_val = self.CustomB_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomB.set(temp_val)             
+        print(self.CustomB.get())
+
+    def get_CustomC(self, event):
+        temp_val = self.CustomC_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomC.set(temp_val)             
+        print(self.CustomC.get())
 
     def Factory_Reset(self):      
         rx = Receiver()
