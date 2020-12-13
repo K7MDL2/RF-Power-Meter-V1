@@ -192,6 +192,7 @@ uint8_t Antenna_Select;    // byte value pattern overlaid on any nnumber of port
 #define TRANS_A                 (0x0031)  // byte 31,
 #define TRANS_B                 (0x0032)  // byte 32,
 #define TRANS_C                 (0x0033)  // byte 33
+#define DIS_OTRSP_BAND_CHANGE   (0x0034)  // byte 34 
 
 // start row 4 data
 #define CAL_TBL_ARR_OFFSET      (0x0040)  /* start row 2 and beyond  */
@@ -211,7 +212,6 @@ float Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP3
 uint8_t METERID = 100;    // tracks current Meter ID number   Resets to default_METERID.
 uint8_t CouplerSetNum = 0;   // 0 is the default set on power up.  
 uint8_t ser_data_out = 0;
-//uint8_t translate;  // mask to optionally translate input to output pins - ex - BCD to Bitwise or straight through
 uint8_t Reset_Flag = 0;
 uint32_t updateTime = 0;       // time for next update
 float Fwd_dBm = 0;

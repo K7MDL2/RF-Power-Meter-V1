@@ -1,6 +1,6 @@
 # pyRFPowerMeter.py
 
-from threading import Thread
+from threading import Thread, Timer
 import time
 import socket
 import select
@@ -189,6 +189,15 @@ FwdVal_Lo = ""
 RefVal_Hi = ""
 RefVal_Lo = ""
 hide_titlebar = FALSE
+Dis_OTRPS_Ch_flag = 0
+Inp_Val = 0
+PortA_Val = 0
+PortB_Val = 0
+PortC_Val = 0
+InputPort_pattern = 0
+PortA_pattern = 0
+PortB_pattern = 0
+PortC_pattern = 0
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -299,6 +308,15 @@ class Serial_RX(Thread):
         global FwdVal_Lo
         global RefVal_Hi
         global RefVal_Lo
+        global Dis_OTRPS_Ch_flag
+        global Inp_Val
+        global PortA_Val
+        global PortB_Val
+        global PortC_Val
+        global InputPort_pattern
+        global PortA_pattern
+        global PortB_pattern
+        global PortC_pattern
         
         try:
             if s_data != '':
@@ -324,6 +342,17 @@ class Serial_RX(Thread):
                         elif meter_data_tmp[1] == "162":   # Cmd progress message end
                             cmd_flag = 0                            
                             print(" -------------cmd flag = 0 -------------")
+                        elif meter_data_tmp[1] == "172":   # Get Band Decoder Translation Mode Values resulting from Message to CPU #60
+                            Dis_OTRPS_Ch_flag = meter_data_tmp[2]   # Get OTRSP band change enable state
+                            Inp_Val = meter_data_tmp[3]             # Band Decoder Input Port Translation Value
+                            PortA_Val = meter_data_tmp[4]           # Band Decoder Port A Translation Value
+                            PortB_Val = meter_data_tmp[5]           # Band Decoder Port B Translation Value
+                            PortC_Val = meter_data_tmp[6]           # Band Decoder Port C Translation Value
+                            InputPort_pattern = meter_data_tmp[7]   # Band Decoder Input Port Custom Pattern Value
+                            PortA_pattern = meter_data_tmp[8]       # Band Decoder Port A Custom Pattern Value
+                            PortB_pattern = meter_data_tmp[9]      # Band Decoder Port B Custom Pattern Value
+                            PortC_pattern = meter_data_tmp[10]      # Band Decoder Port C Custom Pattern Value
+                            print("Band Decoder Translation Mode Values from CPU = ", meter_data_tmp)
                         elif meter_data_tmp[1] == "171":   # voltage, current and temperature data
                             meter_data2 = meter_data_tmp  
                             #print(" HV, 14V, Curr and Temp Data = {}" .format(meter_data_tmp))      
@@ -1062,7 +1091,11 @@ class Cfg_Mtr(tk.Frame):
         rx.send_meter_cmd("65",self.BDec_In.get(), True)    
         if self.BDec_In.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Input Port using {}".format(self.CustomIn.get()))
-            rx.send_meter_cmd("69",self.CustomIn.get(), True)    
+            time.sleep(0.1)
+            rx.send_meter_cmd("69",self.CustomIn.get(), True)  
+        time.sleep(0.1)
+        self.GetDecoderValues()  
+        time.sleep(0.1)           
 
     def Set_B_Dec_A_Mode(self):
         rx = Receiver()
@@ -1070,7 +1103,11 @@ class Cfg_Mtr(tk.Frame):
         rx.send_meter_cmd("64",self.BDec_A.get(), True)    
         if self.BDec_A.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Output Port A using {}".format(self.CustomA.get()))
-            rx.send_meter_cmd("68",self.CustomA.get(), True)   
+            time.sleep(0.1)
+            rx.send_meter_cmd("68",self.CustomA.get(), True)
+        time.sleep(0.1)
+        self.GetDecoderValues()  
+        time.sleep(0.1)           
 
     def Set_B_Dec_B_Mode(self):
         rx = Receiver()
@@ -1078,7 +1115,11 @@ class Cfg_Mtr(tk.Frame):
         rx.send_meter_cmd("63",self.BDec_B.get(), True)    
         if self.BDec_B.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Output Port B using {}".format(self.CustomB.get()))
-            rx.send_meter_cmd("67",self.CustomB.get(), True)    
+            time.sleep(0.1)
+            rx.send_meter_cmd("67",self.CustomB.get(), True)
+        time.sleep(0.1)
+        self.GetDecoderValues()              
+        time.sleep(0.1)
 
     def Set_B_Dec_C_Mode(self):
         rx = Receiver()
@@ -1086,7 +1127,29 @@ class Cfg_Mtr(tk.Frame):
         rx.send_meter_cmd("62",self.BDec_C.get(), True)    
         if self.BDec_C.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Output Port C using {}".format(self.CustomC.get()))
-            rx.send_meter_cmd("66",self.CustomC.get(), True)     
+            time.sleep(0.1)
+            rx.send_meter_cmd("66",self.CustomC.get(), True)
+        time.sleep(0.1)  
+        self.GetDecoderValues()
+        time.sleep(0.1)
+
+    def Dis_OTRSP_Band_Change(self):   # Commit to EEPROM
+        rx = Receiver()
+        if self.Dis_OTRPS_Ch.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("DISABLE Band Change by OTRSP AUX1 Command")  
+            rx.send_meter_cmd("61","1", True)  
+        else:
+            print("ENABLE Band Change by OTRSP AUX1 Command")  
+            rx.send_meter_cmd("61","0", True) 
+        time.sleep(0.1)
+        self.GetDecoderValues()
+        time.sleep(0.1)
+    
+    def GetDecoderValues(self):   # Commit to EEPROM
+        rx = Receiver()
+        print("Retrieve Band Decoder Translation Modes and current band custom patterns")    # Used to prepopulate the Config Screen Band Decoder section to reflect current vlaues
+        rx.send_meter_cmd("60","", True)    # Will result in a reply message from CPU in message type 172 which will stash values into global variable
+        time.sleep(0.1)
 
     def Save_to_Meter(self):   # Commit to EEPROM
         rx = Receiver()
@@ -1106,14 +1169,23 @@ class Cfg_Mtr(tk.Frame):
     #   in a cfg file entry for future use
     # also read in a cfg file and save one back out.
     #start with issueing auto cal commands. Add factory reset button.
-    def Cfg_Window(self):                      
+    def Cfg_Window(self):   
+        global Dis_OTRPS_Ch_flag
+        global Inp_Val
+        global PortA_Val
+        global PortB_Val
+        global PortC_Val
+        global InputPort_pattern
+        global PortA_pattern
+        global PortB_pattern
+        global PortC_pattern                   
         print("Config Screen Goes Here")
         cfg = tk.Tk()      
         #   Later improve to save config file and remember the last position 
         screen_width = cfg.winfo_screenwidth()
         screen_height = cfg.winfo_screenheight()                
         w = 1000   # width of our app window
-        h = 800   # height of our app window
+        h = 830   # height of our app window
         x = screen_width/3
         y = screen_height/8
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
@@ -1145,9 +1217,9 @@ class Cfg_Mtr(tk.Frame):
         self.Measure_Units.set("dBm")
 
         self.Cal_Text = tk.Label(cfg,text='--------Calibrate Fwd and Ref Power Measurements--------', font=('Helvetica', 12, 'bold'), justify=LEFT)
-        self.Cal_Text.place(x=40, y=140, height=20)  #, width=w)
+        self.Cal_Text.place(x=40, y=140, height=20)
         self.Cal1_Text = tk.Label(cfg,text='1. Choose Units then enter high and low power levels for this band\n2. Transmit a steady carrier at each power level pushing Measure for each\n3. Push Cal Fwd Power or Cal Ref Power button to calculate', font=('Helvetica', 10), justify=LEFT)
-        self.Cal1_Text.place(x=40, y=160, height=60)  #, width=w)
+        self.Cal1_Text.place(x=40, y=160, height=60)
 
         self.P_Units = StringVar(cfg, "dBm")
         #self.var.set("dBm")
@@ -1183,7 +1255,7 @@ class Cfg_Mtr(tk.Frame):
         self.Cal_LoV_R_Text.place(x=350, y=330, height=20, width=110)      
 
         self.Cal_Text = tk.Label(cfg,text='After measuring both high and low power for a given direction\n(Fwd or Ref) push the appropriate button to calibrate on this band\nCommit changes with Save to Meter button', font=('Helvetica', 10))  #, 'bold'))
-        self.Cal_Text.place(x=40, y=360, height=60)  #, width=w-20)
+        self.Cal_Text.place(x=40, y=360, height=60)
 
         self.Cal_Fwd_btn = tk.Button(cfg, text='Cal Fwd\nPower', command=self.Cal_Fwd, font=('Helvetica', 12, 'bold'), state='disabled')
         self.Cal_Fwd_btn.place(x=80, y=430, height=60, width=100) 
@@ -1254,26 +1326,30 @@ class Cfg_Mtr(tk.Frame):
 
         #  Band Decoder Configuration
         self.CustomIn = StringVar(cfg)
-        self.CustomIn.set(0)  # default entry
-        self.CustomA = StringVar(cfg)
-        self.CustomA.set(0)  # default entry
-        self.CustomB = StringVar(cfg)
-        self.CustomB.set(0)  # default entry
+        # Preset this value by reading results of Message 60 query when this window opened        
+        self.CustomA = StringVar(cfg)        
+        self.CustomB = StringVar(cfg)        
         self.CustomC = StringVar(cfg)
-        self.CustomC.set(0)  # default entry
         self.BDec_In = IntVar(cfg)
-        self.BDec_In.set(0)
         self.BDec_A = IntVar(cfg)
-        self.BDec_A.set(0)
         self.BDec_B = IntVar(cfg)
-        self.BDec_B.set(0)
         self.BDec_C = IntVar(cfg)
-        self.BDec_C.set(0)
+        self.Dis_OTRPS_Ch = IntVar(cfg)
+        self.Update_cfg_Decoder()
+        self.CustomIn.set(InputPort_pattern)  # default entry
+        self.CustomA.set(PortA_pattern)  # default entry
+        self.CustomB.set(PortB_pattern)  # default entry
+        self.CustomC.set(PortC_pattern)  # default entry
+        self.BDec_In.set(Inp_Val)
+        self.BDec_A.set(PortA_Val)
+        self.BDec_B.set(PortB_Val)
+        self.BDec_C.set(PortC_Val)
+        self.Dis_OTRPS_Ch.set(Dis_OTRPS_Ch_flag)
 
         self.B_Decode_Text = tk.Label(cfg,text='------------Band Decoder Configuration------------', font=('Helvetica', 12, 'bold'))
         self.B_Decode_Text.place(x=340, y=490, height=60)
 
-        self.B_Decode1_Text = tk.Label(cfg,text='Choose the Translation Mode ports will use on this band. If \'Custom\' then enter the pattern in decimal form.  Press Apply when complete', font=('Helvetica', 10))
+        self.B_Decode1_Text = tk.Label(cfg,text='Choose the Translation Mode ports will use on this band. If \'Custom\' then enter the pattern in decimal form.  Press Apply when complete.', font=('Helvetica', 10))
         self.B_Decode1_Text.place(x=80, y=530, height=60)
 
         self.B_Dec_In_Text = tk.Label(cfg,text='Input Port Mode ', font=('Helvetica', 10, 'bold'), justify='right')
@@ -1316,6 +1392,7 @@ class Cfg_Mtr(tk.Frame):
 
         self.B_Dec_B_Text = tk.Label(cfg,text='Port B Mode ', font=('Helvetica', 10, 'bold'), justify='right')
         self.B_Dec_B_Text.place(x=25, y=670, height=40, width=210)
+
         self.B_Dec_B_Radio = tk.Radiobutton(cfg, text="Transparent", variable=self.BDec_B, value=0, font=('Helvetica', 10))
         self.B_Dec_B_Radio.place(x=220, y=670, height=40)
         self.B_Dec_B_Radio = tk.Radiobutton(cfg, text="1-of-8", variable=self.BDec_B, value=1, font=('Helvetica', 10))
@@ -1352,14 +1429,28 @@ class Cfg_Mtr(tk.Frame):
         self.B_Dec_C_Entry.bind('<Return>', self.get_CustomC)                
         self.B_Dec_C_btn = tk.Button(cfg, text='Apply', command=self.Set_B_Dec_C_Mode, font=('Helvetica', 10, 'bold'))
         self.B_Dec_C_btn.place(x=840, y=725, height=30, width=100)
- 
+        self.B_Dec_Disable = tk.Checkbutton(cfg, text='Disable Band Change on OTRSP Commands', variable=self.Dis_OTRPS_Ch, onvalue=1, command=self.Dis_OTRSP_Band_Change, font=('Helvetica', 10))
+        self.B_Dec_Disable.place(x=80, y=760, height=40)
 
+        #self.Update_cfg_Decoder()
         self.update_cfg_win()
-
 
     def update_cfg_win(self):
         self.Cfg_Band_label.config(text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
-        self.Cfg_Band_label.after(500, self.update_cfg_win)    
+        self.Cfg_Band_label.after(500, self.update_cfg_win)   
+
+    def Update_cfg_Decoder(self):  
+        self.GetDecoderValues()
+        time.sleep(0.1)
+        self.CustomIn.set(InputPort_pattern)
+        self.CustomA.set(PortA_pattern)
+        self.CustomB.set(PortB_pattern)
+        self.CustomC.set(PortC_pattern)
+        self.BDec_In.set(Inp_Val)
+        self.BDec_A.set(PortA_Val)
+        self.BDec_B.set(PortB_Val)
+        self.BDec_C.set(PortC_Val)
+        self.Dis_OTRPS_Ch.set(Dis_OTRPS_Ch_flag)
       
     def Choice_Units(self):
         #print(self.Measure_Units.get())
@@ -1421,6 +1512,7 @@ class Cfg_Mtr(tk.Frame):
             temp_val = 1
         self.CustomIn.set(temp_val)             
         print(self.CustomIn.get())
+        self.Update_cfg_Decoder()
 
     def get_CustomA(self, event):
         temp_val = self.CustomA_Entry.get()
@@ -1428,6 +1520,7 @@ class Cfg_Mtr(tk.Frame):
             temp_val = 1
         self.CustomA.set(temp_val)             
         print(self.CustomA.get())
+        self.Update_cfg_Decoder()        
 
     def get_CustomB(self, event):
         temp_val = self.CustomB_Entry.get()
@@ -1435,6 +1528,7 @@ class Cfg_Mtr(tk.Frame):
             temp_val = 1
         self.CustomB.set(temp_val)             
         print(self.CustomB.get())
+        self.Update_cfg_Decoder()        
 
     def get_CustomC(self, event):
         temp_val = self.CustomC_Entry.get()
@@ -1442,6 +1536,7 @@ class Cfg_Mtr(tk.Frame):
             temp_val = 1
         self.CustomC.set(temp_val)             
         print(self.CustomC.get())
+        self.Update_cfg_Decoder()
 
     def Factory_Reset(self):      
         rx = Receiver()

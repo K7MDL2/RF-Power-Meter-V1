@@ -1895,19 +1895,41 @@ void get_remote_cmd()
                         }
                         if (cmd1 == 65)  // Set or Clear Band Decoder Output translate options
                         {                          
-                            EEPROM.update(TRANS_INPUT,cmd2);  // 
+                            EEPROM.update(TRANS_INPUT,cmd2);
                         }
                         if (cmd1 == 64)  // Set or Clear Band Decoder Input translate mode
                         {                          
-                            EEPROM.update(TRANS_A,cmd2);  // 
+                            EEPROM.update(TRANS_A,cmd2);
                         }
                         if (cmd1 == 63)  // Set or Clear Band Decoder Output translate mode
                         {                          
-                            EEPROM.update(TRANS_B,cmd2);  // 
+                            EEPROM.update(TRANS_B,cmd2);
                         }
                         if (cmd1 == 62)  // Set or Clear Band Decoder Output translate mode
                         {                          
-                            EEPROM.update(TRANS_C,cmd2);  // 
+                            EEPROM.update(TRANS_C,cmd2);
+                        }
+                        if (cmd1 == 61)  // Set Disable Band Change by OTRSP command
+                        {              
+                            if (cmd2 == 0)          
+                              EEPROM.update(DIS_OTRSP_BAND_CHANGE, 0);    // 0 = Enable (Default)
+                            if (cmd2 == 1)
+                              EEPROM.update(DIS_OTRSP_BAND_CHANGE, 1);    // 1 = Disable
+                        }
+                        if (cmd1 == 60)  // Set or Clear Band Decoder Output translate mode
+                        {                          
+                            sprintf((char *) tx_buffer,"%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n%c", METERID, "172", \
+                                EEPROM.read(DIS_OTRSP_BAND_CHANGE), \
+                                EEPROM.read(TRANS_INPUT), \
+                                EEPROM.read(TRANS_A), \
+                                EEPROM.read(TRANS_B), \
+                                EEPROM.read(TRANS_C), \
+                                Band_Cal_Table[CouplerSetNum].band_input_pattern, \
+                                Band_Cal_Table[CouplerSetNum].band_A_output_pattern,  \
+                                Band_Cal_Table[CouplerSetNum].band_B_output_pattern, \
+                                Band_Cal_Table[CouplerSetNum].band_C_output_pattern, \
+                                '\0');       
+                            serial_usb_write();  
                         }
                     } // end of msg_type 120                                      
                 } // end of msg_type length check
@@ -2035,8 +2057,8 @@ void read_Arduino_EEPROM()
         setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
         curr_zero_offset = atof(setpoint_buf);  
         // Start row 3
-        //Translate options using first 4 bytes of row 3 - read and write directly to EEPROM, no variable used.
-        // They are initiallzed in write_Cal_Table_from_Default() fucntion.
+        //Translate options using first 5 bytes of row 3 - read and write directly to EEPROM, no variable used.
+        // They are initialized in write_Cal_Table_from_Default() fucntion.
     
   // Now get the band table struct data   
    for (i=0; i<NUM_SETS; i++) 
@@ -2248,6 +2270,7 @@ void write_Cal_Table_from_Default()
     EEPROM.update(TRANS_A, 0);    // Used for pass thorugh to 5 band transverter
     EEPROM.update(TRANS_B, 2);    // Used to select antennas or amps
     EEPROM.update(TRANS_C, 2);    // Used to select antennas or amps
+    EEPROM.update(DIS_OTRSP_BAND_CHANGE, 0);    // 1 = DIsable, 0 = Enable (Default)
     /*  for debug
     RFWM_Serial.println(" Write Cal From Default");
     RFWM_Serial.println(op_mode);
