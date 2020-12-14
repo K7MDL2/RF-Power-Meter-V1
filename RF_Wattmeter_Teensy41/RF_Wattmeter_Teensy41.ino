@@ -385,18 +385,24 @@ void loop() {
         {
             ret1 = OTRSP_Process();  
             if (ret1)   // True if we got a valid AUX or BAND command
-            {
-                Button_B = YES;  // Process any N1MM Aux port commands on UART
-                NewBand = AuxNum1;  // Use AUX 1 to change the wattmeter band
-                //Band_Decode_A_Output(AuxNum1);
-                //RFWM_Serial.print(" New Band # = ");
-                //RFWM_Serial.println(NewBand);              
-                //Band_Decode_B_Output(AuxNum1);   // zero the output pins for port A
-                //RFWM_Serial.print(" Auxnum1 = ");
-                //RFWM_Serial.println(AuxNum1);
-                //Band_Decode_C_Output(AuxNum2);   // zero the output pins for port B
-                //RFWM_Serial.print(" Auxnum2 = ");
-                //RFWM_Serial.println(AuxNum2);
+            { 
+                if (!EEPROM.read(DIS_OTRSP_BAND_CHANGE))
+                {
+                    // If 1 then Disable is active.   Default is 0, change bands with AUX1 changes.
+                    Button_B = YES;  // Process any N1MM Aux port commands on UART                  
+                    NewBand = AuxNum1;  // Use AUX 1 to change the wattmeter band
+                    //Band_Decode_A_Output(AuxNum1);
+                    //RFWM_Serial.print(" New Band # = ");
+                    //RFWM_Serial.println(NewBand);              
+                    //Band_Decode_B_Output(AuxNum1);   // zero the output pins for port A
+                    //RFWM_Serial.print(" Auxnum1 = ");
+                    //RFWM_Serial.println(AuxNum1);
+                    //Band_Decode_C_Output(AuxNum2);   // zero the output pins for port B
+                    //RFWM_Serial.print(" Auxnum2 = ");
+                    //RFWM_Serial.println(AuxNum2);
+                }
+                else
+                    RFWM_Serial.print(" OTRSP sourced band changes are Disabled");
             }
         }     
             

@@ -1000,7 +1000,8 @@ class Cfg_Mtr(tk.Frame):
         # Call superclass constructor
         super().__init__(master) 
         self.Hi_Flag = 0
-        self.Lo_Flag = 0     
+        self.Lo_Flag = 0
+        self.Old_Band = 0
         self.Cfg_Window()
         self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
 
@@ -1437,12 +1438,14 @@ class Cfg_Mtr(tk.Frame):
         self.B_Dec_C_btn.place(x=840, y=725, height=30, width=100)
         self.B_Dec_Disable = tk.Checkbutton(cfg, text='Disable Band Change on OTRSP Commands', variable=self.Dis_OTRPS_Ch, onvalue=1, command=self.Dis_OTRSP_Band_Change, font=('Helvetica', 10))
         self.B_Dec_Disable.place(x=80, y=760, height=40)
-
-        #self.Update_cfg_Decoder()
+        
         self.update_cfg_win()
 
     def update_cfg_win(self):
         self.Cfg_Band_label.config(text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        if meter_data[2] != self.Old_Band:
+            self.Update_cfg_Decoder()
+        self.Old_Band = meter_data[2]
         self.Cfg_Band_label.after(500, self.update_cfg_win)   
 
     def Update_cfg_Decoder(self):  
