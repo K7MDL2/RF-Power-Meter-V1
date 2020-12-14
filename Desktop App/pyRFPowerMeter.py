@@ -11,9 +11,14 @@ import tkinter as tk
 import tkinter.font as tkFont
 from tkinter import *
 from tkinter.filedialog import askopenfilename
+
+print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__,__name__,str(__package__)))
+
+import pywsjtx.wsjtx_packets as pywsjtx
 import pywsjtx.extra.simple_server
 import tkinter.messagebox
 import ctypes
+
 
 PowerMeterVersionNum = "2.3"
 # pyRFPowerMeter  Version 2.3  Nov 24, 2020
@@ -413,6 +418,7 @@ class Receiver(Thread):
         self.keep_running = True
         global s
         s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
+        #s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
         # print(" Starting network thread")
 
     def stop(self):
@@ -1657,7 +1663,8 @@ if __name__ == '__main__':
 
         meterid_label = tk.Label(dialog, text='Meter ID: {}' .format(myRig_meter_ID), font=('Helvetica',12), padx=0, pady=6)
         meterid_label.place(x=180, y=0)                
-        meterid_listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2)      
+        meterid_listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2)   
+        m = 0   
         for m in range(100,120):
             meterid_listbox.insert(END, m) 
 
