@@ -11,32 +11,52 @@ By default Port A will mirror the input pins, useful for intercepting a BCD or 1
 
 2 additional ports of 8 pins can serve amps and antennas or power meter coupler selection.
 
-A cool feature is the variety of translation modes for every port except as noted.  Each port generally has 5 translation modes. 
-1. Transparent
-  a. For input port read input as presented.
-  b. For output ports write the input value direct to the output if enabled on that port.
-2. 1-of-8 decode
-  a. For input ports look for the first high bit and grab the value.
-  b. For output ports the input value's is converted a demuxed value. Only one port pin goes high. The pin number matches the value. Valid values are 0-7 equating to pins 0-7).
-3. Custom pattern (unique value stored per port, per band)
-  a. For the input port it is used to search the Cal_table for a band with a matching record then change to that band
-  b. For an output port write the pattern stored in that bands Port X field.  Enables can use this to emulate BCD or 1 of 8 type operation also.
-  c. Can set a pattern to split the bits (thus pin) to operate multiple equipment on each band change.
-  d. This is one way to link all 3 ouput ports to each band change. You can change bands while the Config Screen is up and the custom values will update to that bands values.
-  e. Port C will ignore AUX2 commands when it is set to the is mode.  The port follows the band change (from any source).  
-4. OTRSP Lookup  
-  a. Output Ports only. AUX 1 is mapped to Port A and Port B.  AUX2 is mapped to Port C so it is independent of any other source of band changes.
-  b. Will use the band matching AUXx value's custom value field on the output pins. Ignores the actual band change process.  Similar to Custom but only for Port A and B.
-  c. Changing AUX2 will use the Port C values per band and does not affect Port A or B.  In Custom mode Port C follows the band change, here it does not.
-  d. This is a way to link up Ports A and B output ports if each ports is first configured with a custom mode value that is the same (per band).  You can change bands while the Config Screen is up and the custom values will update to that bands values.
-  e. If Disable OTRSP Band Change is active, The band will not change on AUX1 commands. All ports (with this feature enabled) will update according to the received AUXx value.  This makes the port follow N1MM commands only without changing bands using the band's custom values for each port, per band.
-5. OTRSP Direct
-  a. Output Ports only. AUX 1 is mapped to Port A and Port B.  AUX2 is mapped to Port C.
-  b. Ignores any band relationship though the band will still change unless the Disable OTRSP Band Change option is on. The value from the AUX command is directly presented on the port pins.
-6. Disable Band Change on OTRSP Commands 
-  a. Enabled by default.  The band will change to match a new OTRSP AUX1 (only) command if sent.  AUX 2 never changes the Decoder band, just Port C.
-  b. When Disabled, OTRSP messages do not change bands. AUX commands still apply to the output ports when appropriate.  The Decoder still follows band changes from other sources.
-  c. This makes the decoder an extension of N1MM directly controlling the 3 ports, A+B by AUX1 and Port C by AUX2 ignoring other sources.  If the decoder receives band change info from other sources like the Desktop App or the Input Port, possibly initiated by N1MM via a radio control port connection, then the decoder band will change and the results should look the same as OTRSP Direct. If there are no other sources active then N1MM has complete control. If this is what you need then do not operate the Desktop App buttons and consider not connecting the hardware input port. Can get the same effect if all 3 ports were set for OTRSP Direct.
+### The Decoder Modes:
+A cool feature is the variety of translation modes for every port except as noted.  Each port generally has 5 translation modes.
+    
+    1. Transparent
+      a. For input port read input as presented.
+      b. For output ports write the input value direct to the output if enabled on that port. 
+      
+    2. 1-of-8 decode
+      a. For input ports look for the first high bit and grab the value.
+      b. For output ports the input value's is converted a demuxed value. Only one port pin goes high. The pin number matches the value. 
+          Valid values are 0-7 equating to pins 0-7).
+          
+    3. Custom pattern (unique value stored per port, per band)
+      a. For the input port it is used to search the Cal_table for a band with a matching record then change to that band
+      b. For an output port write the pattern stored in that bands Port X field.  Enables can use this to emulate BCD or 1 of 8 type operation also.
+      c. Can set a pattern to split the bits (thus pin) to operate multiple equipment on each band change.
+      d. This is one way to link all 3 ouput ports to each band change. 
+          You can change bands while the Config Screen is up and the custom values will update to that band's values.
+      e. Port C will ignore AUX2 commands when it is set to the is mode.  The port follows the band change (from any source).  
+      
+    4. OTRSP Lookup  
+      a. Output Ports only. AUX 1 is mapped to Port A and Port B.  AUX2 is mapped to Port C so it is independent of any other source of band changes.
+      b. Will use the band matching AUXx value's custom value field on the output pins. Ignores the actual band change process.  
+          Similar to Custom but only for Port A and B.
+      c. Changing AUX2 will use the Port C values per band and does not affect Port A or B.  
+          In Custom mode Port C follows the band change, here it does not.
+      d. This is a way to link up Ports A and B output ports if each ports is first configured with a custom mode value that is the same (per band).
+          You can change bands while the Config Screen is up and the custom values will update to that bands values.   
+      e. If Disable OTRSP Band Change is active, The band will not change on AUX1 commands. All ports (with this feature enabled) will update according to 
+          the received AUXx value.  This makes the port follow N1MM commands only without changing bands using the band's custom values for each port, per band.
+          
+    5. OTRSP Direct
+      a. Output Ports only. AUX 1 is mapped to Port A and Port B.  AUX2 is mapped to Port C.
+      b. Ignores any band relationship though the band will still change unless the Disable OTRSP Band Change option is on. 
+          The value from the AUX command is directly presented on the port pins.
+          
+    6. Disable Band Change on OTRSP Commands 
+      a. Enabled by default.  The band will change to match a new OTRSP AUX1 (only) command if sent.  
+          AUX 2 never changes the Decoder band, just Port C.
+      b. When Disabled, OTRSP messages do not change bands. AUX commands still apply to the output ports when appropriate.
+          The Decoder still follows band changes from other sources.
+      c. This makes the decoder an extension of N1MM directly controlling the 3 ports, A+B by AUX1 and Port C by AUX2 ignoring other sources.
+          If the decoder receives band change info from other sources like the Desktop App or the Input Port, possibly initiated by N1MM via
+          a radio control port connection, then the decoder band will change and the results should look the same as OTRSP Direct. If there are
+          no other sources active then N1MM has complete control. If this is what you need then do not operate the Desktop App buttons and
+          consider not connecting the hardware input port. Can get the same effect if all 3 ports were set for OTRSP Direct.
 
 This is all stored in EEPROM.  Also fixed a bug where I calculated the EEPROM size of the main data table wrong causing a lack of EEPROM storage.  There is plenty of EEPROM after this fix, 11 bands and state variables consume a tad over 1K.
 
