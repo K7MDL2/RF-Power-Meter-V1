@@ -2,31 +2,74 @@
 
 *** Release V2 created July 1, 2020 ***
 
-New for 12/12/2020 - 
-Added full featured Band Decoder functionality
+New for 12/12/2020 - Updated 12/13 with App UI Band Decoder configuration
+Added a full featured Band Decoder function with updated Desktop App Configuration page.
 
-Now either OTRSP or the 6 Band-Input pins can work to change bands and will send data out 3x 8-bit ports, A, B and C.
+Either OTRSP serial commands or a hardware band input port (with 6 pins) can work to change bands and will operate 3x 8-bit ports, A, B and C.
 
-By default port A will mirror the input pins, useful for intercepting a BCD or 1-of-8 Band decoder from a radio on the input port then pass it on through Port A to a stack of transverters, or the Q5 Signal 5-Band transverter.
+By default Port A will mirror the input pins, useful for intercepting a BCD or 1-of-8 Band decoder from a radio on the input port then pass it on through Port A to a stack of transverters, or the Q5 Signal 5-Band transverter.
 
 2 additional ports of 8 pins can serve amps and antennas or power meter coupler selection.
 
-A cool feature is the variety of translation modes for every port.  Each port generally has 4 translation modes. 
-1. Transparent
-2. 1-of-8 decode
-3. Custom pattern (per band),
-4. OTRSP value from AUX commands.
+### The Decoder Modes:
+A cool feature is the variety of translation modes for every port except as noted.  Each port generally has 5 translation modes.
+    
+    1. Transparent
+      a. For input port read input as presented.
+      b. For output ports write the input value direct to the output if enabled on that port. 
+      
+    2. 1-of-8 decode
+      a. For input ports look for the first high bit and grab the value.
+      b. For output ports the input value's is converted a demuxed value. Only one port pin goes high. The pin number matches the value. 
+          Valid values are 0-7 equating to pins 0-7).
+          
+    3. Custom pattern (unique value stored per port, per band)
+      a. For the input port it is used to search the Cal_table for a band with a matching record then change to that band
+      b. For an output port write the pattern stored in that bands Port X field.  Enables can use this to emulate BCD or 1 of 8 type operation also.
+      c. Can set a pattern to split the bits (thus pin) to operate multiple equipment on each band change.
+      d. This is one way to link all 3 ouput ports to each band change. 
+          You can change bands while the Config Screen is up and the custom values will update to that band's values.
+      e. Port C will ignore AUX2 commands when it is set to the is mode.  The port follows the band change (from any source).  
+      
+    4. OTRSP Lookup  
+      a. Output Ports only. AUX 1 is mapped to Port A and Port B.  AUX2 is mapped to Port C so it is independent of any other source of band changes.
+      b. Will use the band matching AUXx value's custom value field on the output pins. Ignores the actual band change process.  
+          Similar to Custom but only for Port A and B.
+      c. Changing AUX2 will use the Port C values per band and does not affect Port A or B.  
+          In Custom mode Port C follows the band change, here it does not.
+      d. This is a way to link up Ports A and B output ports if each ports is first configured with a custom mode value that is the same (per band).
+          You can change bands while the Config Screen is up and the custom values will update to that bands values.   
+      e. If Disable OTRSP Band Change is active, The band will not change on AUX1 commands. All ports (with this feature enabled) will update according to 
+          the received AUXx value.  This makes the port follow N1MM commands only without changing bands using the band's custom values for each port, per band.
+          
+    5. OTRSP Direct
+      a. Output Ports only. AUX 1 is mapped to Port A and Port B.  AUX2 is mapped to Port C.
+      b. Ignores any band relationship though the band will still change unless the Disable OTRSP Band Change option is on. 
+          The value from the AUX command is directly presented on the port pins.
+          
+    6. Disable Band Change on OTRSP Commands 
+      a. Enabled by default.  The band will change to match a new OTRSP AUX1 (only) command if sent.  
+          AUX 2 never changes the Decoder band, just Port C.
+      b. When Disabled, OTRSP messages do not change bands. AUX commands still apply to the output ports when appropriate.
+          The Decoder still follows band changes from other sources.
+      c. This makes the decoder an extension of N1MM directly controlling the 3 ports, A+B by AUX1 and Port C by AUX2 ignoring other sources.
+          If the decoder receives band change info from other sources like the Desktop App or the Input Port, possibly initiated by N1MM via
+          a radio control port connection, then the decoder band will change and the results should look the same as OTRSP Direct. If there are
+          no other sources active then N1MM has complete control. If this is what you need then do not operate the Desktop App buttons and
+          consider not connecting the hardware input port. Can get the same effect if all 3 ports were set for OTRSP Direct.
 
 This is all stored in EEPROM.  Also fixed a bug where I calculated the EEPROM size of the main data table wrong causing a lack of EEPROM storage.  There is plenty of EEPROM after this fix, 11 bands and state variables consume a tad over 1K.
 
-This work is tailored for the Teensy 4.1 and changes will be ported back to the PSoC5 platform.  Other Arduinos might work but I am using 2 USB serial ports (Main data and OTRSP), 1 hardware port (Nextion, optional) and over 1K of EEPROM.
+This work was done on a Teensy 4.1 and changes will be ported back to the PSoC5 platform.  Other Arduinos should work with some mods depending on the platform capabilities. I am using 2 USB serial ports (Main data and OTRSP), 1 hardware serial port (Nextion, optional), I2C port for OLED display (optional), and over 1K of EEPROM. Can reassign the OTRSP port, if used, to a hardeware serial port.  Can reduce the number of band records to fit into available EEPROM space.  Many of these features have an #ifdef created to skip these features at compile time if not wanted.  This is both the RF Wattmeter and Band Decoder in one.  Limitations of the internal Arduino ADCs need to be considered for RF power measurement detectors that have a small output voltage range. This can be worked around with external high resolutions ADC or amplification.  The Teensy is only 10Bit with the 3.3V power supply and reference.  Set expectations approriately. The PSoC5 has an internal 20bit ADC with optional on-chip PGA and multiple ref voltage options.
 
-The Toggle Serial feature is used to suppress the data ouput to make seeing debug messages easier. This is disabled for now becaue the Desktop app cannot seems to rx chracters or it cannot serve commands including turning the data back on.  Teh CPU is OK, can manually toggle data OK.
+Known problems:
+1. Desktop App: - No user impact. The Toggle Serial feature is used to suppress the data output to make seeing debug messages easier. This is disabled for now because the Desktop app cannot seems to RxD characters or it cannot serve commands including turning the data back on.  The CPU is OK, can manually toggle data OK.
+2. Desktop App: - No user impact. Observed that a 0.1 second delay is required between issuing a CPU command and receiving a reply if expected.  This is likely a queuing problem in the Serial Thread of the Python app.  This is annoying when trying to update button status for long duration opersations or some configure actions that require a status update to refresh a screen.  The delays used today in the app may be installation/platform specific so are not a great solution.
 
-Work remains to create configuration screens on the Nextion and the Desktop App. New serial port commands 62-69 exist to support this.
-
-An area left to debug is the CW and PTT control from N1MM serial ports using DTR and RTS signals.  This works on the PSoC5 but I have yet to make it work on the Arduino.
-
+Unfinished planned work:
+1. Create configuration screens on the Nextion display for Band Decoder and for Voltage, Current and Temperature inputs. Can use the Desktop app for all of this today.
+2. N1MM CW and PTT control using DTR and RTS signals over USB Serial Port is not working yet. This works on the PSoC5 but I have yet to make it work on the Arduino.
+3. Need to add debouncing to the Input Port pins.
 
 *** V2.4 updated on Master Branch on 12/12/2020.   This is the first working port from the PSoC5 to Arduino Teensy 4.1.  I have switched to the standard Arduino Nextion library fixing and resolved all warnings in the Nextion libary and the project compile. Everything seems to be working now except LoRa which is still the PSoC5 version so should remain disabled for now.  The OTRSP code has been reworked as well and now seems very robust and can decode BANDxY and AUXxYY commands from a 2nd serial port.  For the Teensy 4.1, in the Arduino IDE setup Dual USB ports. Serial is the main port, SerialUSB1 is the 2nd assigned to OTRSP comms.  The Desktop App works equally well with PSoC5 or this Teensy Arduino build.  Band decoding input should work but the output requires more coding and pin assignments. More below.  
 
