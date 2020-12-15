@@ -3,7 +3,7 @@
 *** Release V2 created July 1, 2020 ***
 
 New for 12/12/2020 - Updated 12/13 with App UI Band Decoder configuration
-Added a full featured Band Decoder function with updated Desktop App Configuration page.
+Added a full featured Band Decoder function with updated Desktop App Configuration page.  Band Decoder feature is only on the Aduiino Teensy 4.1.  PSoC5 will be updated to match soon.  Program will not fit on a Nano but does fit on the Mega2560.  Uses about 500bytes of EEPROM.  IO count and maybe serial port count can be a key factor depending on needs.
 
 Either OTRSP serial commands or a hardware band input port (with 6 pins) can work to change bands and will operate 3x 8-bit ports, A, B and C.
 
