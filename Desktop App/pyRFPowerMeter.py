@@ -203,6 +203,12 @@ InputPort_pattern = 0
 PortA_pattern = 0
 PortB_pattern = 0
 PortC_pattern = 0
+PTT_IN_POLARITY_Val = 0
+PTT_OUT_POLARITY_Val = 0
+CW_KEY_OUT_POLARITY_val = 0
+PORTA_IS_PTT_Val = 0
+PORTB_IS_PTT_Val = 0
+PORTC_IS_PTT_Val = 0
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -322,6 +328,12 @@ class Serial_RX(Thread):
         global PortA_pattern
         global PortB_pattern
         global PortC_pattern
+        global PTT_IN_POLARITY_Val
+        global PTT_OUT_POLARITY_Val
+        global CW_KEY_OUT_POLARITY_val
+        global PORTA_IS_PTT_Val
+        global PORTB_IS_PTT_Val
+        global PORTC_IS_PTT_Val
         
         try:
             if s_data != '':
@@ -357,6 +369,12 @@ class Serial_RX(Thread):
                             PortA_pattern = meter_data_tmp[8]       # Band Decoder Port A Custom Pattern Value
                             PortB_pattern = meter_data_tmp[9]      # Band Decoder Port B Custom Pattern Value
                             PortC_pattern = meter_data_tmp[10]      # Band Decoder Port C Custom Pattern Value
+                            PTT_IN_POLARITY_Val = meter_data_tmp[11]     # Band Decoder PTT input Active HI/LO
+                            PTT_OUT_POLARITY_Val = meter_data_tmp[12]    # Band Decoder PTT output Active HI/LO
+                            CW_KEY_OUT_POLARITY_val = meter_data_tmp[13]    # Band Decoder CW_KET from OTRSP Active HI/LO
+                            PORTA_IS_PTT_Val = meter_data_tmp[14]    # Band Decoder PortA follow PTT Active HI/LO
+                            PORTB_IS_PTT_Val = meter_data_tmp[15]    # Band Decoder PortB follow PTT Active HI/LO
+                            PORTC_IS_PTT_Val = meter_data_tmp[16]    # Band Decoder PortC follow PTT Active HI/LO
                             print("Band Decoder Translation Mode Values from CPU = ", meter_data_tmp)
                         elif meter_data_tmp[1] == "171":   # voltage, current and temperature data
                             meter_data2 = meter_data_tmp  
@@ -1151,6 +1169,87 @@ class Cfg_Mtr(tk.Frame):
         time.sleep(0.1)
         self.GetDecoderValues()
         time.sleep(0.1)
+
+    def PTT_Input_Polarity(self):   # Commit to EEPROM
+        rx = Receiver()
+        if self.PTT_IN_pol.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set PTT Input to Active HI mode")  
+            rx.send_meter_cmd("59","1", True)  
+        else:
+            print("Set PTT Input to Active LOW mode")  
+            rx.send_meter_cmd("59","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+    
+    def PTT_Ouput_Polarity(self):   # Commit to EEPROM
+        rx = Receiver()
+        if self.PTT_OUT_pol.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set PTT Output to Active HI mode")  
+            rx.send_meter_cmd("58","1", True)  
+        else:
+            print("Set PTT Output to Active LOW mode")  
+            rx.send_meter_cmd("58","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+    
+    def CW_Key_Polarity(self):   # Commit to EEPROM
+        rx = Receiver()
+        if self.CW_KEY_OUT_pol.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set CW Key Out to Active HI mode")  
+            rx.send_meter_cmd("57","1", True)  
+        else:
+            print("Set CW Key Out to Active LOW mode")  
+            rx.send_meter_cmd("57","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+
+    def PortA_is_PTT(self):   # Commit to EEPROM
+        rx = Receiver()
+        if self.PORTA_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Set Port A PTT Mode to Active HI mode")  
+            rx.send_meter_cmd("56","2", True)  
+        elif self.PORTA_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set Port A PTT Mode to Active LOW mode")  
+            rx.send_meter_cmd("56","1", True)  
+        else:
+            print("Set Port A PTT Mode OFF")  
+            rx.send_meter_cmd("56","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+
+    def PortB_is_PTT(self):   # Commit to EEPROM
+        rx = Receiver()
+        if self.PORTB_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Set Port B PTT Mode to Active HI mode")  
+            rx.send_meter_cmd("55","2", True)  
+        elif self.PORTB_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set Port B PTT Mode to Active LOW mode")  
+            rx.send_meter_cmd("55","1", True)  
+        else:
+            print("Set Port B PTT Mode to OFF")
+            rx.send_meter_cmd("55","0", True)   
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+
+    def PortC_is_PTT(self):   # Commit to EEPROM
+        rx = Receiver()
+        if self.PORTC_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Set Port C PTT Mode to Active HI mode")  
+            rx.send_meter_cmd("54","2", True)  
+        elif self.PORTC_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set Port C PTT Mode to Active LOW mode")  
+            rx.send_meter_cmd("54","1", True)  
+        else:
+            print("Set Port C PTT Mode to OFF")  
+            rx.send_meter_cmd("54","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
     
     def GetDecoderValues(self):   # Commit to EEPROM
         rx = Receiver()
@@ -1166,7 +1265,7 @@ class Cfg_Mtr(tk.Frame):
     def Toggle_Ser_Data(self):
         rx = Receiver()
         print("Toggle Meter Data Output Stream")
-        rx.send_meter_cmd("239","", True)    
+        rx.send_meter_cmd("239","1", True)    
     
     def Show_MeterID(self):
         print("Meter ID received is ", meter_data[0])
@@ -1185,16 +1284,22 @@ class Cfg_Mtr(tk.Frame):
         global InputPort_pattern
         global PortA_pattern
         global PortB_pattern
-        global PortC_pattern                   
+        global PortC_pattern
+        global PTT_IN_POLARITY_Val
+        global PTT_OUT_POLARITY_Val
+        global CW_KEY_OUT_POLARITY_val
+        global PORTA_IS_PTT_Val
+        global PORTB_IS_PTT_Val
+        global PORTC_IS_PTT_Val                
         print("Config Screen Goes Here")
         cfg = tk.Tk()      
         #   Later improve to save config file and remember the last position 
         screen_width = cfg.winfo_screenwidth()
         screen_height = cfg.winfo_screenheight()                
         w = 1000   # width of our app window
-        h = 830   # height of our app window
+        h = 940   # height of our app window
         x = screen_width/3
-        y = screen_height/8
+        y = screen_height/30
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
         cfg.title("Remote Wattmeter Configuration Editor")
         cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
@@ -1342,6 +1447,13 @@ class Cfg_Mtr(tk.Frame):
         self.BDec_B = IntVar(cfg)
         self.BDec_C = IntVar(cfg)
         self.Dis_OTRPS_Ch = IntVar(cfg)
+        self.PTT_IN_pol = IntVar(cfg)
+        self.PTT_OUT_pol = IntVar(cfg)
+        self.CW_KEY_OUT_pol = IntVar(cfg)
+        self.PORTA_IS_PTT_var = IntVar(cfg)
+        self.PORTB_IS_PTT_var = IntVar(cfg)
+        self.PORTC_IS_PTT_var = IntVar(cfg)
+
         self.Update_cfg_Decoder()
         self.CustomIn.set(InputPort_pattern)  # default entry
         self.CustomA.set(PortA_pattern)  # default entry
@@ -1352,6 +1464,12 @@ class Cfg_Mtr(tk.Frame):
         self.BDec_B.set(PortB_Val)
         self.BDec_C.set(PortC_Val)
         self.Dis_OTRPS_Ch.set(Dis_OTRPS_Ch_flag)
+        self.PTT_IN_pol.set(PTT_IN_POLARITY_Val)
+        self.PTT_OUT_pol.set(PTT_OUT_POLARITY_Val)
+        self.CW_KEY_OUT_pol.set(CW_KEY_OUT_POLARITY_val)
+        self.PORTA_IS_PTT_var.set(PORTA_IS_PTT_Val)
+        self.PORTB_IS_PTT_var.set(PORTB_IS_PTT_Val)
+        self.PORTC_IS_PTT_var.set(PORTC_IS_PTT_Val)
 
         self.B_Decode_Text = tk.Label(cfg,text='------------Band Decoder Configuration------------', font=('Helvetica', 12, 'bold'))
         self.B_Decode_Text.place(x=340, y=490, height=60)
@@ -1438,6 +1556,39 @@ class Cfg_Mtr(tk.Frame):
         self.B_Dec_C_btn.place(x=840, y=725, height=30, width=100)
         self.B_Dec_Disable = tk.Checkbutton(cfg, text='Disable Band Change on OTRSP Commands', variable=self.Dis_OTRPS_Ch, onvalue=1, command=self.Dis_OTRSP_Band_Change, font=('Helvetica', 10))
         self.B_Dec_Disable.place(x=80, y=760, height=40)
+
+        self.B_Decode4_Text = tk.Label(cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode4_Text.place(x=80, y=790, height=13)
+
+        self.B_Dec_PTT_OPTS = tk.Label(cfg,text='PTT Options ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_PTT_OPTS.place(x=25, y=810, height=20, width=210)
+        self.B_Dec_PTT_IN_Pol = tk.Checkbutton(cfg, text='PTT Input Active High ', variable=self.PTT_IN_pol, onvalue=1, command=self.PTT_Input_Polarity, font=('Helvetica', 10))
+        self.B_Dec_PTT_IN_Pol.place(x=220, y=810, height=20)
+        self.B_Dec_PTT_OUT_Pol = tk.Checkbutton(cfg, text='PTT Output Active High', variable=self.PTT_OUT_pol, onvalue=1, command=self.PTT_Ouput_Polarity, font=('Helvetica', 10))
+        self.B_Dec_PTT_OUT_Pol.place(x=400, y=810, height=20)
+        self.CW_KEY_Pol = tk.Checkbutton(cfg, text="CW Key Polarity High", variable=self.CW_KEY_OUT_pol, onvalue=1, command=self.CW_Key_Polarity,font=('Helvetica', 10))
+        self.CW_KEY_Pol.place(x=580, y=810, height=20)
+
+        self.PortA_is_PTT_HI = tk.Radiobutton(cfg, text="Port A Follows PTT (Active High) ----- ", variable=self.PORTA_IS_PTT_var, value=2, command=self.PortA_is_PTT, font=('Helvetica', 10))
+        self.PortA_is_PTT_HI.place(x=220, y=840, height=20)
+        self.PortA_is_PTT_LO = tk.Radiobutton(cfg, text="Port A Follows PTT (Active Low) -----", variable=self.PORTA_IS_PTT_var, value=1, command=self.PortA_is_PTT, font=('Helvetica', 10))
+        self.PortA_is_PTT_LO.place(x=460, y=840, height=20)
+        self.PortA_is_PTT_OFF = tk.Radiobutton(cfg, text="Port A Follows PTT OFF", variable=self.PORTA_IS_PTT_var, value=0, command=self.PortA_is_PTT, font=('Helvetica', 10))
+        self.PortA_is_PTT_OFF.place(x=700, y=840, height=20)
+        
+        self.PortB_is_PTT_HI = tk.Radiobutton(cfg, text="Port B Follows PTT (Active High) ----- ", variable=self.PORTB_IS_PTT_var, value=2, command=self.PortB_is_PTT, font=('Helvetica', 10))
+        self.PortB_is_PTT_HI.place(x=220, y=870, height=20)
+        self.PortB_is_PTT_LO = tk.Radiobutton(cfg, text="Port B Follows PTT (Active Low) ----- ", variable=self.PORTB_IS_PTT_var, value=1, command=self.PortB_is_PTT, font=('Helvetica', 10))
+        self.PortB_is_PTT_LO.place(x=460, y=870, height=20)
+        self.PortB_is_PTT_OFF = tk.Radiobutton(cfg, text="Port B Follows PTT OFF", variable=self.PORTB_IS_PTT_var, value=0, command=self.PortB_is_PTT, font=('Helvetica', 10))
+        self.PortB_is_PTT_OFF.place(x=700, y=870, height=20)
+
+        self.PortC_is_PTT_HI = tk.Radiobutton(cfg, text="Port C Follows PTT (Active High) ----- ", variable=self.PORTC_IS_PTT_var, value=2, command=self.PortC_is_PTT, font=('Helvetica', 10))
+        self.PortC_is_PTT_HI.place(x=220, y=900, height=20)
+        self.PortC_is_PTT_LO = tk.Radiobutton(cfg, text="Port C Follows PTT (Active Low) ----- ", variable=self.PORTC_IS_PTT_var, value=1, command=self.PortC_is_PTT, font=('Helvetica', 10))
+        self.PortC_is_PTT_LO.place(x=460, y=900, height=20)
+        self.PortC_is_PTT_OFF = tk.Radiobutton(cfg, text="Port C Follows PTT OFF", variable=self.PORTC_IS_PTT_var, value=0, command=self.PortC_is_PTT, font=('Helvetica', 10))
+        self.PortC_is_PTT_OFF.place(x=700, y=900, height=20)
         
         self.update_cfg_win()
 

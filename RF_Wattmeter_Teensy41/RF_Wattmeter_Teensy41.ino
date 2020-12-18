@@ -24,11 +24,10 @@
  * Band Decoder ports have many features, see GitHub site and Wiki pages for how to configure.
  * 
  * ToDo: 
- * 1. Finish config screen on Desktop App for Output Port PTT options
- * 2. Create Config screen on Nextion for voltage, current, temp, and all the Band Decoder features.
- * 3. Port all changes back to PSoC5 to keep them equal.
- * 4. Desktop App to bridge Nextion Serial port via Comm Port on PC to another PC port to local Nextion display.
- * 5. Finish OTRSP PTT and CW debug.  Add polarity to the CW output pin.
+ * 1. Create Config screen on Nextion for voltage, current, temp, and all the Band Decoder features.
+ * 2. Port all changes back to PSoC5 to keep them equal.
+ * 3. Desktop App to bridge Nextion Serial port via Comm Port on PC to another PC port to local Nextion display.
+ * 4. Finish OTRSP PTT and CW debug.  Add polarity to the CW output pin.
  * 
 */
 
@@ -1389,7 +1388,7 @@ void OLED(void)
     display.cp437(true);         // Use full 256 char 'Code Page 437' font
     display.println(s);
 
-#ifdef K7MDL_CUSTOM
+#ifdef OLED_COMBO_LAYOUT
     //sprintf(s," Band    Fwd    SWR");    
     display.setTextSize(1);    
     display.setCursor(15,20);
@@ -1500,10 +1499,11 @@ uint16_t serial_usb_read(void)
           rx_count = i;          
           RFWM_Serial.println(rx_count);
           RFWM_Serial.println((char *) rx_buffer);
+          
           // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData         
           memcpy(pSdata2, rx_buffer, rx_count+1);   // append the new buffer data to current end marked by pointer 2        
-          pSdata2 += rx_count;   // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
-          rx_count = pSdata2 - pSdata1;  // update count for total unread chars. 
+          pSdata2 += rx_count;                      // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
+          rx_count = pSdata2 - pSdata1;             // update count for total unread chars. 
           //RFWM_Serial.println(rx_count);  
      }
      rx_buffer[0] = '\0';
@@ -1572,13 +1572,13 @@ float temp_read(void)
     uint32_t ad_counts=0;
     // Read detector temperature (If connected)
     delay(5);
-    ad_counts = analogRead(ADC_TEMP);  // single read but has locked up with N1MM commands   
-    tmp = ADC_RF_Power_CountsTo_Volts(ad_counts);      // store the detector temp reading for cal optimization if desired.  For now jsut display it on the screen
-    tmp -= 1.36;   // ADL5519 is 4.48mV/C at 27C which is typically 1.36VDC.  Convert to F.  
-    tmp /= 0.00448;   // mV/C
-    tmp += 27;   //1.36V at 27C (80.6F)
+    ad_counts = analogRead(ADC_TEMP);               // single read but has locked up with N1MM commands   
+    tmp = ADC_RF_Power_CountsTo_Volts(ad_counts);   // store the detector temp reading for cal optimization if desired.  For now jsut display it on the screen
+    tmp -= 1.36;                                    // ADL5519 is 4.48mV/C at 27C which is typically 1.36VDC.  Convert to F.  
+    tmp /= 0.00448;                                 // mV/C
+    tmp += 27;                                      //1.36V at 27C (80.6F)
     tmp *= 9;
-    tmp /= 5;    // convert to F
+    tmp /= 5;                                       // convert to F
     tmp += 32;    
     TempVal = tmp;  
     return TempVal;
@@ -2066,7 +2066,7 @@ void get_remote_cmd()
                         }
                         if (cmd1 == 60)  // Set or Clear Band Decoder Output translate mode
                         {                          
-                            sprintf((char *) tx_buffer,"%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n%c", METERID, "172", \
+                            sprintf((char *) tx_buffer,"%d,%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\r\n%c", METERID, "172", \
                                 EEPROM.read(DIS_OTRSP_BAND_CHANGE), \
                                 EEPROM.read(TRANS_INPUT), \
                                 EEPROM.read(TRANS_A), \
@@ -2076,9 +2076,39 @@ void get_remote_cmd()
                                 Band_Cal_Table[CouplerSetNum].band_A_output_pattern,  \
                                 Band_Cal_Table[CouplerSetNum].band_B_output_pattern, \
                                 Band_Cal_Table[CouplerSetNum].band_C_output_pattern, \
+                                EEPROM.read(PTT_IN_POLARITY), \
+                                EEPROM.read(PTT_OUT_POLARITY), \
+                                EEPROM.read(CW_KEY_OUT_POLARITY), \
+                                EEPROM.read(PORTA_IS_PTT), \
+                                EEPROM.read(PORTB_IS_PTT), \
+                                EEPROM.read(PORTC_IS_PTT), \
                                 '\0');       
                             serial_usb_write();  
                         }
+                        if (cmd1 == 59)  // Set or Clear Band Decoder Output translate mode
+                        {                          
+                            EEPROM.update(PTT_IN_POLARITY,cmd2);
+                        }
+                        if (cmd1 == 58)  // Set or Clear Band Decoder Output translate mode
+                        {                          
+                            EEPROM.update(PTT_OUT_POLARITY,cmd2);
+                        }
+                        if (cmd1 == 57)  // Set or Clear Band Decoder Output translate mode
+                        {                          
+                            EEPROM.update(CW_KEY_OUT_POLARITY,cmd2);
+                        }
+                        if (cmd1 == 56)  // Set or Clear Band Decoder Output translate mode
+                        {                          
+                            EEPROM.update(PORTA_IS_PTT,cmd2);
+                        }
+                        if (cmd1 == 55)  // Set or Clear Band Decoder Output translate mode
+                        {                          
+                            EEPROM.update(PORTB_IS_PTT,cmd2);
+                        }
+                        if (cmd1 == 54)  // Set or Clear Band Decoder Output translate mode
+                        {                          
+                            EEPROM.update(PORTC_IS_PTT,cmd2);
+                        }                        
                     } // end of msg_type 120                                      
                 } // end of msg_type length check
             } // end of meter ID OK    

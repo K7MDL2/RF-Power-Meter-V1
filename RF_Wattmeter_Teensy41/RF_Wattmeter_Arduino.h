@@ -16,15 +16,15 @@
   User edited values here for Callsign and Meter ID number and Some Setpoints
 ******************************************************************************/
 #define SSD1306_OLED
-//#define NEXTION
-#define DETECTOR_TEMP_CONNECTED
+#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.
+//#define NEXTION           // OK to run OLED at same time
+#define DETECTOR_TEMP_CONNECTED     // Tested with teh ADL5519 onboard temp output. 
 //#define LORA   // This is set in Serial.c also
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
-//#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out to prevent unused port event triggers.
-#define K7MDL_CUSTOM
+//#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
 
-// On the Teensy 4X these are USB Serial so no pin assignments needed.  Teensy 4 can have up to 3 Serial USB ports
+// On the Teensy 4.X these are USB Serial so no pin assignments needed.  Teensy 4.x can have up to 3 Serial USB ports, 8 hardware serial ports.
 // Serial is main.  SerialUSB1 and SerialUSB2 are the others.
 #define RFWM_Serial Serial   // RF Wattmeter data output.  Also accepts control commands and debug output in Serial Monitor.
 #define OTRSP_Serial SerialUSB1    // OTRSP Serial protocol from programs like N1MM+ for transveter or antenna control
