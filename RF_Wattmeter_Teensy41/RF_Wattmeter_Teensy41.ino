@@ -9,8 +9,8 @@
 #include "RF_Wattmeter_Arduino.h"
 /*
  *
- * RF Power Meter by K7MDL 12/17/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
- *
+ * RF Power Meter by K7MDL 12/18/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
+ * 12/18/2020 - Changed OLED WAtts line to "OFF" on band 0.  Fixed bug where band decoder was not reading input on boot up.
  * 12/17/2020 -  Ported from PSoC5 C code. Now has full featured Band Decoder with 1 input port and 3 ouput ports, PTT in and out with polarity. 
  * OLED and Nextion display and headless operation supported.  Can run both displays at the same time.
  * 
@@ -112,7 +112,7 @@ void setup(void)
     //display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
 
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))   // Address 0x3D for 128x64
+    if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))   // Address 0x3C for 128x64, if not working try 0x3D
     { 
       for(;;) // Don't proceed, loop forever
         RFWM_Serial.println("SSD1306 allocation failed");
@@ -138,15 +138,6 @@ void setup(void)
     EEPROM_Init_Read();
     //get_config_EEPROM();  // set last used values for CouplerSetNum (Band) and op_mode if there is data in the EEPROM
   }
-
-    //Test lines until a config page is created
-    EEPROM.update(PTT_IN_POLARITY, 0);
-    EEPROM.update(PTT_OUT_POLARITY, 1);
-    EEPROM.update(CW_KEY_OUT_POLARITY, 0);
-    EEPROM.update(PORTA_IS_PTT, 0);
-    EEPROM.update(PORTB_IS_PTT, 0);
-    EEPROM.update(PORTC_IS_PTT, 0);   // 0 is NO or off.  Decoder output ports can check this to see if the pin should follow PTT
-  
  
   if (EEPROM.read(0) != 'G' || RESET_EEPROM == 1) 
   {    // Test if EEPROM has been initialized with table data yet
@@ -1382,7 +1373,10 @@ void OLED(void)
     
     // Top row is Yellow with Power in Watts, size 2 font
     display.setTextColor(SSD1306_WHITE);
-    snprintf(s, 12, "  %*.1fW%c", 6, FwdPwr, '\0');
+    if (CouplerSetNum)
+        snprintf(s, 12, "  %*.1fW%c", 6, FwdPwr, '\0');
+    else
+        snprintf(s, 12, "  %*s%c", 6, "OFF", '\0');
     display.setTextSize(2);    
     display.setCursor(4,0);
     display.cp437(true);         // Use full 256 char 'Code Page 437' font
@@ -2735,7 +2729,7 @@ uint8_t BCDToDecimal(char *hex)
 uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.  
 {     
     // Convert BCD to binary and update the (non-BCD) binary Port for amps and meter selection
-    static uint8_t decoder_input_last;
+    static uint8_t decoder_input_last = 200;        // Force process to set proper state at startup
     uint8_t tempval = 0;
     uint8_t i;
     uint8_t trans_in;

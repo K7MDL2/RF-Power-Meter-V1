@@ -273,26 +273,26 @@ static uint8_t sdata[Serial_USB_BUFFER_SIZE], *pSdata=sdata, *pSdata1=sdata, *pS
 float value1_last;
 char AuxCmd0[20];
 uint8_t AuxNum1, AuxNum2;  // N1MM OTRSP serial protocol control for 4 2 4 bit IO ports for antenna and transverter control.  See OTRSP.C
-uint8_t decoder_band_last = 0;
-uint8_t PTT_IN_state = 0;               // This is the state of PTT Input RX or TX independent of polarity. 1 is TX, 0 is RX.
-                                        // Polarity is used to interpret the input signal to set state to RX or TX.                                        
-uint8_t PTT_IN_state_last = 0;          // Track changes
+uint8_t decoder_band_last = 200;
+uint8_t PTT_IN_state = 0;                 // This is the state of PTT Input RX or TX independent of polarity. 1 is TX, 0 is RX.
+                                          // Polarity is used to interpret the input signal to set state to RX or TX.                                        
+uint8_t PTT_IN_state_last = 200;          // Track changes
 //uint8_t PTT_IN_polarity = 0;            // 1 is ACTIVE HIGH, 0 is ACTIVE LOW.   If a input pin is low and Polarity is 0, then we have TX.
-                                        // If an input pin is is high and polarity is 1, we have TX (PTT_INI_state = 1).  All other states are RX.
+                                          // If an input pin is is high and polarity is 1, we have TX (PTT_INI_state = 1).  All other states are RX.
                                         
-volatile uint8_t PTT_OUT_state = 0;     // This is the state of PTT output for RX or TX independent of polarity.
-uint8_t PTT_OUT_state_last = 0;         // Track changes
+volatile uint8_t PTT_OUT_state = 0;       // This is the state of PTT output for RX or TX independent of polarity.
+uint8_t PTT_OUT_state_last = 200;         // Track changes
 //uint8_t PTT_OUT_polarity = 0;           // 1 is ACTIVE HIGH, 0 is ACTIVE LOW. 
 
 volatile uint8_t CW_KEY_OUT_state = 0;  // This is the state of CW output RX or TX independent of polarity. 1 is TX, 0 is RX.
-uint8_t CW_KEY_OUT_state_last = 0;      // Track changes
+uint8_t CW_KEY_OUT_state_last = 200;      // Track changes
 //uint8_t CW_KEY_OUT_polarity = 0;        // 1 is ACTIVE HIGH, 0 is ACTIVE LOW. 
 // Generally this will follow OTRSP and and state will be ignored, but polarity will still apply.  
 // If an input pin is ever assigned to a CW key input then state will be needed like for PTT input
 unsigned long PTT_IN_debounce_timestamp = 0;
 uint8_t PTT_IN_pin = 0;
-uint8_t PTT_IN_pin_last = 0;
-uint8_t PTT_IN_changed = 0;
+uint8_t PTT_IN_pin_last = 200;  // Force process to set proper state at startup
+uint8_t PTT_IN_changed = 200;   // Force process to set proper state at startup
 uint8_t PortA_state = 0;
 uint8_t PortB_state = 0;
 uint8_t PortC_state = 0;
