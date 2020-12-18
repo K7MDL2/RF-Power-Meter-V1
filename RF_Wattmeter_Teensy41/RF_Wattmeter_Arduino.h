@@ -15,13 +15,14 @@
 /******************************************************************************
   User edited values here for Callsign and Meter ID number and Some Setpoints
 ******************************************************************************/
-//#define SSD1306_OLED
+#define SSD1306_OLED
 //#define NEXTION
 #define DETECTOR_TEMP_CONNECTED
 //#define LORA   // This is set in Serial.c also
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
-//#define TEENSY4_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands
+//#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out to prevent unused port event triggers.
+#define K7MDL_CUSTOM
 
 // On the Teensy 4X these are USB Serial so no pin assignments needed.  Teensy 4 can have up to 3 Serial USB ports
 // Serial is main.  SerialUSB1 and SerialUSB2 are the others.
@@ -92,14 +93,15 @@ uint32_t Timer_X00ms_Last_Nex;
 uint32_t Timer_X00ms_Last_OLED;
 
 // Rest of program...
-#define METER_RATE 2   // used to skip serial data output to a lower rate
+#define METER_RATE 2        // used to skip serial data output to a lower rate
 #define EEADDR CAL_TBL_ARR_OFFSET // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
 #define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.
 
+#define ADC_VREF (3.3)   // FOr Teensy4.1 which is a 3.3V chip  
 // Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
-#define ADC_FWD A0       // These are the Analog Mux input assignments for Teensy 4.1
+#define ADC_FWD A0        // These are the Analog Mux input assignments for Teensy 4.1
 #define ADC_REF A1
-#define ADC_TEMP A2      // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
+#define ADC_TEMP A2       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
 #define ADC_CURR A3
 #define ADC_14V A6
 #define ADC_HV A7
@@ -114,9 +116,8 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_IN_2   4
 #define BAND_DEC_IN_3   5
 #define BAND_DEC_IN_4   6
-#define BAND_DEC_IN_5   7
-#define BAND_DEC_IN_6 99  // spare
-#define BAND_DEC_IN_7 99  // spare
+//#define BAND_DEC_IN_5   7   // only needed if not using BCD input otherwise need to trade pins with another port
+#define BAND_DEC_PTT_IN 7  //  PTT input from radio.  Will pass through to PTT out, possibly with translations.  This has an ISR.
 
 // Band Decoder Banks A and B and C
 #define BAND_DEC_A_0    8
@@ -126,7 +127,7 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_A_4    12
 #define BAND_DEC_A_5    24
 #define BAND_DEC_A_6    25
-#define BAND_DEC_A_7    26
+#define BAND_DEC_A_7    26   
 
 #define BAND_DEC_B_0    27
 #define BAND_DEC_B_1    28
@@ -147,15 +148,16 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_C_7    23
 
 // Arduino Band Decoder and CW/PTT output Pin Assignments
-#define PTT_OUT         13
-#define CW_KEY_OUT      22
+#define PTT_OUT         13    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
+#define CW_KEY_OUT      22   // CW is from OTRSP serial line RTS/DTR 
 
-//uint8_t translateBCD = 0;
 uint8_t Band_Dec_In_Byte;   // Byte storing decoder input pattern
 uint8_t Band_Dec_OutA_Byte;    // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)
 uint8_t Band_Dec_OutB_Byte;
 uint8_t Antenna_Select;    // byte value pattern overlaid on any nnumber of port pins.  Set bit commands break out which pins are used
 
+#define RX 0
+#define TX 1
 #define SWR 2
 #define PWR 1
 #define MENU 3
@@ -188,11 +190,17 @@ uint8_t Antenna_Select;    // byte value pattern overlaid on any nnumber of port
 #define TEMP_CAL_OFFSET         (0x0028)  // byte 28, 29, 2A, 2B
 #define CURR_0_OFFSET           (0x002C)  // byte 2C, 2D, 2E, 2F
 // Start Row 3
-#define TRANS_INPUT             (0x0030)  // byte 30,
-#define TRANS_A                 (0x0031)  // byte 31,
-#define TRANS_B                 (0x0032)  // byte 32,
+#define TRANS_INPUT             (0x0030)  // byte 30
+#define TRANS_A                 (0x0031)  // byte 31
+#define TRANS_B                 (0x0032)  // byte 32
 #define TRANS_C                 (0x0033)  // byte 33
-#define DIS_OTRSP_BAND_CHANGE   (0x0034)  // byte 34 
+#define DIS_OTRSP_BAND_CHANGE   (0x0034)  // byte 34
+#define PTT_IN_POLARITY         (0x0035)  // byte 35
+#define PTT_OUT_POLARITY        (0x0036)  // byte 36
+#define CW_KEY_OUT_POLARITY     (0x0037)  // byte 37
+#define PORTA_IS_PTT            (0x0038)  // byte 38
+#define PORTB_IS_PTT            (0x0039)  // byte 39
+#define PORTC_IS_PTT            (0x003A)  // byte 3A
 
 // start row 4 data
 #define CAL_TBL_ARR_OFFSET      (0x0040)  /* start row 2 and beyond  */
@@ -266,10 +274,28 @@ float value1_last;
 char AuxCmd0[20];
 uint8_t AuxNum1, AuxNum2;  // N1MM OTRSP serial protocol control for 4 2 4 bit IO ports for antenna and transverter control.  See OTRSP.C
 uint8_t decoder_band_last = 0;
-volatile uint8_t CW_KEY_OUT_state = 0;  //  Normally only set by ISR after init.
-volatile uint8_t PTT_OUT_state = 0;     //  Normally only set by ISR after init.
-uint8_t PTT_OUT_state_last = 0;
-uint8_t CW_KEY_OUT_state_last = 0;
+uint8_t PTT_IN_state = 0;               // This is the state of PTT Input RX or TX independent of polarity. 1 is TX, 0 is RX.
+                                        // Polarity is used to interpret the input signal to set state to RX or TX.                                        
+uint8_t PTT_IN_state_last = 0;          // Track changes
+//uint8_t PTT_IN_polarity = 0;            // 1 is ACTIVE HIGH, 0 is ACTIVE LOW.   If a input pin is low and Polarity is 0, then we have TX.
+                                        // If an input pin is is high and polarity is 1, we have TX (PTT_INI_state = 1).  All other states are RX.
+                                        
+volatile uint8_t PTT_OUT_state = 0;     // This is the state of PTT output for RX or TX independent of polarity.
+uint8_t PTT_OUT_state_last = 0;         // Track changes
+//uint8_t PTT_OUT_polarity = 0;           // 1 is ACTIVE HIGH, 0 is ACTIVE LOW. 
+
+volatile uint8_t CW_KEY_OUT_state = 0;  // This is the state of CW output RX or TX independent of polarity. 1 is TX, 0 is RX.
+uint8_t CW_KEY_OUT_state_last = 0;      // Track changes
+//uint8_t CW_KEY_OUT_polarity = 0;        // 1 is ACTIVE HIGH, 0 is ACTIVE LOW. 
+// Generally this will follow OTRSP and and state will be ignored, but polarity will still apply.  
+// If an input pin is ever assigned to a CW key input then state will be needed like for PTT input
+unsigned long PTT_IN_debounce_timestamp = 0;
+uint8_t PTT_IN_pin = 0;
+uint8_t PTT_IN_pin_last = 0;
+uint8_t PTT_IN_changed = 0;
+uint8_t PortA_state = 0;
+uint8_t PortB_state = 0;
+uint8_t PortC_state = 0;
 
 // Function declarations
 void toggle_ser_data_output(uint8_t);
