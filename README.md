@@ -2,11 +2,11 @@
 
 *** Release V2 created July 1, 2020 ***
 
-New for 12/12/2020 - Updated 12/18 with Band Decoder PTT Input and Output, each with Active LO/HI settings.  Same for output ports so any or all can follow PTT, also with Active HI/LO setting options.  The latter is useful for routing PTT to specific amps or transverters, per band. No config screen controls coded for these new options yet.  Tested OLED and optimized layout for Combo Wattmeter and Decoder status.  Added picture of this new screen to pictures folder.
+New for 12/12/2020 - Updated 12/18 with Band Decoder PTT Input and Output, each with Active LO/HI settings.  Same for output ports so any or all can follow PTT, also with Active HI/LO setting options.  The latter is useful for routing PTT to specific amps or transverters, per band. Config screen controls added for these new PTT options.  Tested OLED and optimized layout for Combo Wattmeter and Decoder status.  Added picture of this new screen to pictures folder.
 
-Added a full featured Band Decoder function with updated Desktop App Configuration page.  Band Decoder feature is only on the Aduiino Teensy 4.1.  PSoC5 will be updated to match soon.  Program will not fit on a Nano but does fit on the Mega2560.  Uses about 500bytes of EEPROM.  IO count and maybe serial port count can be a key factor depending on needs.
+Added a full featured Band Decoder function with updated Desktop App Configuration page.  Band Decoder feature is only on the Arduino Teensy 4.1.  PSoC5 will be updated to match soon.  Program will not fit on a Nano but does fit on the Mega2560.  Uses about 500bytes of EEPROM.  IO count and maybe serial port count can be a key factor depending on needs.
 
-Either OTRSP serial commands or a hardware band input port (with 6 pins) can work to change bands and will operate 3x 8-bit ports, A, B and C.
+Either OTRSP serial commands or a hardware band input port (with 5 pins) can work to change bands and will operate 3x 8-bit ports, A, B and C.
 
 By default Port A will mirror the input pins, useful for intercepting a BCD or 1-of-8 Band decoder from a radio on the input port then pass it on through Port A to a stack of transverters, or the Q5 Signal 5-Band transverter.
 
@@ -59,9 +59,10 @@ A cool feature is the variety of translation modes for every port except as note
           no other sources active then N1MM has complete control. If this is what you need then do not operate the Desktop App buttons and
           consider not connecting the hardware input port. Can get the same effect if all 3 ports were set for OTRSP Direct.
           
-    7. Output Port PTT Follow Mode
+    7. Output Port Follow PTT Mode
       a. Any of the output ports with translation modes set to Transparent, 1-of-8, or Custom can now follow PTT. The 2 options are for Active High
          and Active Low.  This feature is useful to route PTT signals to specific equipment such as a LNA, transverter or amplifier.
+      b. A logical enhancement would be to have configurable delays for each for sequencing. For example, Port A selects a transverter, Port B is transverter PTT, Port C is              remote LNA switch.  Port A acts 1st, followed by Port C on PTT then Port B.  Classic sequencer scenario.
          
     8. OLED screen updated to show Band Name and Band Decoder input and output port status in HEX
       a. Config is done via the Desktop App, later the Nextion screen also.
@@ -72,17 +73,14 @@ This is all stored in EEPROM.  Also fixed a bug where I calculated the EEPROM si
 This work was done on a Teensy 4.1 and changes will be ported back to the PSoC5 platform.  Other Arduinos should work with some mods depending on the platform capabilities. I am using 2 USB serial ports (Main data and OTRSP), 1 hardware serial port (Nextion, optional), I2C port for OLED display (optional), and over 1K of EEPROM. Can reassign the OTRSP port, if used, to a hardeware serial port.  Can reduce the number of band records to fit into available EEPROM space.  Many of these features have an #ifdef created to skip these features at compile time if not wanted.  This is both the RF Wattmeter and Band Decoder in one.  Limitations of the internal Arduino ADCs need to be considered for RF power measurement detectors that have a small output voltage range. This can be worked around with external high resolutions ADC or amplification.  The Teensy is only 10Bit with the 3.3V power supply and reference.  Set expectations approriately. The PSoC5 has an internal 20bit ADC with optional on-chip PGA and multiple ref voltage options.
 
 Known problems:
-1. Desktop App: - No user impact. The Toggle Serial feature is used to suppress the data output to make seeing debug messages easier. This is disabled for now because the Desktop app cannot seems to RxD characters or it cannot serve commands including turning the data back on.  The CPU is OK, can manually toggle data OK.
-2. Desktop App: - No user impact. Observed that a 0.1 second delay is required between issuing a CPU command and receiving a reply if expected.  This is likely a queuing problem in the Serial Thread of the Python app.  This is annoying when trying to update button status for long duration opersations or some configure actions that require a status update to refresh a screen.  The delays used today in the app may be installation/platform specific so are not a great solution.
+1. Desktop App: - No user impact. The Toggle Serial feature is used to suppress the data output to make seeing debug messages easier. This is disabled for now because the Desktop app seems to need RxD characters received before it will send out chars  The CPU side is OK, can manually toggle data OK.  Cmd = 100,120,239,X where X=1 or 0.
+2. Desktop App: - No user impact. Observed that a 0.1 second delay is required between issuing a CPU command and receiving a reply if expected.  This is likely a queuing problem in the Serial Thread of the Python app.  This is annoying when trying to update button status for long duration operations or some configure actions that require a status update to refresh a screen.  The delays used today in the app may be installation/platform specific so are not a great solution.  Likely related to above issue.
 
 Unfinished planned work:
 1. Create configuration screens on the Nextion display for Band Decoder and for Voltage, Current and Temperature inputs. Can use the Desktop app for all of this today.
 2. N1MM CW and PTT control using DTR and RTS signals over USB Serial Port is not working yet. This works on the PSoC5 but I have yet to make it work on the Arduino.
-3. Need to add debouncing to the Input Port pins.
-4. Analog Band Decode Input for radios with a 0-5VDC band decoder output.  FT-817 and IC7-06 for example.  These radios use an analog voltage to represent the current band.
-5. PTT Pass through with option to invert (Active HI and Active LO).  - Working on this now.
-6. Add config option to output port(s) to follow PTT state (with regard to Active HI or LO considered).  Working on this now.  This lets you route PTT to each transveter and/or amps.  A logical enhancment woud be to have configurable delays for each for sequencing.  For example, Port A selects a transverter, Port B is transverter PTT, Port C is remote LNA switch.  Classic sequencer scenario.
-7. Add SPI bus connected HI and LO side driver chip support to expand the IO. Would use TPIC6595N and MIC5891YN driver chips.  Also looking to use optocouplers on the input pins to beef things up if I elect to make PCB.  Would then use edge connectors to minimize internal wiring. These 2 chips are really 5V partrs with min input at 3.5VDC so not great with teh 3.3V Teensy, will work fine with 5V Arduinos and the PSoC.
+3. Analog Band Decode Input for radios with a 0-5VDC band decoder output.  FT-817 and IC-706 for example.  These radios use an analog voltage to represent the current band.  Teensy 4.1 is a 3.3V device so a voltage divider is needed.
+4. Add SPI bus connected HI and LO side driver chip support to expand the IO. Would use TPIC6595N and MIC5891YN driver chips.  Also looking to use optocouplers on the input pins to beef things up if I elect to make PCB.  Would then use edge connectors to minimize internal wiring. These 2 chips are really 5V partrs with min input at 3.5VDC so not great with teh 3.3V Teensy, will work fine with 5V Arduinos and the PSoC.
 
 *** V2.4 updated on Master Branch on 12/12/2020.   This is the first working port from the PSoC5 to Arduino Teensy 4.1.  I have switched to the standard Arduino Nextion library fixing and resolved all warnings in the Nextion libary and the project compile. Everything seems to be working now except LoRa which is still the PSoC5 version so should remain disabled for now.  The OTRSP code has been reworked as well and now seems very robust and can decode BANDxY and AUXxYY commands from a 2nd serial port.  For the Teensy 4.1, in the Arduino IDE setup Dual USB ports. Serial is the main port, SerialUSB1 is the 2nd assigned to OTRSP comms.  The Desktop App works equally well with PSoC5 or this Teensy Arduino build.  Band decoding input should work but the output requires more coding and pin assignments. More below.  
 
