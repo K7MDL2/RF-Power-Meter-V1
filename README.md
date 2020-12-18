@@ -3,7 +3,7 @@
 *** Release V2 created July 1, 2020 ***
 
 New for 12/12/2020 - Updated 12/13 with App UI Band Decoder configuration
-Added a full featured Band Decoder function with updated Desktop App Configuration page.
+Added a full featured Band Decoder function with updated Desktop App Configuration page.  Band Decoder feature is only on the Aduiino Teensy 4.1.  PSoC5 will be updated to match soon.  Program will not fit on a Nano but does fit on the Mega2560.  Uses about 500bytes of EEPROM.  IO count and maybe serial port count can be a key factor depending on needs.
 
 Either OTRSP serial commands or a hardware band input port (with 6 pins) can work to change bands and will operate 3x 8-bit ports, A, B and C.
 
@@ -70,6 +70,10 @@ Unfinished planned work:
 1. Create configuration screens on the Nextion display for Band Decoder and for Voltage, Current and Temperature inputs. Can use the Desktop app for all of this today.
 2. N1MM CW and PTT control using DTR and RTS signals over USB Serial Port is not working yet. This works on the PSoC5 but I have yet to make it work on the Arduino.
 3. Need to add debouncing to the Input Port pins.
+4. Analog Band Decode Input for radios with a 0-5VDC band decoder output.  FT-817 and IC7-06 for example.  These radios use an analog voltage to represent the current band.
+5. PTT Pass through with option to invert (Active HI and Active LO).  - Working on this now.
+6. Add config option to output port(s) to follow PTT state (with regard to Active HI or LO considered).  Working on this now.  This lets you route PTT to each transveter and/or amps.  A logical enhancment woud be to have configurable delays for each for sequencing.  For example, Port A selects a transverter, Port B is transverter PTT, Port C is remote LNA switch.  Classic sequencer scenario.
+7. Add SPI bus connected HI and LO side driver chip support to expand the IO. Would use TPIC6595N and MIC5891YN driver chips.  Also looking to use optocouplers on the input pins to beef things up if I elect to make PCB.  Would then use edge connectors to minimize internal wiring. These 2 chips are really 5V partrs with min input at 3.5VDC so not great with teh 3.3V Teensy, will work fine with 5V Arduinos and the PSoC.
 
 *** V2.4 updated on Master Branch on 12/12/2020.   This is the first working port from the PSoC5 to Arduino Teensy 4.1.  I have switched to the standard Arduino Nextion library fixing and resolved all warnings in the Nextion libary and the project compile. Everything seems to be working now except LoRa which is still the PSoC5 version so should remain disabled for now.  The OTRSP code has been reworked as well and now seems very robust and can decode BANDxY and AUXxYY commands from a 2nd serial port.  For the Teensy 4.1, in the Arduino IDE setup Dual USB ports. Serial is the main port, SerialUSB1 is the 2nd assigned to OTRSP comms.  The Desktop App works equally well with PSoC5 or this Teensy Arduino build.  Band decoding input should work but the output requires more coding and pin assignments. More below.  
 
