@@ -2,7 +2,8 @@
 
 *** Release V2 created July 1, 2020 ***
 
-New for 12/12/2020 - Updated 12/13 with App UI Band Decoder configuration
+New for 12/12/2020 - Updated 12/18 with Band Decoder PTT Input and Output, each with Active LO/HI settings.  Same for output ports so any or all can follow PTT, also with Active HI/LO setting options.  The latter is useful for routing PTT to specific amps or transverters, per band. No config screen controls coded for these new options yet.  Tested OLED and optimized layout for Combo Wattmeter and Decoder status.  Added picture of this new screen to pictures folder.
+
 Added a full featured Band Decoder function with updated Desktop App Configuration page.  Band Decoder feature is only on the Aduiino Teensy 4.1.  PSoC5 will be updated to match soon.  Program will not fit on a Nano but does fit on the Mega2560.  Uses about 500bytes of EEPROM.  IO count and maybe serial port count can be a key factor depending on needs.
 
 Either OTRSP serial commands or a hardware band input port (with 6 pins) can work to change bands and will operate 3x 8-bit ports, A, B and C.
@@ -57,6 +58,14 @@ A cool feature is the variety of translation modes for every port except as note
           a radio control port connection, then the decoder band will change and the results should look the same as OTRSP Direct. If there are
           no other sources active then N1MM has complete control. If this is what you need then do not operate the Desktop App buttons and
           consider not connecting the hardware input port. Can get the same effect if all 3 ports were set for OTRSP Direct.
+          
+    7. Output Port PTT Follow Mode
+      a. Any of the output ports with translation modes set to Transparent, 1-of-8, or Custom can now follow PTT. The 2 options are for Active High
+         and Active Low.  This feature is useful to route PTT signals to specific equipment such as a LNA, transverter or amplifier.
+         
+    8. OLED screen updated to show Band Name and Band Decoder input and output port status in HEX
+      a. Config is done via the Desktop App, later the Nextion screen also.
+         It is possible to run both the Nextion and the OLED screens, as well as the Desktop App.
 
 This is all stored in EEPROM.  Also fixed a bug where I calculated the EEPROM size of the main data table wrong causing a lack of EEPROM storage.  There is plenty of EEPROM after this fix, 11 bands and state variables consume a tad over 1K.
 
