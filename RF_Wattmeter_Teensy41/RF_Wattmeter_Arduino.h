@@ -23,6 +23,7 @@
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
+#define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  Display has pullup resistors installed.
 
 // On the Teensy 4.X these are USB Serial so no pin assignments needed.  Teensy 4.x can have up to 3 Serial USB ports, 8 hardware serial ports.
 // Serial is main.  SerialUSB1 and SerialUSB2 are the others.
@@ -51,7 +52,7 @@
     #define SCREEN_HEIGHT 64 // OLED display height, in pixels
     
     // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-    #define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
+    #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
     Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #endif
 
@@ -99,57 +100,59 @@ uint32_t Timer_X00ms_Last_OLED;
 
 #define ADC_VREF (3.3)   // FOr Teensy4.1 which is a 3.3V chip  
 // Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
-#define ADC_FWD A0        // These are the Analog Mux input assignments for Teensy 4.1
-#define ADC_REF A1
-#define ADC_TEMP A2       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
-#define ADC_CURR A3
-#define ADC_14V A6
-#define ADC_HV A7
+#define ADC_FWD A4        // These are the Analog Mux input assignments for Teensy 4.1
+#define ADC_REF A5
+#define ADC_TEMP A6       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
+#define ADC_CURR A7
+#define ADC_14V A8
+#define ADC_HV A9
 
 // I2C pins for use with OLED or other IO
-#define SDA_PIN A4
-#define SCL_PIN A5
+#define SDA1_PIN 17
+#define SCL1_PIN 16
 
 // Band Decoder Input Pins
-#define BAND_DEC_IN_0   2   // 6 input pins.  Can take any pattern to be translated to various ports.  Example, BCD on 3 pins for transverter/amp, last 3 BCD for antenna switch
-#define BAND_DEC_IN_1   3
-#define BAND_DEC_IN_2   4
-#define BAND_DEC_IN_3   5
-#define BAND_DEC_IN_4   6
-//#define BAND_DEC_IN_5   7   // only needed if not using BCD input otherwise need to trade pins with another port
-#define BAND_DEC_PTT_IN 7  //  PTT input from radio.  Will pass through to PTT out, possibly with translations.  This has an ISR.
+#define BAND_DEC_IN_0   3  // 6 input pins.  Can take any pattern to be translated to various ports.  Example, BCD on 3 pins for transverter/amp, last 3 BCD for antenna switch
+#define BAND_DEC_IN_1   4  // using 4 wire BCD in my install so not using all 6 defined pins, just 4.  Comment out lines in Band input read function
+#define BAND_DEC_IN_2   5
+#define BAND_DEC_IN_3   6
+//#define BAND_DEC_IN_4   99
+//#define BAND_DEC_IN_5   99   // only needed if not using BCD input otherwise need to trade pins with another port
+#define BAND_DEC_PTT_IN 7  //  PTT input from radio.  Will pass through to PTT out, possibly with translations.
 
 // Band Decoder Banks A and B and C
-#define BAND_DEC_A_0    8
-#define BAND_DEC_A_1    9
-#define BAND_DEC_A_2    10
-#define BAND_DEC_A_3    11
-#define BAND_DEC_A_4    12
-#define BAND_DEC_A_5    24
-#define BAND_DEC_A_6    25
-#define BAND_DEC_A_7    26   
+#define BAND_DEC_A_0    24
+#define BAND_DEC_A_1    25
+#define BAND_DEC_A_2    26
+#define BAND_DEC_A_3    27
+#define BAND_DEC_A_4    28
+#define BAND_DEC_A_5    29
+#define BAND_DEC_A_6    30
+#define BAND_DEC_A_7    31   
 
-#define BAND_DEC_B_0    27
-#define BAND_DEC_B_1    28
-#define BAND_DEC_B_2    29
-#define BAND_DEC_B_3    30
-#define BAND_DEC_B_4    31
-#define BAND_DEC_B_5    32
-#define BAND_DEC_B_6    33
-#define BAND_DEC_B_7    34
+#define BAND_DEC_B_0    33
+#define BAND_DEC_B_1    34
+#define BAND_DEC_B_2    35
+#define BAND_DEC_B_3    36
+#define BAND_DEC_B_4    37
+#define BAND_DEC_B_5    38
+#define BAND_DEC_B_6    39
+#define BAND_DEC_B_7    40
 
-#define BAND_DEC_C_0    35
-#define BAND_DEC_C_1    36
-#define BAND_DEC_C_2    37
-#define BAND_DEC_C_3    38
-#define BAND_DEC_C_4    39
-#define BAND_DEC_C_5    40
-#define BAND_DEC_C_6    41
-#define BAND_DEC_C_7    23
+#define BAND_DEC_C_0    8
+#define BAND_DEC_C_1    9
+#define BAND_DEC_C_2    10
+#define BAND_DEC_C_3    11
+#define BAND_DEC_C_4    12
+#define BAND_DEC_C_5    32
+#define BAND_DEC_C_6    14
+#define BAND_DEC_C_7    15
+
+// pin 41/a17 and 32 are unused still
 
 // Arduino Band Decoder and CW/PTT output Pin Assignments
 #define PTT_OUT         13    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
-#define CW_KEY_OUT      22   // CW is from OTRSP serial line RTS/DTR 
+#define CW_KEY_OUT      2   // CW is from OTRSP serial line RTS/DTR 
 
 uint8_t Band_Dec_In_Byte;   // Byte storing decoder input pattern
 uint8_t Band_Dec_OutA_Byte;    // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)

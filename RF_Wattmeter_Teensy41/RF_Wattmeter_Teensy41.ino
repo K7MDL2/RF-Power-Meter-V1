@@ -53,7 +53,7 @@ void setup(void)
   pinMode(BAND_DEC_IN_1, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_2, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_3, INPUT_PULLUP);
-  pinMode(BAND_DEC_IN_4, INPUT_PULLUP);
+  //pinMode(BAND_DEC_IN_4, INPUT_PULLUP);
   //pinMode(BAND_DEC_IN_5, INPUT_PULLUP);   //To use this need to trade with another pin.
   
   pinMode(BAND_DEC_PTT_IN, INPUT_PULLUP);   // Interrupt handler setup for PTT input
@@ -2851,7 +2851,8 @@ void Band_Decoder_Get_Input()
     bitWrite(Band_Dec_In_Byte, 1, digitalRead(BAND_DEC_IN_1));
     bitWrite(Band_Dec_In_Byte, 2, digitalRead(BAND_DEC_IN_2));
     bitWrite(Band_Dec_In_Byte, 3, digitalRead(BAND_DEC_IN_3));
-    bitWrite(Band_Dec_In_Byte, 4, digitalRead(BAND_DEC_IN_4));
+    //bitWrite(Band_Dec_In_Byte, 4, digitalRead(BAND_DEC_IN_4));
+    bitClear(Band_Dec_In_Byte, 4);
     // bitWrite(Band_Dec_In_Byte, 5, digitalRead(BAND_DEC_IN_5));   // Not used, PTT IN using this pin.
     bitClear(Band_Dec_In_Byte, 5);
     bitClear(Band_Dec_In_Byte, 6);   // clear the unused bits
