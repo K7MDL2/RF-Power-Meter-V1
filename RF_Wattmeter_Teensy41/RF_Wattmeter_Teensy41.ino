@@ -45,10 +45,10 @@ void setup(void)
   // Set up our input pins
   pinMode(ADC_FWD,INPUT);
   pinMode(ADC_REF,INPUT);
-  pinMode(ADC_TEMP,INPUT); 
-  pinMode(ADC_CURR,INPUT);
-  pinMode(ADC_14V,INPUT);
-  pinMode(ADC_HV,INPUT);
+  pinMode(ADC_TEMP,INPUT_PULLUP);   // If nothing is connected to these pins then setting to INPUT_PULLUP wil lpin them to Vcc and prevent floating around.
+  pinMode(ADC_CURR,INPUT_PULLUP);
+  pinMode(ADC_14V,INPUT_PULLUP);
+  pinMode(ADC_HV,INPUT_PULLUP);
   pinMode(BAND_DEC_IN_0, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_1, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_2, INPUT_PULLUP);

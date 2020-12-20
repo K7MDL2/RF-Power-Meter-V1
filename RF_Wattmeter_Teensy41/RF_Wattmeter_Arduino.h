@@ -23,7 +23,6 @@
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
-#define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  Display has pullup resistors installed.
 
 // On the Teensy 4.X these are USB Serial so no pin assignments needed.  Teensy 4.x can have up to 3 Serial USB ports, 8 hardware serial ports.
 // Serial is main.  SerialUSB1 and SerialUSB2 are the others.
@@ -49,10 +48,10 @@
     #include <Adafruit_GFX.h>
     #include <Adafruit_SSD1306.h>
     #define SCREEN_WIDTH 128 // OLED display width, in pixels
-    #define SCREEN_HEIGHT 64 // OLED display height, in pixels
-    
-    // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
+    #define SCREEN_HEIGHT 64 // OLED display height, in pixels    
+    // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins OR SDA1, SCL1 pins with "Wire1" class)
     #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
+    #define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
     Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #endif
 
@@ -96,9 +95,9 @@ uint32_t Timer_X00ms_Last_OLED;
 // Rest of program...
 #define METER_RATE 2        // used to skip serial data output to a lower rate
 #define EEADDR CAL_TBL_ARR_OFFSET // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
-#define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.
+//#define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.  Using sizeof eeprom function in code.
 
-#define ADC_VREF (3.3)   // FOr Teensy4.1 which is a 3.3V chip  
+#define ADC_VREF (3.3)   // For Teensy4.1 which is a 3.3V chip  
 // Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
 #define ADC_FWD A4        // These are the Analog Mux input assignments for Teensy 4.1
 #define ADC_REF A5
@@ -107,57 +106,59 @@ uint32_t Timer_X00ms_Last_OLED;
 #define ADC_14V A8
 #define ADC_HV A9
 
+// Band Decoder Input Pins - Assign these according to your needs includng wiring convenience.  
+// Each pin is mapped into bytes so there is no need to have them adjacent.  Easier when they are for wiring purposes.  See GitHUb Wiki pages for wiring example chart.
+#define BAND_DEC_IN_0   3  // 6 input pins.  Can take any pattern to be translated to various ports.  Example, BCD on 3 pins for transverter/amp, last 3 BCD for antenna switch
+#define BAND_DEC_IN_1   4  // This example is using 4 wire BCD in my install so not using all 6 defined pins, just 4 with PTT and Gnd on the same Band In connector
+                           // Comment out lines in Band input read function to match, set the unused bit to 0.  Dont want floating bits.
+#define BAND_DEC_IN_2   5
+#define BAND_DEC_IN_3   6
+//#define BAND_DEC_IN_4   99    // not using so set pin to somehting impossible
+//#define BAND_DEC_IN_5   99    // only needed if not using BCD input otherwise need to trade pins with another port
+#define BAND_DEC_PTT_IN 7       //  PTT input from radio.  Will pass through to PTT out, possibly with translations.
+
+// Band Decoder Banks A and B and C
+#define BAND_DEC_A_0    8       // Only using 5 pins for BCD transverter control so bits 5, 6, and 7 are disabled in this example.
+#define BAND_DEC_A_1    9
+#define BAND_DEC_A_2    10
+#define BAND_DEC_A_3    11
+#define BAND_DEC_A_4    12
+#define BAND_DEC_A_5    99      // not using so set pin to somehting impossible
+#define BAND_DEC_A_6    99
+#define BAND_DEC_A_7    99   
+
+#define BAND_DEC_B_0    24
+#define BAND_DEC_B_1    25
+#define BAND_DEC_B_2    26
+#define BAND_DEC_B_3    27
+#define BAND_DEC_B_4    28
+#define BAND_DEC_B_5    29
+#define BAND_DEC_B_6    30
+#define BAND_DEC_B_7    31
+
+#define BAND_DEC_C_0    33
+#define BAND_DEC_C_1    34
+#define BAND_DEC_C_2    35
+#define BAND_DEC_C_3    36
+#define BAND_DEC_C_4    37
+#define BAND_DEC_C_5    38
+#define BAND_DEC_C_6    39
+#define BAND_DEC_C_7    40
+
 // I2C pins for use with OLED or other IO
 #define SDA1_PIN 17
 #define SCL1_PIN 16
 
-// Band Decoder Input Pins
-#define BAND_DEC_IN_0   3  // 6 input pins.  Can take any pattern to be translated to various ports.  Example, BCD on 3 pins for transverter/amp, last 3 BCD for antenna switch
-#define BAND_DEC_IN_1   4  // using 4 wire BCD in my install so not using all 6 defined pins, just 4.  Comment out lines in Band input read function
-#define BAND_DEC_IN_2   5
-#define BAND_DEC_IN_3   6
-//#define BAND_DEC_IN_4   99
-//#define BAND_DEC_IN_5   99   // only needed if not using BCD input otherwise need to trade pins with another port
-#define BAND_DEC_PTT_IN 7  //  PTT input from radio.  Will pass through to PTT out, possibly with translations.
-
-// Band Decoder Banks A and B and C
-#define BAND_DEC_A_0    24
-#define BAND_DEC_A_1    25
-#define BAND_DEC_A_2    26
-#define BAND_DEC_A_3    27
-#define BAND_DEC_A_4    28
-#define BAND_DEC_A_5    29
-#define BAND_DEC_A_6    30
-#define BAND_DEC_A_7    31   
-
-#define BAND_DEC_B_0    33
-#define BAND_DEC_B_1    34
-#define BAND_DEC_B_2    35
-#define BAND_DEC_B_3    36
-#define BAND_DEC_B_4    37
-#define BAND_DEC_B_5    38
-#define BAND_DEC_B_6    39
-#define BAND_DEC_B_7    40
-
-#define BAND_DEC_C_0    8
-#define BAND_DEC_C_1    9
-#define BAND_DEC_C_2    10
-#define BAND_DEC_C_3    11
-#define BAND_DEC_C_4    12
-#define BAND_DEC_C_5    32
-#define BAND_DEC_C_6    14
-#define BAND_DEC_C_7    15
-
-// pin 41/a17 and 32 are unused still
-
 // Arduino Band Decoder and CW/PTT output Pin Assignments
 #define PTT_OUT         13    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
-#define CW_KEY_OUT      2   // CW is from OTRSP serial line RTS/DTR 
+#define CW_KEY_OUT      2     // CW is from OTRSP serial line RTS/DTR 
 
-uint8_t Band_Dec_In_Byte;   // Byte storing decoder input pattern
-uint8_t Band_Dec_OutA_Byte;    // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)
+// 4 pins unused --->  41/a17, 14/A0, 15/A1, and 32 are unused still in this example tailered to one of my installations.
+
+uint8_t Band_Dec_In_Byte;       // Byte storing decoder input pattern
+uint8_t Band_Dec_OutA_Byte;     // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)
 uint8_t Band_Dec_OutB_Byte;
-uint8_t Antenna_Select;    // byte value pattern overlaid on any nnumber of port pins.  Set bit commands break out which pins are used
+uint8_t Antenna_Select;         // byte value pattern overlaid on any nnumber of port pins.  Set bit commands break out which pins are used
 
 #define RX 0
 #define TX 1
@@ -166,9 +167,11 @@ uint8_t Antenna_Select;    // byte value pattern overlaid on any nnumber of port
 #define MENU 3
 #define NO 0
 #define YES 1
-#define ADC_COUNTS 1024.0    // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
+#define ADC_COUNTS 1024.0       // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
+
 // Edit the Coupler Set data in the Cal_Table function.  Set the max number of sets here, and the default to load at startup
 #define NUM_SETS 11 // 11 bands, 0 through 10 for example
+
 #define SETPOINT_LEN            (0x0004)
 #define TEMPERATURE_LEN         (0x0001)
 #define METERID_LEN             (0x0001)
