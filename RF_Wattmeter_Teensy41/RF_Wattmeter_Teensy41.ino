@@ -2247,7 +2247,7 @@ void read_Arduino_EEPROM()
          delay(10); 
       }
    }
-   if (len_ee > EEPROM_SIZE)
+   if (len_ee > EEPROM.length())  //EEPROM_SIZE)
    {       
      RFWM_Serial.print("ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
      RFWM_Serial.println(len_ee);
@@ -2257,7 +2257,7 @@ void read_Arduino_EEPROM()
    RFWM_Serial.print("  - EEPROM Bytes used : ");
    RFWM_Serial.print(len_ee);
    RFWM_Serial.print("  - EEPROM Bytes remaining = ");
-   RFWM_Serial.println(EEPROM_SIZE - len_ee);
+   RFWM_Serial.println(EEPROM.length() - len_ee);    //EEPROM_SIZE - len_ee);
    RFWM_Serial.print("Number of table rows = ");
    RFWM_Serial.print(NUM_SETS);
    RFWM_Serial.print("  - Size of each Cal_Table row = ");
@@ -2388,7 +2388,7 @@ void write_Arduino_EEPROM()
          delay(10);
          EEPROM.update(0,'G');
       }
-      if (len_ee > EEPROM_SIZE)
+      if (len_ee > - len_ee)    // EEPROM_SIZE)
       {       
          RFWM_Serial.print("ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
          RFWM_Serial.println(len_ee);
@@ -2399,7 +2399,7 @@ void write_Arduino_EEPROM()
    RFWM_Serial.print("  -  EEPROM Bytes used : ");
    RFWM_Serial.print(len_ee);
    RFWM_Serial.print("  -  EEPROM Bytes remaining = ");
-   RFWM_Serial.println(EEPROM_SIZE - len_ee);
+   RFWM_Serial.println(EEPROM.length() - len_ee);     //(EEPROM_SIZE - len_ee);
    RFWM_Serial.println("Write Cal Table to EEPROM - End " );
 }
 
