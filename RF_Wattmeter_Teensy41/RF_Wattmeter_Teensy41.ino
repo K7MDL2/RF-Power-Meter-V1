@@ -44,7 +44,7 @@ void setup(void)
 { 
   // Set up our input pins
   pinMode(ADC_FWD,INPUT);
-  pinMode(ADC_REF,INPUT);
+  pinMode(ADC_REF,INPUT_PULLUP);
   pinMode(ADC_TEMP,INPUT_PULLUP);   // If nothing is connected to these pins then setting to INPUT_PULLUP wil lpin them to Vcc and prevent floating around.
   pinMode(ADC_CURR,INPUT_PULLUP);
   pinMode(ADC_14V,INPUT_PULLUP);
@@ -64,12 +64,12 @@ void setup(void)
   #ifdef TEENSY4_CW_PTT
   pinMode(CW_KEY_OUT, OUTPUT);
   CW_KEY_OUT_state = 0; 
-  CW_KEY_OUT_state_last = 0;
-  digitalWrite(CW_KEY_OUT, LOW);    // need to initialize these according to polarity config
+  CW_KEY_OUT_state_last = 200;
+  digitalWrite(CW_KEY_OUT, HIGH);    // need to initialize these according to polarity config
   
   pinMode(PTT_OUT, OUTPUT);
   PTT_OUT_state = 0;
-  PTT_OUT_state_last = 0;
+  PTT_OUT_state_last = 200;
   digitalWrite(PTT_OUT, LOW);    // need to initializze these accordin to polarity config
   #endif
 
@@ -167,7 +167,7 @@ void setup(void)
   NewBand = CouplerSetNum;
 
   #ifdef NEXTION
-    nexSeriale.begin(NexSerialBAUD);   // set in RF wattmter_Arduino.h - must match the Nextion display BAUD or BAUDS parameter set on Main Page
+    nexSerial.begin(NexSerialBAUD);   // set in RF wattmter_Arduino.h - must match the Nextion display BAUD or BAUDS parameter set on Main Page
     nexInit();
     /*
     // Set up objects to monitor touch controls from Nextion Display 
@@ -1367,6 +1367,7 @@ uint8_t update_Nextion(uint8_t force_update)
 void OLED(void)
 { 
     char s[24];
+    char TxRx[5];
         
     display.clearDisplay();    
     display.drawRect( 0, 17, 127, 47, SSD1306_WHITE);
@@ -1389,24 +1390,32 @@ void OLED(void)
     display.println("Band");
     display.setCursor(62,20);
     display.println("Fwd");
-    display.setCursor(98,20);
-    display.println("SWR");
+    //display.setCursor(98,20);
+    //display.println("SWR");
+    display.setCursor(100,20);
+    display.println("T/R");
        
     if (FwdPwr <= 0.1)
         sprintf(s, " %*.1f%*.1f%*s%c", 5, 0.0, 7, 0.0, 5, "NA", '\0'); 
     else
     {
-        sprintf(s, " %*s%*.1f%*.1f%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, Fwd_dBm, 5, SWRVal, '\0');           
+        if (PTT_IN_state)
+            strcpy(TxRx,"TX\0");
+        else
+            strcpy(TxRx,"RX\0");
+        //sprintf(s, " %*s%*.1f%*.1f%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, Fwd_dBm, 5, SWRVal, '\0');
+        sprintf(s, " %*s%*.1f%*s%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, Fwd_dBm, 5, TxRx, '\0');
     }
     if (CouplerSetNum == 0)
     {
         sprintf(s, " %*s%*.1d%*.1d%c", 3, Band_Cal_Table[CouplerSetNum].BandName, 8, 0, 5, 0, '\0');   
-        display.setCursor(9,30);
+        display.setCursor(9,31);
     }   
     else
-      display.setCursor(1,30); 
-    display.setTextSize(1);
- 
+    {
+      display.setCursor(1,31); 
+    }
+    display.setTextSize(1); 
     display.println(s);
     
     sprintf(s,"In:%02X A:%02X B:%02X C:%02X%c", Band_Dec_In_Byte, PortA_state, PortB_state, PortC_state, '\0');

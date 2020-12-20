@@ -17,7 +17,7 @@
 ******************************************************************************/
 #define SSD1306_OLED
 #define OLED_COMBO_LAYOUT   // requires SSD1306 define active.
-//#define NEXTION           // OK to run OLED at same time
+#define NEXTION           // OK to run OLED at same time
 #define DETECTOR_TEMP_CONNECTED     // Tested with teh ADL5519 onboard temp output. 
 //#define LORA   // This is set in Serial.c also
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
