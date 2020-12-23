@@ -118,14 +118,14 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_PTT_IN 7       //  PTT input from radio.  Will pass through to PTT out, possibly with translations.
 
 // Band Decoder Banks A and B and C
-#define BAND_DEC_A_0    8       // Only using 5 pins for BCD transverter control so bits 5, 6, and 7 are disabled in this example.
-#define BAND_DEC_A_1    9
-#define BAND_DEC_A_2    10
-#define BAND_DEC_A_3    11
-#define BAND_DEC_A_4    12
-#define BAND_DEC_A_5    99      // not using so set pin to somehting impossible
-#define BAND_DEC_A_6    99
-#define BAND_DEC_A_7    99   
+#define BAND_DEC_A_0    33      // Only using 5 pins for BCD transverter control so bits 5, 6, and 7 are disabled in this example.
+#define BAND_DEC_A_1    34
+#define BAND_DEC_A_2    35
+#define BAND_DEC_A_3    36
+#define BAND_DEC_A_4    37
+#define BAND_DEC_A_5    99      //38      
+#define BAND_DEC_A_6    99      // not using so set pin to somehting impossible
+#define BAND_DEC_A_7    99      // not using so set pin to somehting impossible
 
 #define BAND_DEC_B_0    24
 #define BAND_DEC_B_1    25
@@ -136,22 +136,23 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_B_6    30
 #define BAND_DEC_B_7    31
 
-#define BAND_DEC_C_0    33
-#define BAND_DEC_C_1    34
-#define BAND_DEC_C_2    35
-#define BAND_DEC_C_3    36
-#define BAND_DEC_C_4    37
-#define BAND_DEC_C_5    38
-#define BAND_DEC_C_6    39
-#define BAND_DEC_C_7    40
+#define BAND_DEC_C_0    8
+#define BAND_DEC_C_1    9
+#define BAND_DEC_C_2    10
+#define BAND_DEC_C_3    11
+#define BAND_DEC_C_4    12
+#define BAND_DEC_C_5    99    // not using so set pin to somehting impossible
+#define BAND_DEC_C_6    99    // not using so set pin to somehting impossible
+#define BAND_DEC_C_7    99    // not using so set pin to somehting impossible
 
 // I2C pins for use with OLED or other IO
 #define SDA1_PIN 17
 #define SCL1_PIN 16
 
 // Arduino Band Decoder and CW/PTT output Pin Assignments
-#define PTT_OUT         13    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
-#define CW_KEY_OUT      2     // CW is from OTRSP serial line RTS/DTR 
+#define PTT_OUT         39    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
+#define PTT_OUT2        40    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
+#define CW_KEY_OUT      13    // CW is from OTRSP serial line RTS/DTR 
 
 // 4 pins unused --->  41/a17, 14/A0, 15/A1, and 32 are unused still in this example tailered to one of my installations.
 
@@ -159,6 +160,7 @@ uint8_t Band_Dec_In_Byte;       // Byte storing decoder input pattern
 uint8_t Band_Dec_OutA_Byte;     // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)
 uint8_t Band_Dec_OutB_Byte;
 uint8_t Antenna_Select;         // byte value pattern overlaid on any nnumber of port pins.  Set bit commands break out which pins are used
+uint8_t SEQ_Delay = 25;         // milliseconds delay for sequencing transveter and amps PTT
 
 #define RX 0
 #define TX 1

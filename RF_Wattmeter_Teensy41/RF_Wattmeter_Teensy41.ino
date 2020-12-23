@@ -594,27 +594,39 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
     if (PTT_IN_state == TX)   // We are in TX Mode
     {
         if (EEPROM.read(PTT_OUT_POLARITY) == LOW) 
-        {
-            digitalWrite(PTT_OUT, LOW);     // TX is on, TX is ACTIVE LOW so send out a 0 to PTT OUT pin        
+        {            
+            digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 0 to PTT2 OUT pin )(sequencer for Amps first)
+            delay(SEQ_Delay);
+            digitalWrite(PTT_OUT, LOW);     // TX is on, TX is ACTIVE LOW so send out a 0 to PTT OUT pin(now Xvtr)
             PTT_OUT_state = LOW;            // this is used when calling Port (A,B,C) update functions in case they follow PTT
+
+
         }
         else
         {
-            digitalWrite(PTT_OUT, HIGH);    // TX is on, TX is ACTIVE HIGH so send out a 1 to PTT OUT pin
-            PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT
+            
+            digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (sequencer for Amps first)
+            delay(SEQ_Delay);
+            digitalWrite(PTT_OUT, HIGH);    // TX is on, TX is ACTIVE HIGH so send out a 1 to PTT OUT pin (Now Xvtr)
+            PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT            
         }
     }
     else   // We are in RX mode
     {
         if (EEPROM.read(PTT_OUT_POLARITY) == LOW) 
         {
-            digitalWrite(PTT_OUT, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin
+            digitalWrite(PTT_OUT, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Sequence Xvtr release first)
             PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT
+            delay(SEQ_Delay);
+            digitalWrite(PTT_OUT2, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Now amps)
+            
         }
         else
         {
-            digitalWrite(PTT_OUT, LOW);     // RX is on, TX is ACTIVE HIGH so send out a 0 to PTT OUT pin
-            PTT_OUT_state = LOW;            // this is used when calling Port (A,B,C) update functions in case they follow PTT
+            digitalWrite(PTT_OUT, LOW);     // RX is on, TX is ACTIVE HIGH so send out a 0 to PTT OUT pin  (Sequence Xvtr release first)
+            PTT_OUT_state = LOW;            // this is used when calling Port (A,B,C) update functions in case they follow PTT_OUT_state
+            delay(SEQ_Delay);
+            digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (now Amps)
         }
     }
         
@@ -2856,17 +2868,15 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
 // Read the group of pins that together are a pattern stored in 1 byte for the Band in group
 void Band_Decoder_Get_Input()
 {    
+
+  // ToDo: Add debounce for manual switches
     bitWrite(Band_Dec_In_Byte, 0, digitalRead(BAND_DEC_IN_0));  // read in and store the state of all band decoder input pins
     bitWrite(Band_Dec_In_Byte, 1, digitalRead(BAND_DEC_IN_1));
     bitWrite(Band_Dec_In_Byte, 2, digitalRead(BAND_DEC_IN_2));
     bitWrite(Band_Dec_In_Byte, 3, digitalRead(BAND_DEC_IN_3));
     //bitWrite(Band_Dec_In_Byte, 4, digitalRead(BAND_DEC_IN_4));
-    bitClear(Band_Dec_In_Byte, 4);
     // bitWrite(Band_Dec_In_Byte, 5, digitalRead(BAND_DEC_IN_5));   // Not used, PTT IN using this pin.
-    bitClear(Band_Dec_In_Byte, 5);
-    bitClear(Band_Dec_In_Byte, 6);   // clear the unused bits
-    bitClear(Band_Dec_In_Byte, 7);
-
+    Band_Dec_In_Byte = ~Band_Dec_In_Byte & 0x0F;
     //RFWM_Serial.print(" Band_Dec_In_Byte = 0x");
     //RFWM_Serial.println(Band_Dec_In_Byte, HEX);
 }
@@ -2922,8 +2932,8 @@ void Band_Decode_A_Output(uint8_t pattern)
     digitalWrite(BAND_DEC_A_3, bitRead(pattern, 3));
     digitalWrite(BAND_DEC_A_4, bitRead(pattern, 4));
     digitalWrite(BAND_DEC_A_5, bitRead(pattern, 5));
-    digitalWrite(BAND_DEC_A_6, bitRead(pattern, 6));
-    digitalWrite(BAND_DEC_A_7, bitRead(pattern, 7));
+    //digitalWrite(BAND_DEC_A_6, bitRead(pattern, 6));
+    //digitalWrite(BAND_DEC_A_7, bitRead(pattern, 7));
 }
 
   // we have a byte that needs to translate from a number to a bit
@@ -3046,9 +3056,9 @@ void Band_Decode_C_Output(uint8_t pattern)
     digitalWrite(BAND_DEC_C_2, bitRead(pattern, 2));
     digitalWrite(BAND_DEC_C_3, bitRead(pattern, 3));
     digitalWrite(BAND_DEC_C_4, bitRead(pattern, 4));
-    digitalWrite(BAND_DEC_C_5, bitRead(pattern, 5));
-    digitalWrite(BAND_DEC_C_6, bitRead(pattern, 6));
-    digitalWrite(BAND_DEC_C_7, bitRead(pattern, 7)); 
+    //digitalWrite(BAND_DEC_C_5, bitRead(pattern, 5));
+    //digitalWrite(BAND_DEC_C_6, bitRead(pattern, 6));
+    //digitalWrite(BAND_DEC_C_7, bitRead(pattern, 7)); 
 }
 
 /* [] END OF FILE */
