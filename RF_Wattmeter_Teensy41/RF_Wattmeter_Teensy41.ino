@@ -9,7 +9,9 @@
 #include "RF_Wattmeter_Arduino.h"
 /*
  *
- * RF Power Meter by K7MDL 12/18/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
+ * RF Power Meter by K7MDL 12/23/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
+ * 12/23/2020 - Changed pin assignmetns to suit simpler decoder build wiring with ULN2803 drivers.  Accounted for driver inversion in Band In and PTT.  
+ *   Need to do the same for outputs.  Not required if no inverting buffers used or flip the Polarity settings.
  * 12/18/2020 - Changed OLED WAtts line to "OFF" on band 0.  Fixed bug where band decoder was not reading input on boot up.
  * 12/17/2020 -  Ported from PSoC5 C code. Now has full featured Band Decoder with 1 input port and 3 ouput ports, PTT in and out with polarity. 
  * OLED and Nextion display and headless operation supported.  Can run both displays at the same time.
@@ -468,6 +470,7 @@ void loop() {
         
         
         PTT_IN_pin = digitalRead(BAND_DEC_PTT_IN);    // We do not know if 1 or 0 is TX yet, determined in PTT_IN_handler()
+        PTT_IN_pin = ~PTT_IN_pin & 0x01;  // flip if using an inverting buffer
         if (PTT_IN_pin != PTT_IN_pin_last)
         {   // reset the timer until it stops changing.
             PTT_IN_debounce_timestamp = millis();   // record time of change.  Looking for no change for for maybe 15ms
@@ -547,26 +550,26 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
     uint8_t polarity ;
 
     polarity = EEPROM.read(PTT_IN_POLARITY);
-    
+
     RFWM_Serial.print("\npin_state = ");
     RFWM_Serial.print(pin_state);
-    RFWM_Serial.print("   PTT Active ");    
+    RFWM_Serial.print("   Input PTT Active ");    
     if (polarity)
         RFWM_Serial.println("HIGH");
     else
         RFWM_Serial.println("LOW");
-        
+
     if (pin_state == LOW)
     {
         if (polarity == LOW)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         {
             PTT_IN_state = TX;   // Set to TX
-            RFWM_Serial.println("TX Active LOW"); 
+            RFWM_Serial.println("TX, Tx is Active LOW"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            RFWM_Serial.println("RX Active HIGH"); 
+            RFWM_Serial.println("RX, Tx is Active HIGH"); 
         }
     }
     else
@@ -574,12 +577,12 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
         if (polarity == HIGH)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         { 
             PTT_IN_state = TX;   // Set to TX
-            RFWM_Serial.println("TX Active HIGH"); 
+            RFWM_Serial.println("TX, Tx is Active HIGH"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            RFWM_Serial.println("RX Active LOW"); 
+            RFWM_Serial.println("RX, Tx is Active LOW"); 
         }
     }    
     if (PTT_IN_state == RX)
@@ -2888,7 +2891,7 @@ void Band_Decode_A_Output(uint8_t pattern)
 
     trans_a = EEPROM.read(TRANS_A);
     if ( trans_a == 0)  // bit 0 and 1 is for Group A translation (or not).
-        {}  // do nothing, pass straight through
+        {}  // do nothing, pass straight through. Normally will be last OTRSP AuxNum1 value
     else if (trans_a == 1)  
         pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection
     else if (trans_a == 2)  // Ignore OTRSP, follow Current  Band
