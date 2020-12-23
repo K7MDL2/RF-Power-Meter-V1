@@ -59,7 +59,7 @@ void setup(void)
   //pinMode(BAND_DEC_IN_5, INPUT_PULLUP);   //To use this need to trade with another pin.
   
   pinMode(BAND_DEC_PTT_IN, INPUT_PULLUP);   // Interrupt handler setup for PTT input
-  PTT_IN_state = 0;
+  PTT_IN_state = 0;   // 0 is RX mode, 1 is TX mode
   PTT_IN_state_last = 0;
   
   // Set up our output pins, starting with initializing the CW and PTT control pins
@@ -72,7 +72,10 @@ void setup(void)
   pinMode(PTT_OUT, OUTPUT);
   PTT_OUT_state = 0;
   PTT_OUT_state_last = 200;
-  digitalWrite(PTT_OUT, LOW);    // need to initializze these accordin to polarity config
+  digitalWrite(PTT_OUT, HIGH);    // need to initializze these according to polarity config
+  pinMode(PTT_OUT2, OUTPUT);
+  digitalWrite(PTT_OUT2, HIGH);    // need to initializze these according to polarity config
+  
   #endif
 
   // now our other IO pins
@@ -81,9 +84,9 @@ void setup(void)
   pinMode(BAND_DEC_A_2, OUTPUT);
   pinMode(BAND_DEC_A_3, OUTPUT);
   pinMode(BAND_DEC_A_4, OUTPUT);
-  pinMode(BAND_DEC_A_5, OUTPUT);
-  pinMode(BAND_DEC_A_6, OUTPUT);
-  pinMode(BAND_DEC_A_7, OUTPUT);
+  //pinMode(BAND_DEC_A_5, OUTPUT);
+  //pinMode(BAND_DEC_A_6, OUTPUT);
+  //pinMode(BAND_DEC_A_7, OUTPUT);
   pinMode(BAND_DEC_B_0, OUTPUT);   // Band Decoder bank B pin (bit) 0
   pinMode(BAND_DEC_B_1, OUTPUT);
   pinMode(BAND_DEC_B_2, OUTPUT);
@@ -97,9 +100,9 @@ void setup(void)
   pinMode(BAND_DEC_C_2, OUTPUT);
   pinMode(BAND_DEC_C_3, OUTPUT); 
   pinMode(BAND_DEC_C_4, OUTPUT); 
-  pinMode(BAND_DEC_C_5, OUTPUT); 
-  pinMode(BAND_DEC_C_6, OUTPUT); 
-  pinMode(BAND_DEC_C_7, OUTPUT);
+  //pinMode(BAND_DEC_C_5, OUTPUT); 
+  //pinMode(BAND_DEC_C_6, OUTPUT); 
+  //pinMode(BAND_DEC_C_7, OUTPUT);
 
   // Initial our serial ports
 #ifdef NEXTION
