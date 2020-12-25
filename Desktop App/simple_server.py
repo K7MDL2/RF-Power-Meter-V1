@@ -7,7 +7,7 @@
 #
 import socket
 import struct
-from .. import wsjtx_packets as pywsjtx
+import wsjtx_packets as pywsjtx
 import logging
 import ipaddress
 

@@ -14,10 +14,9 @@ from tkinter.filedialog import askopenfilename
 
 print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__,__name__,str(__package__)))
 
-import pywsjtx.wsjtx_packets as pywsjtx
-import pywsjtx.extra.simple_server
+import wsjtx_packets as pywsjtx
+import simple_server
 import tkinter.messagebox
-import ctypes
 
 
 PowerMeterVersionNum = "2.3"
@@ -110,7 +109,7 @@ PowerMeterVersionNum = "2.3"
 myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Title Bar Text
 
 # edit these to match your meter ID and Rig/Location text for this meter instance
-myRig = "K3 Florida"       # Rig name and location - about 10 characters max
+myRig = "K3 Camano"       # Rig name and location - about 10 characters max
 myRig_meter_ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
                            # --> Always 3 digits, 100 to 119 only allowed.  
 myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
@@ -129,10 +128,10 @@ myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Chang
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 
-#UDP_IP = '224.1.1.1'       # multicast address and port alternative
-#UDP_PORT = 5007
+#UDP_IP = '239.255.0.1'       # multicast address and port alternative
+#UDP_PORT = 2237
 UDP_IP = "127.0.0.1"        # default local machine address
-UDP_PORT = 2334             # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
+UDP_PORT = 2334            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
 # I am using 2334 with JTAlert re-broadcasting
 
 #  This program can optionally use WSJT-X UDP reporting broadcasts to automatically track your radio's frequency and send a command
@@ -435,7 +434,7 @@ class Receiver(Thread):
         super().__init__()
         self.keep_running = True
         global s
-        s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
+        s = simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
         #s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
         # print(" Starting network thread")
 
