@@ -474,7 +474,7 @@ class Receiver(Thread):
                 wsjtx_id = the_packet.wsjtx_id
                 own_call = the_packet.de_call
                 if wsjtx_id == myWSJTX_ID:
-                    print("Status message received from WSJT-X ID : " + wsjtx_id)
+                    print("Status message received from WSJT-X ID : " + wsjtx_id + own_call)
                     freq = str(the_packet.dial_frequency)
                     freq = str(freq[:-6])                    
                     if  freq != "":                     
