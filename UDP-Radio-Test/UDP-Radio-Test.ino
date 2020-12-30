@@ -25,11 +25,12 @@ to a remote band decoder/wattmeter that is actually measuring RF power and contr
 The current capability is over USB Serial which requires 1 to 3 USB serial ports.  Converting to ethernet should make
 things easier and faster and take advantage of the latest logging programs and WSJTX.
 
- */
+*/
 
 
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
+#include <TimeLib.h>
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -38,7 +39,7 @@ byte mac[] = {
 };
 IPAddress ip(192, 168, 2, 187);
 
-unsigned int localPort = 2237;      // local port to listen on.  2237 typical for WSJT-X
+unsigned int localPort = 2237;      // local port to listen on
 // buffers for receiving and sending data
 //char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
 char packetBuffer[1500];  // buffer to hold incoming packet,
@@ -78,10 +79,14 @@ char heartbeat_revision[10];
 
 // Decode Message
 bool decode_is_new;
-double decode_time; //:: DiffTime
+time_t decode_time; //:: DiffTime    QTime(int h, int m, int s = 0, int ms = 0)
+int16_t h;  // QTime class components
+int16_t m;
+int16_t s;
+int16_t ms;
 int32_t decode_snr;
 float decode_delta_time;
-uint32_t decode_delta_frequency;
+time_t decode_delta_frequency;
 char decode_mode[20];
 char decode_message[100];
 bool low_confidence;
@@ -146,6 +151,7 @@ void setup() {
 void loop() 
 {
   int i;
+
   // if there's data available, read a packet
   int packetSize = Udp.parsePacket();
   if (packetSize) 
@@ -165,8 +171,8 @@ void loop()
 
     // read the packet into packetBuffer
     //Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-    Udp.read(packetBuffer, 500);   // had to make the packet buffer much larger than the 24bytes in the example.
-    // decode contents of wsjtx and N1MM+ here
+    Udp.read(packetBuffer, 500);
+    // decode contents of wsjtx and n1mm here
         Serial.print("\nRaw packet Content: 0x");
         packetBuffer[packetSize+1] = '\0';
         for (i=0; i< packetSize; i++)
@@ -214,19 +220,19 @@ void loop()
             Serial.print("heartbeat_revision:");
             Serial.println(heartbeat_version);
         }
-        if (the_type == 1)   // periodic status update, also sent when a significnt action happens like changing bands.  Use for radio frewquency info for band decode.
+        if (the_type == 1)        
         {
             StatusPacket(packetSize);
         }
-        if (the_type == 2)   // Decoded stations message.  One for every station decoded in each cycle.
+        if (the_type == 2)
         {
             Decode(packetSize);
         }
-        if (the_type == 5)  // Logged QSO message
+        if (the_type == 5)
         {       
             QSOLogged(packetSize);
         }
-        if (the_type == 12)  // ADIF record for logged contacts.  All text.
+        if (the_type == 12)
         {
             Serial.print("ADIF Record:");                    
             for (i=16; i< packetSize; i++)
@@ -237,11 +243,6 @@ void loop()
             Serial.println("|| packet end\n");
             Serial.println('\n');       
         }
-    // There are several other message types, the above few were what I figure is most interesting especially for band decoder use.
-    // Later need to listen to N1MM messages.
-
-
-    // Not using any reply but this is an example of how to send a UDP reply message assuming you known what to send.
     // send a reply to the IP address and port that sent us the packet we received
     //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
     //Udp.write(ReplyBuffer);
@@ -256,9 +257,14 @@ void Decode(int packetSize)
     Serial.print("decode_is_new:");
     Serial.println(decode_is_new);
 
-    decode_time = QUint32();          //Time    4 byte value
+    decode_time = QUint32();          //Time    4 byte value   h, m, s is 6 bytes 8 with ms
     Serial.print("decode_time:");
     Serial.println(decode_time);
+    time_t t = decode_time;
+    //breakTime(decode_time, tm);
+    Serial.println(hour(t));
+    Serial.println(minute(t));
+    Serial.println(second(t));    
 
     decode_snr = QInt32();
     Serial.print("decode_snr:");
@@ -310,7 +316,7 @@ void QSOLogged(int packetSize)
     Serial.print("logged_dx_grid:");
     Serial.println(logged_dx_grid);
     
-    logged_dial_frequency = QUint64()/10;                         
+    logged_dial_frequency = QUint64();                         
     Serial.print("logged_dial_frequency:");
     Serial.println(logged_dial_frequency);
 
@@ -384,7 +390,7 @@ void QSOLogged(int packetSize)
 void StatusPacket(int packetSize)     // process packetBuffer string
 {
     int i;
-    dial_frequency = QUint64()/10;
+    dial_frequency = QUint64();
     Serial.print("Dial Frequency is:");
     Serial.println(dial_frequency);
     
@@ -472,8 +478,7 @@ void StatusPacket(int packetSize)     // process packetBuffer string
     strcpy(configuration_name, str_decode);
     Serial.print("configuration_name:");
     Serial.println(configuration_name);
-
-    // The results summarized.  Can remove the individual prints after debugging is done.          
+              
     sprintf(str_decode, "Decoded packet = %lu-%s-%f-%s-%s-%s-%s-%d-%d-%d", the_type, wsjtx_id, dial_frequency, mode, dx_call, report, tx_mode, tx_enabled, transmitting, decoding);
     Serial.print(str_decode);
     str_decode[0] = '\0';
@@ -523,12 +528,12 @@ uint32_t QUint32(void)  // get the next 4 bytes and return as an unsigned int32
   }
   sval[4] = '\0';
 
-  // little endian example
+  // little endian
   //uint8_t *sval;
   //value = sval[0] + (sval[1] << 8) + (sval[2] << 16) + (sval[3] << 24);
   //Serial.print("\nQUint32 (little endian) = ");
   //Serial.println(val1);
-  // big endian for the Arduino Teensy 4.1
+  // big endian  
   value = (sval[0] << 24) + (sval[1] << 16) + (sval[2] << 8) + sval[3];
   //Serial.print("\nQUint32 (big endian) = ");
   //Serial.println(value);
