@@ -27,22 +27,22 @@ things easier and faster and take advantage of the latest logging programs and W
 
 */
 
-
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
 #include <TimeLib.h>
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
-byte mac[] = {
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
-};
-IPAddress ip(192, 168, 2, 187);
+//byte mac[] = {
+//  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+//};
+IPAddress ip(192, 168, 2, 187);  // insert your devices static IP
 
+#define UDP_RX_BUFFER
 unsigned int localPort = 2237;      // local port to listen on
 // buffers for receiving and sending data
-//char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
-char packetBuffer[1500];  // buffer to hold incoming packet,
+//char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet, 24bytes is not enought for this app.
+char packetBuffer[1500];  // larger buffer to hold incoming packet.
 char ReplyBuffer[] = "acknowledged";        // a string to send back
 volatile uint32_t ptr_pos;
 uint32_t max_ptr_pos;
@@ -113,6 +113,67 @@ char prop_mode[20];
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
 
+void teensyMAC(uint8_t *mac) {
+
+  static char teensyMac[23];
+  
+  #if defined (HW_OCOTP_MAC1) && defined(HW_OCOTP_MAC0)
+    Serial.println("using HW_OCOTP_MAC* - see https://forum.pjrc.com/threads/57595-Serial-amp-MAC-Address-Teensy-4-0");
+    for(uint8_t by=0; by<2; by++) mac[by]=(HW_OCOTP_MAC1 >> ((1-by)*8)) & 0xFF;
+    for(uint8_t by=0; by<4; by++) mac[by+2]=(HW_OCOTP_MAC0 >> ((3-by)*8)) & 0xFF;
+
+    #define MAC_OK
+
+  #else
+    
+    mac[0] = 0x04;
+    mac[1] = 0xE9;
+    mac[2] = 0xE5;
+
+    uint32_t SN=0;
+    __disable_irq();
+    
+    #if defined(HAS_KINETIS_FLASH_FTFA) || defined(HAS_KINETIS_FLASH_FTFL)
+      Serial.println("using FTFL_FSTAT_FTFA - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+      
+      FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
+      FTFL_FCCOB0 = 0x41;
+      FTFL_FCCOB1 = 15;
+      FTFL_FSTAT = FTFL_FSTAT_CCIF;
+      while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
+      SN = *(uint32_t *)&FTFL_FCCOB7;
+
+      #define MAC_OK
+      
+    #elif defined(HAS_KINETIS_FLASH_FTFE)
+      Serial.println("using FTFL_FSTAT_FTFE - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+      
+      kinetis_hsrun_disable();
+      FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
+      *(uint32_t *)&FTFL_FCCOB3 = 0x41070000;
+      FTFL_FSTAT = FTFL_FSTAT_CCIF;
+      while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
+      SN = *(uint32_t *)&FTFL_FCCOBB;
+      kinetis_hsrun_enable();
+
+      #define MAC_OK
+      
+    #endif
+    
+    __enable_irq();
+
+    for(uint8_t by=0; by<3; by++) mac[by+3]=(SN >> ((2-by)*8)) & 0xFF;
+
+  #endif
+
+  #ifdef MAC_OK
+    sprintf(teensyMac, "MAC: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    Serial.println(teensyMac);
+  #else
+    Serial.println("ERROR: could not get MAC");
+  #endif
+}
+
 void setup() {
   // You can use Ethernet.init(pin) to configure the CS pin
   //Ethernet.init(10);  // Most Arduino shields
@@ -122,6 +183,8 @@ void setup() {
   //Ethernet.init(15);  // ESP8266 with Adafruit Featherwing Ethernet
   //Ethernet.init(33);  // ESP32 with Adafruit Featherwing Ethernet
 
+  uint8_t mac[6];
+  teensyMAC(mac);
   // start the Ethernet
   Ethernet.begin(mac, ip);
 
@@ -171,9 +234,9 @@ void loop()
 
     // read the packet into packetBuffer
     //Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-    Udp.read(packetBuffer, 500);
+    Udp.read(packetBuffer, 1500);
     // decode contents of wsjtx and n1mm here
-        Serial.print("\nRaw packet Content: 0x");
+        Serial.print("\nRaw packet Content: SOP 0x");
         packetBuffer[packetSize+1] = '\0';
         for (i=0; i< packetSize; i++)
         {   
@@ -183,7 +246,7 @@ void loop()
             Serial.print(packetBuffer[i], HEX);                      
             Serial.print(",");
         }
-        Serial.println("|| packet end\n");
+        Serial.println("|| EOP\n");
             
         Serial.print("Raw packet Text View Content: ");
         for (i=11; i< packetSize; i++)
@@ -389,7 +452,6 @@ void QSOLogged(int packetSize)
 
 void StatusPacket(int packetSize)     // process packetBuffer string
 {
-    int i;
     dial_frequency = QUint64();
     Serial.print("Dial Frequency is:");
     Serial.println(dial_frequency);
@@ -488,7 +550,6 @@ void StatusPacket(int packetSize)     // process packetBuffer string
 }
 void PacketReader(int packetSize)
 {  
-  char *ptr;
   ptr_pos = 0;
   max_ptr_pos = packetSize - 1;
   skip_header(); 
@@ -520,7 +581,6 @@ uint32_t QUint32(void)  // get the next 4 bytes and return as an unsigned int32
   uint8_t i;
   uint32_t value;
   char sval[5] = {};
-  char sval2[5];
 
   for (i=0; i<4; i++)
   {
@@ -635,7 +695,7 @@ uint64_t QUint64(void)  // get next 8 bytes, return as a double
 {
   uint8_t i;
   uint64_t value;
-  char sval[9];
+  uint64_t sval[9];
 
   for (i=0; i<8; i++)
   {
@@ -643,7 +703,6 @@ uint64_t QUint64(void)  // get next 8 bytes, return as a double
   }
   sval[8] = '\0';
   value = (sval[0] << 56) + (sval[1] << 48) + (sval[2] << 40) + (sval[3] << 32) + (sval[4] << 24) + (sval[5] << 16) + (sval[6] << 8) + sval[7];
-  //value = 0;
   ptr_pos += 8;
   return value;
 }
@@ -651,7 +710,7 @@ uint64_t QUint64(void)  // get next 8 bytes, return as a double
 float QFloat(void)  // get next 8 bytes, return as a float
 {
   float value;
-  char sval[9];
+  uint64_t sval[9];
   uint8_t i;
 
   //Serial.print("ptr_pos = ");
@@ -661,9 +720,7 @@ float QFloat(void)  // get next 8 bytes, return as a float
       sval[i] = packetBuffer[ptr_pos+i];
   }
   sval[9] = '\0';
-  //value = (sval[0] << 24) + (sval[1] << 16) + (sval[2] << 8) + sval[3];
   value = (sval[0] << 56) + (sval[1] << 48) + (sval[2] << 40) + (sval[3] << 32) + (sval[4] << 24) + (sval[5] << 16) + (sval[6] << 8) + sval[7];
   ptr_pos += 8;
- // value = 0;
   return value;
 }
