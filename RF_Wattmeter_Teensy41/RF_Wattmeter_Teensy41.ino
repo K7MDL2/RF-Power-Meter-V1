@@ -9,10 +9,35 @@
 #include "RF_Wattmeter_Arduino.h"
 /*
  *
- * RF Power Meter by K7MDL 12/23/2020   - Remote (Headless) Edition for Testing on Arduino Teensy 4.1
+ * RF Power Meter by K7MDL 1/1/2021   - RF Wattmetter and Band DEcoder on Arduino Teensy 4.1 with Ethernet option
+ * 1/1/2021 - Added Ethernet UDP capability tht parallels the serial data control and montoring link.  Serial is always active.
+ *   Ethernet support is a #define ENET.  If compiled there is the  (ENET_ENABLE) EEPROM flag to enable or disable it.  
+ *   Used a 2nd Arduino on ethernet to test control/monitor comms.  This is a prep step to sending Nextion serial data to a remote location over the wire.  
+ *   Up next is to update the Desktop App to use ethernet.  
+ *   A NativeEthernet.cpp file is included in this project that has a patched Ethernet.begin class.  The patch inserts a delay and timeout counter to prevent 
+ *      a hang in the case no ethernet is connected.  When calling Ethernet.begin(mac,ip) it succeeds except for the last line where 
+ *      it waits for Link_status to be Good, but never will. Using DHCP it times oup properly.  
+ *      If Enet option is complied in, and it is enabled (in EEPROM setting) and an Enet startup fails, a flag is set 
+ *      and a 10 minute timer is started to restart the enet system. The enet_ready flag is set whe all is good. 
+ *      Functions using enet read and write look for the enet_ready flag so they do not call a non working function.
+ *   Created an Arduino Teensy test program that is decoding WSJT-X packets so the desktop app is nto required to glean band information
+ *   If using the Band Decoder feature with wired Band inputs or N1MM OTRSP then WSJT-X is not required for auto band change.
+ *   Changed all debug/info messages to use DBG_Serial #define to enable routing the messages to alternate serial ports.
+ *   Also inserted a ">" character at the start of each debug message.  
+ *   The Desktop App was updated to look for the ">" char at the first char position.  It then prints it to the screen and exists the parser function
+ *   This enables a cleaner debug experience.
+ *   
+ *   ToDo: Update Desktop App for ethernet control
+ *   ToDo: Build Arduino app to route Nextion serial data over ethernet to remote located Wattmeter/Decoder box. 
+ *         This app wil lalso have NTP client to get latest time and display on a new Nexton Clock page to be added.
+ *   ToDo: Add support for new Nextion page for new Band Decoder Configuration UI features (currently only in the Desktop App UI)   
+ *         Full support for the remote config commands are already in place on the CPU here, this work is reatled only to Nextion UI work for a new page.
+ *   
  * 12/23/2020 - Changed pin assignmetns to suit simpler decoder build wiring with ULN2803 drivers.  Accounted for driver inversion in Band In and PTT.  
  *   Need to do the same for outputs.  Not required if no inverting buffers used or flip the Polarity settings.
+ * 
  * 12/18/2020 - Changed OLED WAtts line to "OFF" on band 0.  Fixed bug where band decoder was not reading input on boot up.
+ * 
  * 12/17/2020 -  Ported from PSoC5 C code. Now has full featured Band Decoder with 1 input port and 3 ouput ports, PTT in and out with polarity. 
  * OLED and Nextion display and headless operation supported.  Can run both displays at the same time.
  * 
@@ -64,18 +89,17 @@ void setup(void)
   
   // Set up our output pins, starting with initializing the CW and PTT control pins
   #ifdef TEENSY4_CW_PTT
-  pinMode(CW_KEY_OUT, OUTPUT);
-  CW_KEY_OUT_state = 0; 
-  CW_KEY_OUT_state_last = 200;
-  digitalWrite(CW_KEY_OUT, HIGH);    // need to initialize these according to polarity config
-  
-  pinMode(PTT_OUT, OUTPUT);
-  PTT_OUT_state = 0;
-  PTT_OUT_state_last = 200;
-  digitalWrite(PTT_OUT, HIGH);    // need to initializze these according to polarity config
-  pinMode(PTT_OUT2, OUTPUT);
-  digitalWrite(PTT_OUT2, HIGH);    // need to initializze these according to polarity config
-  
+      pinMode(CW_KEY_OUT, OUTPUT);
+      CW_KEY_OUT_state = 0; 
+      CW_KEY_OUT_state_last = 200;
+      digitalWrite(CW_KEY_OUT, HIGH);    // need to initialize these according to polarity config
+      
+      pinMode(PTT_OUT, OUTPUT);
+      PTT_OUT_state = 0;
+      PTT_OUT_state_last = 200;
+      digitalWrite(PTT_OUT, HIGH);    // need to initializze these according to polarity config
+      pinMode(PTT_OUT2, OUTPUT);
+      digitalWrite(PTT_OUT2, HIGH);    // need to initializze these according to polarity config
   #endif
 
   // now our other IO pins
@@ -120,7 +144,7 @@ void setup(void)
     if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))   // Address 0x3C for 128x64, if not working try 0x3D
     { 
       for(;;) // Don't proceed, loop forever
-        RFWM_Serial.println("SSD1306 allocation failed");
+        DBG_Serial.println(">SSD1306 allocation failed");
     }
     // Show initial display buffer contents on the screen --
     // the library initializes this with an Adafruit splash screen.
@@ -135,18 +159,31 @@ void setup(void)
     display.clearDisplay();
 #endif
 
+#ifdef ENET
+  if (EEPROM.read(ENET_ENABLE))
+  { 
+      enet_start(); 
+      if (!enet_ready)
+      {
+          enet_start_fail_time = millis();      // set timer for 10 minute self recovery in main loop
+          DBG_Serial.println(">Ethernet System Startup Failed, setting retry timer (10 minutes)");
+      }
+      DBG_Serial.println(">Ethernet System Startup");
+  }
+#endif
+  
   write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized
       /*   initialize EEPROM storage if not done before - will overwrite default memory table values from EEPROM if EEPROM was written to before */    
   if (EEPROM.read(0) == 'G') 
   {
-    RFWM_Serial.println("EEPROM Data is Valid");
+    DBG_Serial.println(">EEPROM Data is Valid");
     EEPROM_Init_Read();
     //get_config_EEPROM();  // set last used values for CouplerSetNum (Band) and op_mode if there is data in the EEPROM
   }
  
   if (EEPROM.read(0) != 'G' || RESET_EEPROM == 1) 
   {    // Test if EEPROM has been initialized with table data yet
-    RFWM_Serial.println("Write EEPROM");
+    DBG_Serial.println(">Write EEPROM");
     write_Cal_Table_from_Default();  // Copy default values into memory
     EEPROM_Init_Write(); // Copy memory into EEPROM if EEPROM is not initialized yet. Byte 0 will get marked with a 'G'
     EE_Save_State();   // use default values to populate state storage area in EEPROM (first 16 bytes reserved for state variables)
@@ -238,6 +275,131 @@ void setup(void)
   adRead(); //get and calculate power + SWR values and display them  
 }
 
+void loop() 
+{ 
+    uint8_t ret1;
+
+    // Listen for remote computer commands                
+    serial_usb_read();  // fetch latest data in buffer                                      
+    if (rx_count!=0)
+        get_remote_cmd();       // scan buffer for command strings
+
+    ret1 = OTRSP();   // set Aux output pins and change bands to match
+    if (ret1)  // True if we got commands
+    {
+        ret1 = OTRSP_Process();  
+        if (ret1)   // True if we got a valid AUX or BAND command
+        { 
+            if (!EEPROM.read(DIS_OTRSP_BAND_CHANGE))
+            {
+                // If 1 then Disable is active.   Default is 0, change bands with AUX1 changes.
+                Button_B = YES;  // Process any N1MM Aux port commands on UART                  
+                NewBand = AuxNum1;  // Use AUX 1 to change the wattmeter band
+                DBG_Serial.print("> New Band # = ");
+                DBG_Serial.println(NewBand);              
+            }
+            else
+                DBG_Serial.println("> OTRSP sourced band changes are Disabled");
+        }
+    }     
+
+#ifdef ENET     // remove this code if no ethernet usage intended
+    if (EEPROM.read(ENET_ENABLE))   // only process enet if enabled.
+    {
+        if (!enet_ready)
+            if ((millis() - enet_start_fail_time) >  600000)  // check every 10 minutes (600K ms) and attempt a restart.
+                enet_start();
+        enet_read();
+        if (rx_count!=0)
+          get_remote_cmd();       // scan buffer for command strings
+    }
+#endif
+    
+    if (Band_Decoder())       // Process any radio band decoder changes 
+    {
+        Button_B = YES;
+        NewBand = Band_Dec_In_Byte;
+    }
+    
+    if (Button_B == YES) {      // Select Cal Band
+        //++CouplerSetNum;   // increment for manual button pushes
+        if (NewBand < 0)   // constrain newBand            
+        {
+            NewBand = 0;   // something wrong if you end up here                        
+            delay(1);
+        }
+        if (NewBand >= NUM_SETS)
+            NewBand = NUM_SETS-1; // something wrong if you end up here
+        CouplerSetNum = NewBand;    // set to commanded band.  If a Button B remote cmd, NewBand wil lbe incremented before here                            
+        if (CouplerSetNum > NUM_SETS)
+            CouplerSetNum = 0;                      
+        Button_B = NO; //reset flag
+        Cal_Table();  
+        // Now set the the Group A output pins according to the stored pattern
+        Band_Decode_A_Output(CouplerSetNum);   // Set outputs for the new band
+        Band_Decode_B_Output(AuxNum1);
+        Band_Decode_C_Output(AuxNum2);
+        DBG_Serial.print("> CouplerSetNum = ");
+        DBG_Serial.println(CouplerSetNum);
+        
+#ifdef NEXTION
+        strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
+        Set1_Bandvar.setText(cmd);    // Update Nextion display for new values            
+        toConfig_pop_Callback(0);  // when on the Config pages will update them
+        Set1_Callback(0);   
+        update_Nextion(1);                        
+#endif       
+        EE_Save_State();
+    }    
+    
+    if (CW_KEY_OUT_state != CW_KEY_OUT_state_last)
+    {
+        if (CW_KEY_OUT_state)
+            DBG_Serial.println(">CW KEY ON");
+        else
+            DBG_Serial.println(">CW KEY OFF");
+        CW_KEY_OUT_state_last = CW_KEY_OUT_state;
+    }   
+
+    // If PTT input changed, the flag is set and a timestamp made.  
+    
+    
+    PTT_IN_pin = digitalRead(BAND_DEC_PTT_IN);    // We do not know if 1 or 0 is TX yet, determined in PTT_IN_handler()
+    PTT_IN_pin = ~PTT_IN_pin & 0x01;  // flip if using an inverting buffer
+    if (PTT_IN_pin != PTT_IN_pin_last)
+    {   // reset the timer until it stops changing.
+        PTT_IN_debounce_timestamp = millis();   // record time of change.  Looking for no change for for maybe 15ms
+        PTT_IN_pin_last = PTT_IN_pin;
+        PTT_IN_changed = 0;
+    }
+    else   // state has stayed the same since last look
+    {
+        if (((PTT_IN_debounce_timestamp - millis()) > 5) && PTT_IN_changed == 0)
+        {   // change the state of the T/R status
+            PTT_IN_changed = 1;   // reset changed flag
+            PTT_IN_handler(PTT_IN_pin);  // Set RX or TX state corrected for configured polarity
+            PTT_OUT_handler();   // Set PTT Output state corrected for polarity and set PTT ouput pins
+        } 
+    }
+    
+    adRead(); //get and calculate power + SWR values and display them        
+    
+#ifdef SSD1306_OLED
+    // Process OLED Display if used
+    OLED();  // Update display for all params
+#endif 
+    
+#ifdef NEXTION
+    // Process Nextion Display events
+    if (nexSerial.available()) 
+      nexLoop(nex_listen_list);  // Process Nextion Display  
+    if (NewBand != CouplerSetNum)
+        update_Nextion(1);
+    else if (!WAIT)   // skip if waiting for response from a diaplsy query to reduce traffic
+        update_Nextion(0);    
+#endif
+}
+
 // Return the supply voltage in volts.  For ESP32 (M5Stack) 
 float read_vcc()
 {
@@ -256,7 +418,7 @@ float ADC_RF_Power_CountsTo_Volts(uint32_t counts)
   //analogReference(DEFAULT);
   VRef = ADC_VREF;
   Volts = (counts/ADC_COUNTS) * VRef;
-  //RFWM_Serial.println(Volts);
+  //DBG_Serial.println(Volts);
   return Volts;
 }
 
@@ -393,123 +555,6 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     sendSerialData();   // send this data to the serial port for remote monitoring
 }
 
-void loop() { 
-
-    uint8_t ret1;
-    
-    while (1) 
-    {
-        // Listen for remote computer commands                
-        serial_usb_read();  // fetch latest data in buffer                                      
-        if (rx_count!=0)
-            get_remote_cmd();       // scan buffer for command strings
-
-        ret1 = OTRSP();   // set Aux output pins and change bands to match
-        if (ret1)  // True if we got commands
-        {
-            ret1 = OTRSP_Process();  
-            if (ret1)   // True if we got a valid AUX or BAND command
-            { 
-                if (!EEPROM.read(DIS_OTRSP_BAND_CHANGE))
-                {
-                    // If 1 then Disable is active.   Default is 0, change bands with AUX1 changes.
-                    Button_B = YES;  // Process any N1MM Aux port commands on UART                  
-                    NewBand = AuxNum1;  // Use AUX 1 to change the wattmeter band
-                    RFWM_Serial.print(" New Band # = ");
-                    RFWM_Serial.println(NewBand);              
-                }
-                else
-                    RFWM_Serial.println(" OTRSP sourced band changes are Disabled");
-            }
-        }     
-            
-        if (Band_Decoder())       // Process any radio band decoder changes 
-        {
-            Button_B = YES;
-            NewBand = Band_Dec_In_Byte;
-        }
-        
-        if (Button_B == YES) {      // Select Cal Band
-            //++CouplerSetNum;   // increment for manual button pushes
-            if (NewBand < 0)   // constrain newBand            
-            {
-                NewBand = 0;   // something wrong if you end up here                        
-                delay(1);
-            }
-            if (NewBand >= NUM_SETS)
-                NewBand = NUM_SETS-1; // something wrong if you end up here
-            CouplerSetNum = NewBand;    // set to commanded band.  If a Button B remote cmd, NewBand wil lbe incremented before here                            
-            if (CouplerSetNum > NUM_SETS)
-                CouplerSetNum = 0;                      
-            Button_B = NO; //reset flag
-            Cal_Table();  
-            // Now set the the Group A output pins according to the stored pattern
-            Band_Decode_A_Output(CouplerSetNum);   // Set outputs for the new band
-            Band_Decode_B_Output(AuxNum1);
-            Band_Decode_C_Output(AuxNum2);
-            RFWM_Serial.print(" CouplerSetNum = ");
-            RFWM_Serial.println(CouplerSetNum);
-            
-#ifdef NEXTION
-            strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
-            Set1_Bandvar.setText(cmd);    // Update Nextion display for new values            
-            toConfig_pop_Callback(0);  // when on the Config pages will update them
-            Set1_Callback(0);   
-            update_Nextion(1);                        
-#endif       
-            EE_Save_State();
-        }    
-        
-        if (CW_KEY_OUT_state != CW_KEY_OUT_state_last)
-        {
-            if (CW_KEY_OUT_state)
-                RFWM_Serial.println("CW KEY ON");
-            else
-                RFWM_Serial.println("CW KEY OFF");
-            CW_KEY_OUT_state_last = CW_KEY_OUT_state;
-        }   
-
-        // If PTT input changed, the flag is set and a timestamp made.  
-        
-        
-        PTT_IN_pin = digitalRead(BAND_DEC_PTT_IN);    // We do not know if 1 or 0 is TX yet, determined in PTT_IN_handler()
-        PTT_IN_pin = ~PTT_IN_pin & 0x01;  // flip if using an inverting buffer
-        if (PTT_IN_pin != PTT_IN_pin_last)
-        {   // reset the timer until it stops changing.
-            PTT_IN_debounce_timestamp = millis();   // record time of change.  Looking for no change for for maybe 15ms
-            PTT_IN_pin_last = PTT_IN_pin;
-            PTT_IN_changed = 0;
-        }
-        else   // state has stayed the same since last look
-        {
-            if (((PTT_IN_debounce_timestamp - millis()) > 5) && PTT_IN_changed == 0)
-            {   // change the state of the T/R status
-                PTT_IN_changed = 1;   // reset changed flag
-                PTT_IN_handler(PTT_IN_pin);  // Set RX or TX state corrected for configured polarity
-                PTT_OUT_handler();   // Set PTT Output state corrected for polarity and set PTT ouput pins
-            } 
-        }
-        
-        adRead(); //get and calculate power + SWR values and display them        
-        
-#ifdef SSD1306_OLED
-        // Process OLED Display if used
-        OLED();  // Update display for all params
-#endif 
-        
-#ifdef NEXTION
-        // Process Nextion Display events
-        if (nexSerial.available()) 
-          nexLoop(nex_listen_list);  // Process Nextion Display  
-        if (NewBand != CouplerSetNum)
-            update_Nextion(1);
-        else if (!WAIT)   // skip if waiting for response from a diaplsy query to reduce traffic
-            update_Nextion(0);    
-#endif
-                       
-    }   // end of while
-}
-
 #ifdef TEENSY4_OTRSP_CW_PTT
 // N1MM CW and PTT and AUX message handling
 // look for DTR and RTS for N1MM control of CW and PTT. 
@@ -554,25 +599,25 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
 
     polarity = EEPROM.read(PTT_IN_POLARITY);
 
-    RFWM_Serial.print("\npin_state = ");
-    RFWM_Serial.print(pin_state);
-    RFWM_Serial.print("   Input PTT Active ");    
+    DBG_Serial.print(">pin_state = ");
+    DBG_Serial.print(pin_state);
+    DBG_Serial.print("   Input PTT Active ");    
     if (polarity)
-        RFWM_Serial.println("HIGH");
+        DBG_Serial.println("HIGH");
     else
-        RFWM_Serial.println("LOW");
+        DBG_Serial.println("LOW");
 
     if (pin_state == LOW)
     {
         if (polarity == LOW)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         {
             PTT_IN_state = TX;   // Set to TX
-            RFWM_Serial.println("TX, Tx is Active LOW"); 
+            DBG_Serial.println(">TX, Tx is Active LOW"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            RFWM_Serial.println("RX, Tx is Active HIGH"); 
+            DBG_Serial.println(">RX, Tx is Active HIGH"); 
         }
     }
     else
@@ -580,18 +625,18 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
         if (polarity == HIGH)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         { 
             PTT_IN_state = TX;   // Set to TX
-            RFWM_Serial.println("TX, Tx is Active HIGH"); 
+            DBG_Serial.println(">TX, Tx is Active HIGH"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            RFWM_Serial.println("RX, Tx is Active LOW"); 
+            DBG_Serial.println(">RX, Tx is Active LOW"); 
         }
     }    
     if (PTT_IN_state == RX)
-        RFWM_Serial.println("PTT OFF (RX Mode)");
+        DBG_Serial.println(">PTT OFF (RX Mode)");
     else
-        RFWM_Serial.println("PTT ON (TX Mode)");    
+        DBG_Serial.println(">PTT ON (TX Mode)");    
     PTT_IN_state_last = PTT_IN_state;
 }
 
@@ -1517,15 +1562,18 @@ uint16_t serial_usb_read(void)
               rx_buffer[i++] = RFWM_Serial.read();
               rx_buffer[i] = '\0';
           }
-          rx_count = i;          
-          RFWM_Serial.println(rx_count);
-          RFWM_Serial.println((char *) rx_buffer);
+          rx_count = i;   
+          DBG_Serial.print(">RX Count = ");       
+          DBG_Serial.println(rx_count);
+          DBG_Serial.print(">RX Buffer = ");       
+          DBG_Serial.println((char *) rx_buffer);
           
           // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData         
           memcpy(pSdata2, rx_buffer, rx_count+1);   // append the new buffer data to current end marked by pointer 2        
           pSdata2 += rx_count;                      // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
           rx_count = pSdata2 - pSdata1;             // update count for total unread chars. 
-          //RFWM_Serial.println(rx_count);  
+          DBG_Serial.print(">RX Count after adding to buffer ring = "); 
+          //DBG_Serial.println(rx_count);  
      }
      rx_buffer[0] = '\0';
      return rx_count;
@@ -1553,7 +1601,10 @@ void serial_usb_write(void)
     if (0u != tx_count)
     {
         RFWM_Serial.write(tx_buffer, tx_count);         /* Send data back to host. */
-    }
+        #ifdef ENET
+          enet_write(tx_buffer, tx_count);   // mirror out ro the ethernet connection
+        #endif        
+    } 
 }
 
 float hv_read(void)
@@ -1655,8 +1706,8 @@ void get_remote_cmd()
                     cmd_str[j++] = (sdata[i]);                 
             }
             cmd_str[j] = '\0';  
-            //RFWM_Serial.print(" Meter ID  ");
-            //RFWM_Serial.println("%s\n",cmd_str);
+            //DBG_Serial.print("> Meter ID  ");
+            //DBG_Serial.println("%s\n",cmd_str);
             if (atoi(cmd_str) == METERID) {
                 if (i < cmd_str_len) {
                     j = 0;
@@ -1753,7 +1804,7 @@ void get_remote_cmd()
                             NewBand = 0;  
                         }
                         if (cmd1 == 239) {     // Toggle Serial power data outpout.  Other serial functions remain available.
-                            //RFWM_Serial.println("Call Serial Data Output Toggle");
+                            //DBG_Serial.println(">Call Serial Data Output Toggle");
                             toggle_ser_data_output(cmd2);
                         }
                         if (cmd1 == 193) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
@@ -2129,7 +2180,15 @@ void get_remote_cmd()
                         if (cmd1 == 54)  // Set or Clear Band Decoder Output translate mode
                         {                          
                             EEPROM.update(PORTC_IS_PTT,cmd2);
-                        }                        
+                        }
+                        if (cmd1 == 53)  // 1 is enable enet, 0 is disable
+                        {   
+                          #ifdef ENET                       
+                            EEPROM.update(ENET_ENABLE,cmd2);
+                            if (cmd2)
+                                enet_start();   // start up ethernet system
+                          #endif
+                        } 
                     } // end of msg_type 120                                      
                 } // end of msg_type length check
             } // end of meter ID OK    
@@ -2212,7 +2271,7 @@ void read_Arduino_EEPROM()
     char  setpoint_buf[SETPOINT_LEN+1];
     int   len_ee;
    
-    RFWM_Serial.println("read_Cal_Table_from_EEPROM - Start");
+    DBG_Serial.println(">read_Cal_Table_from_EEPROM - Start");
 
     for(j=0; j<EEADDR; j++)
         {              
@@ -2256,8 +2315,10 @@ void read_Arduino_EEPROM()
         setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
         curr_zero_offset = atof(setpoint_buf);  
         // Start row 3
+        // The above vaiables are stored in EEPROM and copied to RAM.  
+        // Other variables are read and written directly from EEPROM only so do not appear here.
         //Translate options using first 5 bytes of row 3 - read and write directly to EEPROM, no variable used.
-        // They are initialized in write_Cal_Table_from_Default() fucntion.
+        // They are initialized in write_Cal_Table_from_Default() function.
     
   // Now get the band table struct data   
    for (i=0; i<NUM_SETS; i++) 
@@ -2266,30 +2327,30 @@ void read_Arduino_EEPROM()
       {
          len_ee = EEADDR+(sizeof(Band_Cal)*i);
          EEPROM.get(len_ee, Band_Cal_Table[i]);  
-         //RFWM_Serial.print(EEPROM.length());       
-         //RFWM_Serial.println("EEPROM Read");
-         RFWM_Serial.println(Band_Cal_Table[i].BandName);
-         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
-         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
+         //DBG_Serial.print(EEPROM.length());       
+         //DBG_Serial.println(">EEPROM Read");
+         DBG_Serial.println(Band_Cal_Table[i].BandName);
+         DBG_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
+         DBG_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
          delay(10); 
       }
    }
    if (len_ee > EEPROM.length())  //EEPROM_SIZE)
    {       
-     RFWM_Serial.print("ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
-     RFWM_Serial.println(len_ee);
+     DBG_Serial.print(">ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
+     DBG_Serial.println(len_ee);
    }   
-   RFWM_Serial.print("EEPROM Max Size is : ");
-   RFWM_Serial.print(EEPROM.length());    //EEPROM_SIZE);
-   RFWM_Serial.print("  - EEPROM Bytes used : ");
-   RFWM_Serial.print(len_ee);
-   RFWM_Serial.print("  - EEPROM Bytes remaining = ");
-   RFWM_Serial.println(EEPROM.length() - len_ee);    //EEPROM_SIZE - len_ee);
-   RFWM_Serial.print("Number of table rows = ");
-   RFWM_Serial.print(NUM_SETS);
-   RFWM_Serial.print("  - Size of each Cal_Table row = ");
-   RFWM_Serial.println(sizeof(Band_Cal));
-   RFWM_Serial.println("read_Cal_Table_from_EEPROM - End");
+   DBG_Serial.print(">EEPROM Max Size is : ");
+   DBG_Serial.print(EEPROM.length());    //EEPROM_SIZE);
+   DBG_Serial.print(">  - EEPROM Bytes used : ");
+   DBG_Serial.print(len_ee);
+   DBG_Serial.print(">  - EEPROM Bytes remaining = ");
+   DBG_Serial.println(EEPROM.length() - len_ee);    //EEPROM_SIZE - len_ee);
+   DBG_Serial.print(">Number of table rows = ");
+   DBG_Serial.print(NUM_SETS);
+   DBG_Serial.print(">  - Size of each Cal_Table row = ");
+   DBG_Serial.println(sizeof(Band_Cal));
+   DBG_Serial.println(">read_Cal_Table_from_EEPROM - End");
 }
 
 // Copy cal data in memory to EEPROM to preserve user changes (save state is another function)
@@ -2305,7 +2366,7 @@ void write_Arduino_EEPROM()
     //uint8_t   result;
     char   setpoint_buf[SETPOINT_LEN+1];
 
-    RFWM_Serial.println(" Write Cal Table to EEPROM - Start " );
+    DBG_Serial.println("> Write Cal Table to EEPROM - Start " );
     c1_array[0] = 'S';   /* what we just wrote, will overwrite as a block of 16 bytes) */
     c1_array[EE_RESERVED_BYTE1] = 0;
     c1_array[OP_MODE_OFFSET] = op_mode;  
@@ -2333,8 +2394,8 @@ void write_Arduino_EEPROM()
     for(j=0; j<16; j++)
     {              
          EEPROM.get(j+(ee_row*16),tempvar4[j]);     
-         RFWM_Serial.print(" Row 0 BYTES  = ");
-         RFWM_Serial.println(tempvar4[j]);     
+         DBG_Serial.print("> Row 0 BYTES  = ");
+         DBG_Serial.println(tempvar4[j]);     
     }
     */
     memcpy(c1_array,Callsign, CALLSIGN_LEN);   /*  7 bytes */     
@@ -2360,8 +2421,8 @@ void write_Arduino_EEPROM()
     for(j=0; j<16; j++)
     {              
          EEPROM.get(j+(ee_row*16),tempvar4[j]);     
-         RFWM_Serial.print(" Row 1 BYTES  = ");
-         RFWM_Serial.println(tempvar4[j]);     
+         DBG_Serial.print("> Row 1 BYTES  = ");
+         DBG_Serial.println(tempvar4[j]);     
     }
 */    
     // Prep and write Row 2 (0x0020 to 2F)
@@ -2394,40 +2455,40 @@ void write_Arduino_EEPROM()
     for(j=0; j<16; j++)
     {              
          EEPROM.get(j+(ee_row*16),tempvar4[j]);     
-         RFWM_Serial.print(" Row 2 BYTES  = ");
-         RFWM_Serial.println(tempvar4[j]);     
+         DBG_Serial.print("> Row 2 BYTES  = ");
+         DBG_Serial.println(tempvar4[j]);     
     }
 */  
     // First 4 bytes of Row 3 are reserved for Translate options and initialized in write_Cal_Table_from_Default() function
-    // They are read and written direct to EEPROM so nothing to do here for these values
+    // They are read and written direct to EEPROM so nothing to do here for these values, same for some other EEPROM only vars
 
    // Now write the Cal Table array 
    for (i=0; i< NUM_SETS; i++) {
       if (i < EEPROM.length()) {
          len_ee = EEADDR+(sizeof(Band_Cal)*i);
-         RFWM_Serial.print("len_ee = ");
-         RFWM_Serial.println(len_ee);
+         DBG_Serial.print(">len_ee = ");
+         DBG_Serial.println(len_ee);
          EEPROM.put(len_ee, Band_Cal_Table[i]);       
-         RFWM_Serial.println("EEPROM Written");
-         RFWM_Serial.println(Band_Cal_Table[i].BandName);
-         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
-         RFWM_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
+         DBG_Serial.println(">EEPROM Written");
+         DBG_Serial.println(Band_Cal_Table[i].BandName);
+         DBG_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
+         DBG_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
          delay(10);
          EEPROM.update(0,'G');
       }
-      if (len_ee > - len_ee)    // EEPROM_SIZE)
+      if (len_ee > EEPROM.length())    // EEPROM_SIZE)
       {       
-         RFWM_Serial.print("ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
-         RFWM_Serial.println(len_ee);
+         DBG_Serial.print(">ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
+         DBG_Serial.println(len_ee);
       }
    }    
-   RFWM_Serial.print("EEPROM Max Size is : ");
-   RFWM_Serial.print(EEPROM.length());    //EEPROM_SIZE);
-   RFWM_Serial.print("  -  EEPROM Bytes used : ");
-   RFWM_Serial.print(len_ee);
-   RFWM_Serial.print("  -  EEPROM Bytes remaining = ");
-   RFWM_Serial.println(EEPROM.length() - len_ee);     //(EEPROM_SIZE - len_ee);
-   RFWM_Serial.println("Write Cal Table to EEPROM - End " );
+   DBG_Serial.print(">EEPROM Max Size is : ");
+   DBG_Serial.print(EEPROM.length());    //EEPROM_SIZE);
+   DBG_Serial.print("  -  EEPROM Bytes used : ");
+   DBG_Serial.print(len_ee);
+   DBG_Serial.print("  -  EEPROM Bytes remaining = ");
+   DBG_Serial.println(EEPROM.length() - len_ee);     //(EEPROM_SIZE - len_ee);
+   DBG_Serial.println(">Write Cal Table to EEPROM - End " );
 }
 
 // Copy hard coded al data to memory
@@ -2466,58 +2527,57 @@ void write_Cal_Table_from_Default()
     curr_zero_offset=2.5;
 
     /*  for debug
-    RFWM_Serial.println(" Write Cal From Default");
-    RFWM_Serial.println(op_mode);
-    RFWM_Serial.println(CouplerSetNum); 
-    RFWM_Serial.println(ser_data_out);
-    RFWM_Serial.println(set_hv_max);            
-    RFWM_Serial.println(set_v14_max);
-    RFWM_Serial.println(set_temp_max);
-    RFWM_Serial.println(METERID);  
-    RFWM_Serial.println(Callsign);
-    RFWM_Serial.println(set_curr_max);
-    RFWM_Serial.println(hv_cal_factor);          
-    RFWM_Serial.println(v14_cal_factor);
-    RFWM_Serial.println(curr_cal_factor);        
-    RFWM_Serial.println(temp_cal_factor);
-    RFWM_Serial.println(curr_zero_offset);
+    DBG_Serial.println("> Write Cal From Default");
+    DBG_Serial.println(op_mode);
+    DBG_Serial.println(CouplerSetNum); 
+    DBG_Serial.println(ser_data_out);
+    DBG_Serial.println(set_hv_max);            
+    DBG_Serial.println(set_v14_max);
+    DBG_Serial.println(set_temp_max);
+    DBG_Serial.println(METERID);  
+    DBG_Serial.println(Callsign);
+    DBG_Serial.println(set_curr_max);
+    DBG_Serial.println(hv_cal_factor);          
+    DBG_Serial.println(v14_cal_factor);
+    DBG_Serial.println(curr_cal_factor);        
+    DBG_Serial.println(temp_cal_factor);
+    DBG_Serial.println(curr_zero_offset);
     */
-    RFWM_Serial.println("write_Cal_Table_from_Default - Completed");
+    DBG_Serial.println(">write_Cal_Table_from_Default - Completed");
 }
 
 // Read state in EEPROM
 void get_config_EEPROM()
 {
     CouplerSetNum = EEPROM.read(COUPLERSETNUM_OFFSET);
-    //RFWM_Serial.print("CouplerSetNum Read = ");
-    //RFWM_Serial.println(CouplerSetNum);
+    //DBG_Serial.print(">CouplerSetNum Read = ");
+    //DBG_Serial.println(CouplerSetNum);
     op_mode = EEPROM.read(OP_MODE_OFFSET);
-    //RFWM_Serial.print("op_mode Read = ");
-    //RFWM_Serial.println(op_mode);
+    //DBG_Serial.print(">op_mode Read = ");
+    //DBG_Serial.println(op_mode);
     //EEPROM.commit();
 }
 
 // Save state in EEPROM
 uint8_t EE_Save_State()
 {
-  return 1;
     //char buf[3];
-    RFWM_Serial.println("EE_Save_State - Start");
+    DBG_Serial.println(">EE_Save_State");
     CouplerSetNum = constrain(CouplerSetNum,0,NUM_SETS);
     EEPROM.update(COUPLERSETNUM_OFFSET, CouplerSetNum);
-    RFWM_Serial.print("CouplerSetNum Write =");
-    RFWM_Serial.println(CouplerSetNum);
+    DBG_Serial.print(">CouplerSetNum Write =");
+    DBG_Serial.println(CouplerSetNum);
     op_mode = constrain(op_mode,1,3);
     if (op_mode == 1 || op_mode == 2) {
         EEPROM.update(OP_MODE_OFFSET, op_mode);
-        RFWM_Serial.print("op_mode Write = ");
-        RFWM_Serial.println(op_mode);
+        DBG_Serial.print(">op_mode Write = ");
+        DBG_Serial.println(op_mode);
     }
     EEPROM.update(SER_DATA_OUT_OFFSET, ser_data_out);
-    RFWM_Serial.print("ser_data_out Write =");
-    RFWM_Serial.println(ser_data_out);
+    DBG_Serial.print(">ser_data_out Write =");
+    DBG_Serial.println(ser_data_out);
     Cal_Table();
-    RFWM_Serial.println("EE_Save_State - End");
+    DBG_Serial.println(">EE_Save_State - End");
     return 1;
 }
 
@@ -2551,7 +2611,8 @@ void reset_EEPROM()
         EEPROM.update(CW_KEY_OUT_POLARITY, 0);
         EEPROM.update(PORTA_IS_PTT, 0);
         EEPROM.update(PORTB_IS_PTT, 0);
-        EEPROM.update(PORTC_IS_PTT, 0);   // 0 is NO or off.  Decoder output ports can check this to see if the pin should follow PTT
+        EEPROM.update(PORTC_IS_PTT, 0);   // 0 is NO or off.  Decoder output ports can check this to see if the pin should follow PTT        
+        EEPROM.update(ENET_ENABLE, 1);   // if enet code is not compiled this is jsut ignored.  Enet is enabled by default otherwise
         //EEPROM_Init(EE_SAVE_YES);
         printf("Erased Byte 0");
         EEPROM_Init_Read();     // load the values into m
@@ -2565,13 +2626,13 @@ void toggle_ser_data_output(uint8_t force_on)
       if (force_on == 1)
       {
         EEPROM.update(SER_DATA_OUT_OFFSET, 1);
-        RFWM_Serial.println("Enabled Serial Data Output");
+        DBG_Serial.println(">Enabled Serial Data Output");
         ser_data_out = 1;
       }
       else 
       { 
         EEPROM.update(SER_DATA_OUT_OFFSET, 0);
-        RFWM_Serial.println("Disabled Serial Data Output");
+        DBG_Serial.println(">Disabled Serial Data Output");
         ser_data_out = 0;
       } 
 }
@@ -2625,10 +2686,10 @@ uint8_t OTRSP(void)
         c = OTRSP_Serial.read();  // Accept AUXyZZ where y is 1 or 2 and ZZ is 00-FF.
         buf[i] = c;
         buf[i+1] = '\0';
-        //RFWM_Serial.print("buf char added = ");
-        RFWM_Serial.print(c);   //echo input chars
+        //DBG_Serial.print(">buf char added = ");
+        DBG_Serial.print(c);   //echo input chars
         if (c=='\r')
-          RFWM_Serial.print('\n');
+          DBG_Serial.print('\n');
         if (i >= 19)
               i = 0;  // prevent buffer overrun
         if (c == '\r' && i > 5)  // look for end of string then look back 6 chars for string parse
@@ -2640,8 +2701,8 @@ uint8_t OTRSP(void)
             // AUXxYY\r or BANDxZ...\r  YY is 00-99 (Should be 00-FF) and Z is 0-9, should be 0-F.
             if (strncmp(AuxCmd0,"AUX",3) == 0 || strncmp(AuxCmd0,"BAND",4) == 0)               
             {
-                RFWM_Serial.print("AuxCmd0 = ");
-                RFWM_Serial.println(AuxCmd0);
+                DBG_Serial.print(">AuxCmd0 = ");
+                DBG_Serial.println(AuxCmd0);
                 return 1;   // Signal we have a good string
             }         
         }
@@ -2658,8 +2719,8 @@ uint8_t OTRSP_Process(void)
     uint8_t i;
     
     // Now have a full 6 char string starting with A or B
-    RFWM_Serial.print(" OTRSP Process string : ");
-    RFWM_Serial.println(AuxCmd0); 
+    DBG_Serial.print(">OTRSP Process string : ");
+    DBG_Serial.println(AuxCmd0); 
     if ((AuxCmd0[0] == 'A' || AuxCmd0[0] == 'B') && AuxCmd0[6] == '\0' && strlen(AuxCmd0)==6) // double validate
     {      
         // Looking only for 2 commands, BAND and AUX.   
@@ -2669,12 +2730,12 @@ uint8_t OTRSP_Process(void)
             AuxCmd1[1] = AuxCmd0[5];
             AuxCmd1[2] = AuxCmd0[6];
             AuxCmd1[3] = '\0'; 
-            //RFWM_Serial.print(" OTRSP Process AUX1 string in BCD: ");
-            //RFWM_Serial.println(AuxCmd1); 
+            //DBG_Serial.print(">OTRSP Process AUX1 string in BCD: ");
+            //DBG_Serial.println(AuxCmd1); 
             //AuxNum1 = BCDToDecimal(AuxCmd1);   // Convert text 0x00-0xFF HEX to Decimal
             AuxNum1 = atoi(AuxCmd1);   // Convert text 0-255 ASCII to Decimal
-            RFWM_Serial.print(" OTRSP Process AUX1 string in Decimal: ");
-            RFWM_Serial.println(AuxNum1);
+            DBG_Serial.print(">OTRSP Process AUX1 string in Decimal: ");
+            DBG_Serial.println(AuxNum1);
             
             //Aux1_Write(AuxNum1);  // write out to the Control register which in turn writes to the GPIO ports assigned.                      
             for (i=0; i < 20; i++)
@@ -2699,16 +2760,16 @@ uint8_t OTRSP_Process(void)
             // This will be the bottom frequency (in MHz) of the current radio band.  ie 3.5MHz for 3875KHz
             sprintf(BndCmd1,"%s", &AuxCmd0[5]);
             AuxCmd0[0]='\0';
-            RFWM_Serial.print(" OTRSP Processing BAND 1 string : ");
-            RFWM_Serial.println(BndCmd1); 
+            DBG_Serial.print(">OTRSP Processing BAND 1 string : ");
+            DBG_Serial.println(BndCmd1); 
             return(0);  // TODO = passing band MHZ to a CouplerNUM  Search Band values
         }
         else if (strncmp(AuxCmd0,"BAND2",5) == 0)   // process AUX comand for radio 2.
         {
             sprintf(BndCmd2,"%s", &AuxCmd0[5]);
             AuxCmd0[0] = '\0' ;
-            RFWM_Serial.print(" OTRSP Processing BAND 2 string : ");
-            RFWM_Serial.println(BndCmd2); 
+            DBG_Serial.print(">OTRSP Processing BAND 2 string : ");
+            DBG_Serial.println(BndCmd2); 
             return(0); 
         }
     }  
@@ -2763,12 +2824,12 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
 
     trans_in = EEPROM.read(TRANS_INPUT);
 
-    Band_Decoder_Get_Input();   // Read the state of all input pins and store into variable Band_Dec_In_Byte
+    Band_Decoder_Get_Input();   // Read the state of all input pins and store into variable Band_Dec_In_Byte  
 
     if (Band_Dec_In_Byte != decoder_input_last)
-    {
-        RFWM_Serial.print(" Band_Dec_In_Byte = 0x");
-        RFWM_Serial.println(Band_Dec_In_Byte, HEX);
+    {      
+        DBG_Serial.print(">Band_Dec_In_Byte = 0x");
+        DBG_Serial.println(Band_Dec_In_Byte, HEX);
         decoder_input_last = Band_Dec_In_Byte;
         
         // Read the translation scheme flag in the band record (.translate) and convert to various formats
@@ -2781,8 +2842,8 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
                     tempval = i+1;     // count the highest bit set to a 1 for of 8 priority decoding.  Could also do this with custom pattern
             }
             Band_Dec_In_Byte = tempval;
-            RFWM_Serial.print(" 1 of 8 Decode Match Found = 0x");
-            RFWM_Serial.println(Band_Dec_In_Byte, HEX);
+            DBG_Serial.print("> 1 of 8 Decode Match Found = 0x");
+            DBG_Serial.println(Band_Dec_In_Byte, HEX);
             NewBand = Band_Dec_In_Byte;
             return 1;  
         }
@@ -2796,8 +2857,8 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
                 {
                     NewBand = i;
                     Band_Dec_In_Byte = i;
-                    RFWM_Serial.print(" Custom Pattern Match Found : ");
-                    RFWM_Serial.println(Band_Cal_Table[i].BandName);
+                    DBG_Serial.print("> Custom Pattern Match Found : ");
+                    DBG_Serial.println(Band_Cal_Table[i].BandName);
                     return 1;  
                 }
             }
@@ -2806,12 +2867,12 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
         {
             // if translate value not 1 or 2, then pass through the input pattern
             NewBand = Band_Dec_In_Byte;
-            RFWM_Serial.print(" Band Input Received, New Band = 0x");
-            RFWM_Serial.println(Band_Dec_In_Byte, HEX);
+            DBG_Serial.print("> Band Input Received, New Band = 0x");
+            DBG_Serial.println(Band_Dec_In_Byte, HEX);
             return 1;
         }       
-        RFWM_Serial.print(" ERROR: No Matching Band Found, Input Received = 0x");
-        RFWM_Serial.println(Band_Dec_In_Byte, HEX);
+        DBG_Serial.print("> ERROR: No Matching Band Found, Input Received = 0x");
+        DBG_Serial.println(Band_Dec_In_Byte, HEX);
     }
     return 0;   // no change detected
 }
@@ -2874,17 +2935,45 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
 // Read the group of pins that together are a pattern stored in 1 byte for the Band in group
 void Band_Decoder_Get_Input()
 {    
+    unsigned long Band_Dec_loop_timestamp;
+    uint8_t Band_Dec_In_Byte_changed_flag;    
+    uint8_t Band_Dec_In_Byte_last;
+    uint8_t Band_Dec_loop_count;
+    uint8_t Band_Dec_In_Byte_temp;
+    
+    Band_Dec_In_Byte_last = Band_Dec_In_Byte;
+    Band_Dec_In_Byte_changed_flag = 0;
+    Band_Dec_loop_timestamp = 0;
+    Band_Dec_loop_count = 0;
+    Band_Dec_In_Byte_temp = 0;
+    do
+    {    
+        // read our input pins      
+        bitWrite(Band_Dec_In_Byte_temp, 0, digitalRead(BAND_DEC_IN_0));  // read in and store the state of all band decoder input pins
+        bitWrite(Band_Dec_In_Byte_temp, 1, digitalRead(BAND_DEC_IN_1));
+        bitWrite(Band_Dec_In_Byte_temp, 2, digitalRead(BAND_DEC_IN_2));
+        bitWrite(Band_Dec_In_Byte_temp, 3, digitalRead(BAND_DEC_IN_3));
+        // bitWrite(Band_Dec_In_Byte_temp, 4, digitalRead(BAND_DEC_IN_4));    // Not used in this configuration, uncomment if you use this.
+        // bitWrite(Band_Dec_In_Byte_temp, 5, digitalRead(BAND_DEC_IN_5));   // Not used, PTT IN using this pin.
+        Band_Dec_In_Byte_temp = ~Band_Dec_In_Byte_temp & 0x0F;
+        //DBG_Serial.print("> Band_Dec_In_Byte_temp = 0x");   // for debug
+        //DBG_Serial.println(Band_Dec_In_Byte_temp, HEX);
+        
+        // debounce
+        if (Band_Dec_In_Byte_changed_flag == 0 && Band_Dec_In_Byte_temp != Band_Dec_In_Byte_last) // input has changed?
+        {   // yes it has
+            Band_Dec_In_Byte_changed_flag = 1;   // set changed flag
+            Band_Dec_loop_timestamp = millis();    // mark start of event
+            //Band_Dec_In_Byte_last = Band_Dec_In_Byte; 
+        }
 
-  // ToDo: Add debounce for manual switches
-    bitWrite(Band_Dec_In_Byte, 0, digitalRead(BAND_DEC_IN_0));  // read in and store the state of all band decoder input pins
-    bitWrite(Band_Dec_In_Byte, 1, digitalRead(BAND_DEC_IN_1));
-    bitWrite(Band_Dec_In_Byte, 2, digitalRead(BAND_DEC_IN_2));
-    bitWrite(Band_Dec_In_Byte, 3, digitalRead(BAND_DEC_IN_3));
-    //bitWrite(Band_Dec_In_Byte, 4, digitalRead(BAND_DEC_IN_4));
-    // bitWrite(Band_Dec_In_Byte, 5, digitalRead(BAND_DEC_IN_5));   // Not used, PTT IN using this pin.
-    Band_Dec_In_Byte = ~Band_Dec_In_Byte & 0x0F;
-    //RFWM_Serial.print(" Band_Dec_In_Byte = 0x");
-    //RFWM_Serial.println(Band_Dec_In_Byte, HEX);
+        if (Band_Dec_In_Byte_changed_flag == 0)      // nothing happened, exit
+            return;                              
+        delay(1);  // has not changed so wait and check for stable input
+        Band_Dec_loop_count++;  // this is an escape plan if input never stops changing              
+        
+    } while(((millis()-Band_Dec_loop_timestamp) < 30) || (Band_Dec_loop_count < 50));   // wait a max of XXms for input to settle else exit
+    Band_Dec_In_Byte = Band_Dec_In_Byte_temp;     // only get here if it changed so set our new value
 }
 
 // Group of pins that together are a pattern stored in 1 byte for Band Out A group
@@ -2905,8 +2994,8 @@ void Band_Decode_A_Output(uint8_t pattern)
         pattern = AuxNum1;  // Use OTRSP Aux1 number for this band 
     else 
     {
-        RFWM_Serial.print("No Valid Matching Rule for Band A Output translation = 0b");   
-        RFWM_Serial.println(trans_a, BIN);
+        DBG_Serial.print(">No Valid Matching Rule for Band A Output translation = 0b");   
+        DBG_Serial.println(trans_a, BIN);
         return;
     }
     // Toggle Toggle the state of the pins to follow PTT RX and TX.  High pins in variable 'pattern' are raise high or low depending on Mode setting
@@ -2914,8 +3003,8 @@ void Band_Decode_A_Output(uint8_t pattern)
     // If PortX is set to Active LOW then high pins in pattern var are toggled to follow PTT and are set to LOW.  In RX all pins or HIGH (aka low side drive, Ground to operate)
     if (EEPROM.read(PORTA_IS_PTT) > 0)   // Look to see if this port is operating as PTT. 
     {                                    // Each port has it's own polarity.  Mode 1 is TX = ACTIVE LOW, Mode 2 is TX = ACTIVE HIGH. Mode 0 is Ignore (not in PTT mode)
-        RFWM_Serial.print(" Port_A pattern var before PTT Mode conversion = ");
-        RFWM_Serial.println(pattern, BIN);
+        DBG_Serial.print("> Port_A pattern var before PTT Mode conversion = ");
+        DBG_Serial.println(pattern, BIN);
         if (EEPROM.read(PORTA_IS_PTT) == 1) // All pins at 1 in RX, high pins in pattern go LOW in TX only
         {            
             if (PTT_IN_state == RX)    // PTT_IN_state is RX or TX virtual state set by the Band Decode PTT Input pins or OTRSP
@@ -2929,8 +3018,8 @@ void Band_Decode_A_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }
-    RFWM_Serial.print("Port_A pattern = 0x");   
-    RFWM_Serial.println(pattern, BIN);
+    DBG_Serial.print(">Port_A pattern = 0x");   
+    DBG_Serial.println(pattern, BIN);
     PortA_state = pattern;
     digitalWrite(BAND_DEC_A_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_A_1, bitRead(pattern, 1));
@@ -2972,8 +3061,8 @@ void Band_Decode_B_Output(uint8_t pattern)
         pattern = AuxNum1;  // Use OTRSP Aux1 number for this band 
     else
     {
-        RFWM_Serial.print("No Valid Matching Rule for Band B Output translation = 0b");   
-        RFWM_Serial.println(trans_b, BIN);
+        DBG_Serial.print(">No Valid Matching Rule for Band B Output translation = 0b");   
+        DBG_Serial.println(trans_b, BIN);
         return;
     }
 
@@ -2982,8 +3071,8 @@ void Band_Decode_B_Output(uint8_t pattern)
     // If PortX is set to Active LOW then high pins in pattern var are toggled to follow PTT and are set to LOW.  In RX all pins or HIGH (aka low side drive, Ground to operate)
     if (EEPROM.read(PORTB_IS_PTT) > 0)   // Look to see if this port is operating as PTT. 
     {                                    // Each port has it's own polarity.  Mode 1 is TX = ACTIVE LOW, Mode 2 is TX = ACTIVE HIGH. Mode 0 is Ignore (not in PTT mode)
-        RFWM_Serial.print(" Port_B pattern var before PTT Mode conversion = ");
-        RFWM_Serial.println(pattern, BIN);
+        DBG_Serial.print("> Port_B pattern var before PTT Mode conversion = ");
+        DBG_Serial.println(pattern, BIN);
         if (EEPROM.read(PORTB_IS_PTT) == 1) // All pins at 1 in RX, high pins in pattern go LOW in TX only
         {            
             if (PTT_IN_state == RX)    // PTT_IN_state is RX or TX virtual state set by the Band Decode PTT Input pins or OTRSP
@@ -2997,8 +3086,8 @@ void Band_Decode_B_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }     
-    RFWM_Serial.print("Port B pattern = 0b");
-    RFWM_Serial.println(pattern, BIN);
+    DBG_Serial.print(">Port B pattern = 0b");
+    DBG_Serial.println(pattern, BIN);
     PortB_state = pattern;
     digitalWrite(BAND_DEC_B_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_B_1, bitRead(pattern, 1));
@@ -3029,8 +3118,8 @@ void Band_Decode_C_Output(uint8_t pattern)
         pattern = AuxNum2;  // Use OTRSP Aux2 number for this band
     else
     {
-        RFWM_Serial.print("No Valid Matching Rule for Band C Output translation = 0b");   
-        RFWM_Serial.println(trans_c, BIN);
+        DBG_Serial.print(">No Valid Matching Rule for Band C Output translation = 0b");   
+        DBG_Serial.println(trans_c, BIN);
         return;
     }
 
@@ -3039,8 +3128,8 @@ void Band_Decode_C_Output(uint8_t pattern)
     // If PortX is set to Active LOW then high pins in pattern var are toggled to follow PTT and are set to LOW.  In RX all pins or HIGH (aka low side drive, Ground to operate)
     if (EEPROM.read(PORTC_IS_PTT) > 0 && trans_c < 3)   // Look to see if this port is operating as PTT. 
     {                                    // Each port has it's own polarity.  Mode 1 is TX = ACTIVE LOW, Mode 2 is TX = ACTIVE HIGH. Mode 0 is Ignore (not in PTT mode)
-        RFWM_Serial.print(" Port C pattern var before PTT Mode conversion = ");
-        RFWM_Serial.println(pattern, BIN);
+        DBG_Serial.print("> Port C pattern var before PTT Mode conversion = ");
+        DBG_Serial.println(pattern, BIN);
         if (EEPROM.read(PORTC_IS_PTT) == 1) // All pins at 1 in RX, high pins in pattern go LOW in TX only
         {            
             if (PTT_IN_state == RX)    // PTT_IN_state is RX or TX virtual state set by the Band Decode PTT Input pin or OTRSP
@@ -3054,8 +3143,8 @@ void Band_Decode_C_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }   
-    RFWM_Serial.print("Port C pattern = 0b");
-    RFWM_Serial.println(pattern, BIN);
+    DBG_Serial.print(">Port C pattern = 0b");
+    DBG_Serial.println(pattern, BIN);
     PortC_state = pattern;
     digitalWrite(BAND_DEC_C_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_C_1, bitRead(pattern, 1));
@@ -3066,5 +3155,173 @@ void Band_Decode_C_Output(uint8_t pattern)
     //digitalWrite(BAND_DEC_C_6, bitRead(pattern, 6));
     //digitalWrite(BAND_DEC_C_7, bitRead(pattern, 7)); 
 }
+
+#ifdef ENET
+void teensyMAC(uint8_t *mac) 
+{
+  static char teensyMac[23];
+  
+  #if defined (HW_OCOTP_MAC1) && defined(HW_OCOTP_MAC0)
+    Serial.println("using HW_OCOTP_MAC* - see https://forum.pjrc.com/threads/57595-Serial-amp-MAC-Address-Teensy-4-0");
+    for(uint8_t by=0; by<2; by++) mac[by]=(HW_OCOTP_MAC1 >> ((1-by)*8)) & 0xFF;
+    for(uint8_t by=0; by<4; by++) mac[by+2]=(HW_OCOTP_MAC0 >> ((3-by)*8)) & 0xFF;
+
+    #define MAC_OK
+
+  #else
+    
+    mac[0] = 0x04;
+    mac[1] = 0xE9;
+    mac[2] = 0xE5;
+
+    uint32_t SN=0;
+    __disable_irq();
+    
+    #if defined(HAS_KINETIS_FLASH_FTFA) || defined(HAS_KINETIS_FLASH_FTFL)
+      Serial.println("using FTFL_FSTAT_FTFA - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+      
+      FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
+      FTFL_FCCOB0 = 0x41;
+      FTFL_FCCOB1 = 15;
+      FTFL_FSTAT = FTFL_FSTAT_CCIF;
+      while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
+      SN = *(uint32_t *)&FTFL_FCCOB7;
+
+      #define MAC_OK
+      
+    #elif defined(HAS_KINETIS_FLASH_FTFE)
+      Serial.println("using FTFL_FSTAT_FTFE - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+      
+      kinetis_hsrun_disable();
+      FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
+      *(uint32_t *)&FTFL_FCCOB3 = 0x41070000;
+      FTFL_FSTAT = FTFL_FSTAT_CCIF;
+      while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
+      SN = *(uint32_t *)&FTFL_FCCOBB;
+      kinetis_hsrun_enable();
+
+      #define MAC_OK
+      
+    #endif
+    
+    __enable_irq();
+
+    for(uint8_t by=0; by<3; by++) mac[by+3]=(SN >> ((2-by)*8)) & 0xFF;
+
+  #endif
+
+  #ifdef MAC_OK
+    sprintf(teensyMac, "MAC: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    Serial.println(teensyMac);
+  #else
+    Serial.println("ERROR: could not get MAC");
+  #endif
+}
+
+uint8_t enet_read(void)
+{
+  //  experiment with this -->   udp.listen( true );           // and wait for incoming message
+
+     if (!enet_ready)   // skip if no enet conection
+         return 0;
+     
+     rx_count = 0;
+     int count = 0; 
+
+     // if there's data available, read a packet
+     count = Udp.parsePacket();      
+     rx_buffer[0] = _NULL;
+     if (count > 0)
+     {
+          Udp.read(rx_buffer, Serial_USB_BUFFER_SIZE);
+          rx_buffer[count] = '\0';
+          rx_count = count;          
+          DBG_Serial.println(rx_count);
+          DBG_Serial.println((char *) rx_buffer);
+          
+          // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData         
+          memcpy(pSdata2, rx_buffer, rx_count+1);   // append the new buffer data to current end marked by pointer 2        
+          pSdata2 += rx_count;                      // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
+          rx_count = pSdata2 - pSdata1;             // update count for total unread chars. 
+          //DBG_Serial.println(rx_count);  
+     }
+     rx_buffer[0] = '\0';
+     return rx_count;
+}
+
+uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
+{   
+   if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+   {
+       Udp.beginPacket(remote_ip, remoteport);
+       Udp.write((char *) tx_buffer);
+       Udp.endPacket();
+       return 1;
+   }
+   return 0;
+} 
+
+void enet_start(void)
+{
+  uint8_t mac[6];
+  teensyMAC(mac);   
+  delay(1000);
+  // start the Ethernet  
+  // If using DHCP (leave off the ip arg) works but more difficult to configure the desktop and remote touchscreen clients
+  Ethernet.begin(mac, ip);
+  // Check for Ethernet hardware present
+  enet_ready = 0;
+  if (Ethernet.hardwareStatus() == EthernetNoHardware) 
+  {
+    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+    //while (true) {
+    //  delay(1); // do nothing, no point running without Ethernet hardware
+    //}
+    enet_ready = 0;  // shut down usage of enet
+  }
+  else
+  {
+    delay(1000);
+    Serial.print("Ethernet Address = ");
+    Serial.println(Ethernet.localIP());
+    delay(5000);
+    if (Ethernet.linkStatus() == LinkOFF) 
+    {
+      Serial.println("Ethernet cable is not connected.");
+      enet_ready = 0;
+    }
+    else
+    {  
+      enet_ready = 1;
+      delay(100);
+      Serial.println("Ethernet cable connected.");
+      // start UDP
+      Udp.begin(localPort);
+    }
+  }
+}
+/*  Mod required for NativeEthernet.cpp file in Ethernet.begin class.  
+ *   At end of the function is a statement that hangs if no ethernet cable is connected.  
+ *   
+ *   while(!link_status){
+ *      return;
+ *   }
+ *   
+ *   You can never progress to use the link status function to query if a cable is connected and the program is halted.
+ *    
+ *   Add the below to let it escape.  Use the enet_ready flag to signal if enet started OK or not.  
+ *   
+    uint16_t escape_counter = 0;
+    while(!link_status && escape_counter < 200){
+        escape_counter++;
+        Serial.println("Waiting for Link Status");
+        delay(10);
+        return;
+    }  
+ *
+ */
+#endif
+
+void DBG_Print(void);
 
 /* [] END OF FILE */

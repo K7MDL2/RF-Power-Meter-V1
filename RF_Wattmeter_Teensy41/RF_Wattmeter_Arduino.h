@@ -1,7 +1,7 @@
 /* ========================================
  *  RF_Wattmeter.h
  * For the PSoC5LP version
- * K7MDL June 2020
+ * K7MDL January 2021
  *
  * ========================================
 */
@@ -23,12 +23,38 @@
 //#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
+#define ENET  // Include support for ethernet
 
 // On the Teensy 4.X these are USB Serial so no pin assignments needed.  Teensy 4.x can have up to 3 Serial USB ports, 8 hardware serial ports.
 // Serial is main.  SerialUSB1 and SerialUSB2 are the others.
 #define RFWM_Serial Serial   // RF Wattmeter data output.  Also accepts control commands and debug output in Serial Monitor.
 #define OTRSP_Serial SerialUSB1    // OTRSP Serial protocol from programs like N1MM+ for transveter or antenna control
-#define BAND_DEC_Serial SerialUSB2   // when and if serial band decoder methods used
+//#define BAND_DEC_Serial SerialUSB2   // when and if serial band decoder methods used
+#define DBG_Serial Serial  // place to send debug messages to
+
+#ifdef ENET
+    #include <NativeEthernet.h>
+    #include <NativeEthernetUdp.h>
+    
+    // Enter a MAC address and IP address for your controller below.
+    // The IP address will be dependent on your local network:  don't need this since we can automatically figure ou tthe mac
+    //byte mac[] = {
+    //  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEC
+    //};
+    IPAddress ip(192, 168, 2, 188);
+    unsigned int localPort = 8888;      // local port to listen on
+    
+    // buffers for receiving and sending data
+    char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
+    char ReplyBuffer[] = "#2 acknowledged";        // a string to send back
+   
+   //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+   IPAddress remote_ip(192, 168, 2, 186);
+   int remoteport = 8888;    // the destination port
+   
+    // An EthernetUDP instance to let us send and receive packets over UDP
+    EthernetUDP Udp;
+#endif
 
 #ifdef NEXTION
     //#define nexSerial Serial1   // defined in NexConfig.h
@@ -97,7 +123,7 @@ uint32_t Timer_X00ms_Last_OLED;
 #define EEADDR CAL_TBL_ARR_OFFSET // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
 //#define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.  Using sizeof eeprom function in code.
 
-#define ADC_VREF (3.3)   // For Teensy4.1 which is a 3.3V chip  
+#define ADC_VREF (3.29)   // For Teensy4.1 which is a 3.3V chip  
 // Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
 #define ADC_FWD A4        // These are the Analog Mux input assignments for Teensy 4.1
 #define ADC_REF A5
@@ -124,8 +150,8 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_A_3    36
 #define BAND_DEC_A_4    37
 #define BAND_DEC_A_5    99      //38      
-#define BAND_DEC_A_6    99      // not using so set pin to somehting impossible
-#define BAND_DEC_A_7    99      // not using so set pin to somehting impossible
+#define BAND_DEC_A_6    99      // 39 used for PTT_OUT
+#define BAND_DEC_A_7    99      // 40 used for PTT_OUT2
 
 #define BAND_DEC_B_0    24
 #define BAND_DEC_B_1    25
@@ -209,6 +235,7 @@ uint8_t SEQ_Delay = 25;         // milliseconds delay for sequencing transveter 
 #define PORTA_IS_PTT            (0x0038)  // byte 38
 #define PORTB_IS_PTT            (0x0039)  // byte 39
 #define PORTC_IS_PTT            (0x003A)  // byte 3A
+#define ENET_ENABLE             (0x003B)  // byte 3B
 
 // start row 4 data
 #define CAL_TBL_ARR_OFFSET      (0x0040)  /* start row 2 and beyond  */
@@ -304,6 +331,8 @@ uint8_t PTT_IN_changed = 200;   // Force process to set proper state at startup
 uint8_t PortA_state = 0;
 uint8_t PortB_state = 0;
 uint8_t PortC_state = 0;
+uint8_t enet_ready = 0;
+unsigned long enet_start_fail_time = 0;
 
 // Function declarations
 void toggle_ser_data_output(uint8_t);

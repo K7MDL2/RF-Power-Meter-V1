@@ -338,6 +338,9 @@ class Serial_RX(Thread):
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
                 #print("1  DATA HERE {}" .format(tempstr))
+                if tempstr[0][0] == '>':   # Break out debug messages and skip processing
+                    print("0 Dbg Msg = {}" .format(tempstr))    
+                    return
                 meter_data_tmp = tempstr[0].split(",")  # break comma separated values into a list
                 #print("2 TMP raw str   = {}" .format(meter_data_tmp))
                 if len(meter_data_tmp) >= 3:
