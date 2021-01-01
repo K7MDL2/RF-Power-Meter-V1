@@ -1,6 +1,6 @@
 ## RF-Power-Meter
 
-*** Release V2 created July 1, 2020 ***
+*** Release V2.5 created January 1, 2021 ***
 
 Update 1/1/2021: Added ethernet support to the Wattmeter/Decoder.  
 1. Ethernet is a compile time #define ENET option, has an EEPROM setting (ENET_ENABLE) and config command (#53) to enable and disable it.  The same serial data to and from the CPU is now mirrored on ethernet. If ethernet is enabled but not working (no cable, hub) it will try to restart the enet system every 10 minutes and skips enet functions until
