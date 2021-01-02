@@ -2,6 +2,10 @@
 
 *** Release V2.5 created January 1, 2021 ***
 
+Update 1/2/2021: Added ethernet support into Desktop App.
+1. Can choose to skip selecting a USB com port at startup. Probably need to turn off ethernet UDP commands if serial is enabled to prevent duplicate message side effects, if any.   
+2. On the Arduino, started adding in support for Icom CIV and ACC jack band select voltage for optional band decoder inputs.
+
 Update 1/1/2021: Added ethernet support to the Wattmeter/Decoder.  
 1. Ethernet is a compile time #define ENET option, has an EEPROM setting (ENET_ENABLE) and config command (#53) to enable and disable it.  The same serial data to and from the CPU is now mirrored on ethernet. If ethernet is enabled but not working (no cable, hub) it will try to restart the enet system every 10 minutes and skips enet functions until
 it is working.  
@@ -10,10 +14,11 @@ it is working.
 4. The Desktop App was updated to print out the debug messages clearly and skip further parsing of these messages.
 5. Added 3 small UDP test programs uploaded under the Teensy folder.  2 are simple examples modified to have 2 Arduinos talk to each other. UDP-CPU-2 was further modified to receive data from the Decoder and send some commands for testing.  The Desktop app will receive similar updates for ethernet comms to the Decoder.  The UDP-Radio-Test program has NTPClient and WSJT-X decoding, now with the decode packet time field working.  DT field is not yet.
 6. Completed build of a new compact Teensy 4.1 based wattmeer/Band Decoder for remote installation outside of the house with my amplifers and transverter for 50 through 1296MHz.  Will use ethernet to monitor and control it. 4-wire BCD wiring from a radio will control the band selection enabling power on the selected amplifer, selecting the band on the 5-band transverter, and selecting a Bird line section output to connect to a peak-reading wattmeter meter co-located with the amps which is read by the Wattmeter.
-7. ToDo: Update the Desktop App to support ethernet comms with the Decoder/Wattmeter.
+7. ToDo: Update the Desktop App to support ethernet comms with the Decoder/Wattmeter - Done
 8. ToDo: Add NTPClient and a new Nextion page for Clock display.
 9. ToDo: Add new Nextion page for Config of all the new Band Decoder features equivalent to the Desktop App
 10. ToDo: redirect Nextion Serial data from serial hardware to ethernet to a companion Arduino based program similar to UDP-CPU-2 test program.
+11. Add Icom CIV and ACC Voltage Band Decoder features, esepcially for IC-9700 users.
 
 Update 12/29/2020: Added a UDP test program on Arduino Teensy 4.1 which has native ethernet chip onboard.  Decoding selected WSJT-X messages the same as the Desktop App does to extract the radio dial frequency for band decoding use.  Plan to extend this to N1MM message decoding and to remote the Nextion Display and Decoder/Wattmeter over ethernet instead of a USB extender.  
 
