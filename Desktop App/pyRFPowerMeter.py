@@ -12,12 +12,13 @@ import tkinter.font as tkFont
 from tkinter import *
 from tkinter.filedialog import askopenfilename
 
+
 print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__,__name__,str(__package__)))
 
 import wsjtx_packets as pywsjtx
 import simple_server
 import tkinter.messagebox
-
+import socket
 
 PowerMeterVersionNum = "2.3"
 # pyRFPowerMeter  Version 2.3  Nov 24, 2020
@@ -126,6 +127,12 @@ myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Chang
 
 #myRig = "Field"           # sample name suggesting meter is a standalone used for testing, not assigned to a antenna or radio 
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
+
+# addressing information of target
+IPADDR = '192.168.2.188'
+PORTNUM = 8888
+# enter the data content of the UDP packet as hex
+PACKETDATA = b'100,120,254,0'
 
 
 #UDP_IP = '239.255.0.1'       # multicast address and port alternative
@@ -260,17 +267,19 @@ class Serial_RX(Thread):
         global send_meter_cmd_flag
         #global cmd
         #global cmd_data
+        global IPADDR
+        global PORTNUM
 
         if send_meter_cmd_flag == True:   # if True then the UDP thread has a cmd waiting to send out.       
-                if ser.isOpen():
-                    try:              
-                        #print("---> Write Cmd : " + str(cmd))
-                        ser.write("{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode())
-                        send_meter_cmd_flag = False                             
-                    except serial.SerialException:
-                        print ("error communicating while writing serial port: " + str(port_name))
-                else:
-                    print("cannot access serial port to send commands")     
+            if ser.isOpen():
+                try:              
+                    #print("---> Write Cmd : " + str(cmd))
+                    #ser.write("{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode())
+                    send_meter_cmd_flag = False                             
+                except serial.SerialException:
+                    print ("error communicating while writing serial port: " + str(port_name))
+            else:
+                print("cannot access serial port to send commands")     
         
     def meter_reader(self):       
         global restart_serial
@@ -332,12 +341,12 @@ class Serial_RX(Thread):
         global CW_KEY_OUT_POLARITY_val
         global PORTA_IS_PTT_Val
         global PORTB_IS_PTT_Val
-        global PORTC_IS_PTT_Val
-        
+        global PORTC_IS_PTT_Val      
+
         try:
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
-                #print("1  DATA HERE {}" .format(tempstr))
+                print("1  DATA HERE {}" .format(tempstr))
                 if tempstr[0][0] == '>':   # Break out debug messages and skip processing
                     print("0 Dbg Msg = {}" .format(tempstr))    
                     return
@@ -496,7 +505,7 @@ class Receiver(Thread):
         # direct_cmd is BOOL to specify if it is a direct command such as button push for 144 
         #    vs a UDP freqwuency which can vary in a range
         # direct_cmd is True to do a direct command
-        # since serial and networka nd GUI are seperate threads, using a semaphore to specify that
+        # since serial and network and GUI are seperate threads, using a semaphore to specify that
         #   a command is waitng to go out.  The serial thread will pick it up when there is time between receives
 
         global send_meter_cmd_flag
@@ -537,6 +546,20 @@ class Receiver(Thread):
                 cmd = "250"
             else: 
                 pass                    # in case we add more
+        # Send out to ethernet via UDP also if enabled
+        # initialize a socket, think of it as a cable
+        # SOCK_DGRAM specifies that this is UDP
+        t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            # send the command
+            m = "{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode()
+            t.sendto(m, (IPADDR, PORTNUM))      
+            print("TX to CPU Msg = {}" .format(m)) 
+        except:
+            print("TX to CPU FAILED Error = {}" .format(t)) 
+            #pass
+        # close the socket
+        t.close()  
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
@@ -865,6 +888,7 @@ class App(tk.Frame):
         # Write command to change Band
         rx.send_meter_cmd("254","", True)
 
+
     def cpl_Fwd(self): 
         rx = Receiver()
         print("Change Fwd Port Coupling Value ")
@@ -971,7 +995,8 @@ class App(tk.Frame):
             self.serial_rx.start() 
             print(" Serial thread started ")
         else:
-            pass     
+            print("Serial thread not started")
+            #pass     
 
     def NewFile(self):
         print("New File!")
@@ -1745,7 +1770,8 @@ def main():
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=app.About)   
-    app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
+    if comms == False:
+        app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
     app.receiver = Receiver()
     app.receiver.start()      # start the receiver thread now
     app.mainloop()      # start the GUI
@@ -1839,10 +1865,11 @@ if __name__ == '__main__':
         ports = []
         i = 0
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if "USB" in desc:   #  Only expecting USB serial ports for our Arduino
+            if "USB" in desc:   #  Only expecting USB serial ports for our CPU Target
                 i = i + 1
                 ports.append(port)           
                 #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
+        ports.append("Not_Used") 
         for p in ports:
             listbox.insert(END, p)           
         if (len(ports) > 4):
@@ -1883,6 +1910,7 @@ if __name__ == '__main__':
                 i = i + 1
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
+        ports.append("Not_Used") 
         #while True:  (for cmd line usage)
         #port = input('--- Enter port index number from list or any other key to continue without serial comms: ')       
         port = port_listbox        
@@ -1934,9 +1962,14 @@ if __name__ == '__main__':
 
     print("Meter ID final value set to  : " + myRig_meter_ID)
     print("Com Port final value set to : ", port_name)
-    if (port_name != ""):
-        comms = False
+
+    if (port_name == "Not_Used"):
+        comms = None   
+    elif (port_name != ""):
+        comms = False   
+
     if (comms == False):
+        print("Comms 3 = {}" .format(comms))
         print ("Port {} will be used" .format(port_name))
         print("Opening USB serial Port: " , port_name)
         ser = serial.Serial(
