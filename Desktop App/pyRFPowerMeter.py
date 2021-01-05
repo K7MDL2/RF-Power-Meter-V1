@@ -20,7 +20,7 @@ import simple_server
 import tkinter.messagebox
 import socket
 
-PowerMeterVersionNum = "2.3"
+PowerMeterVersionNum = "2.5"
 # pyRFPowerMeter  Version 2.3  Nov 24, 2020
 # Author: M. Lewis K7MDL
 #
@@ -129,16 +129,12 @@ myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Chang
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
-IPADDR = '192.168.2.188'
-PORTNUM = 8888
-# enter the data content of the UDP packet as hex
-PACKETDATA = b'100,120,254,0'
-
-
+IPADDR_OF_METER = '192.168.2.188'
+PORTNUM_OF_METER = 8888
 #UDP_IP = '239.255.0.1'       # multicast address and port alternative
 #UDP_PORT = 2237
-UDP_IP = "127.0.0.1"        # default local machine address
-UDP_PORT = 2334            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
+MY_UDP_IP = "127.0.0.1"        # default local machine address
+WSJTX_UDP_PORT = 2237            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
 # I am using 2334 with JTAlert re-broadcasting
 
 #  This program can optionally use WSJT-X UDP reporting broadcasts to automatically track your radio's frequency and send a command
@@ -184,9 +180,13 @@ own_call = ""       # used for meter ID in Radio field of GUI when only network 
 last_freq = ""      # used for detecting band changes from network
 # This boolean variable will save the communications (comms) status
 comms  = None   #  False is off.  App.comm wil then toggle to on state.
+ser = None
+port_name = None
 restart_serial = 0
 heartbeat_timer = 0
 send_meter_cmd_flag = False   # Boolean to gate Serial thread to send cmd byte to meter.  Cmd comes from USB thread
+out = ""
+s_data = ""
 cmd = ""
 cmd_data = ""
 meter_data = ["","","","","","","","","",""]
@@ -224,15 +224,164 @@ def isfloat(x):
     except ValueError:
         return False
 
-#_________  Serial Port Handler in its own thread______________________________________________________________________________
-#   
-class Serial_RX(Thread):
+# 
+#_________  UDP Message Handler in its own thread______________________________________________________________________________
+#   Separate threads for WSJTX and UDP comms to the meter and the serial comms.  
+#  
+class UDP_Meter(Thread):
     def __init__(self):
         # Call Thread constructor
         super().__init__()
-        self.open_serial_port()
         self.keep_running = True
-        #print(" serial thread startup ^^^^^^^^^^")
+        print(" UDP Network Thread Startup ^^^^^^^^^^")
+        if comms != None:
+            print("Should not be here in UDP_Meter thread right now")
+            return
+
+    def stop(self):
+        # Call this from another thread to stop the serial handling process
+        self.keep_running = False
+        print(" UDP Network Thread Stopping ^^^^^^^^^^")
+
+    def run(self):
+        # This will run when you call .start method
+        while self.keep_running:
+            self.UDP_Rx()
+            self.UDP_Tx()
+    
+    def UDP_Tx(self):
+        global send_meter_cmd_flag
+        global comms
+        global cmd_data
+        global cmd
+        global myRig_meter_ID
+       
+        if (comms == None and send_meter_cmd_flag == True):  
+            print("send commands")
+            send_meter_cmd_flag = False  
+            # Send out to ethernet via UDP also if enabled
+            # initialize a socket, think of it as a cable
+            # SOCK_DGRAM specifies that this is UDP
+            t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                # send the command
+                m = "{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode()
+                t.sendto(m, (IPADDR_OF_METER, PORTNUM_OF_METER))
+                print("TX to CPU Msg = {}" .format(m).encode) 
+            except:
+                print("TX to CPU FAILED Error = {}" .format(t).encode()) 
+                #pass
+            # close the socket
+            t.close()  
+           
+    def UDP_Rx(self):
+        global s_data
+        global comms
+        global meter_sock
+        pd = Power_Data
+        buf = {}
+        
+        if (comms == None):          
+            #print(" listening for UDP messages")        
+            try:                
+                buf, sender = meter_sock.recvfrom(1024)
+                #print("Received message before decode: {}" .format(buf))
+                s_data = buf.decode()
+                
+                #try:
+                #    s_data = buf.decode("utf-8")  #encoding='ascii', errors='ignore')
+                #except:
+                #    s_data = buf.decode("ascii", errors='ignore')
+                if s_data[0] == ">":
+                    print("CMD received message echo: {}" .format(s_data))
+                #else:
+                #print("received message: {}" .format(s_data))
+                pd.get_power_data(pd, str(s_data))
+            except UnicodeDecodeError: # catch error and ignore it
+                print("Unicode decode error caught")  # will get this on CPU resets
+            except socket.timeout:
+                pass
+                #print("Timeout on data received from UDP")
+            except socket.error:
+                #print("No data received from UDP")    
+                pass  
+#
+#__________  Network handler in its own thread.  ________________________________________________________________
+#               Monitors WSJT-X broadcast packets to extract frequency for band changing
+#   
+class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
+    def __init__(self):
+        # Call Thread constructor
+        super().__init__()
+        self.keep_running = True
+        global s
+        s = simple_server.SimpleServer(MY_UDP_IP, WSJTX_UDP_PORT, timeout=2.0)
+
+        #s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
+        # print(" Starting network thread")
+
+    def stop(self):
+        # Call this from another thread to stop the WSJTX_Decode
+        self.keep_running = False
+        print(" Stopping WSJTX network thread")
+
+    def run(self):
+        # This will run when you call .start method
+        while self.keep_running:          
+            self.wsjt_reader()   # Check for WSJT-X packets
+
+    def wsjt_reader(self):
+        # We use select here so that we are not *hung* forever in recvfrom.
+        # We'll wake up every .5 seconds to check whether we should keep running
+        #rfds, _wfds, _xfds = select.select([self.sock], [], [], 0.5)
+        #if self.sock in rfds:    
+        wsjtx_id = None    
+        global last_freq
+        global meter_data
+        global own_call
+        global heartbeat_timer
+        global band
+        
+        print("Listening for WSJTX messages")
+        time.sleep(0.5)
+        (pkt, addr_port) = s.rx_packet()
+        if (pkt != None):
+            the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, pkt)
+            print("Looking only for WSJT-X ID of : {}" .format(myWSJTX_ID))
+            if wsjtx_id is None and (type(the_packet) == pywsjtx.HeartBeatPacket):                
+                # we have an instance of WSJTX
+                print("WSJT-X is detected, id is {}".format(the_packet.wsjtx_id))
+                print("--> HeartBeatPacket Received")
+                wsjtx_id = the_packet.wsjtx_id
+                heartbeat_timer = 0  # reset upcounter
+            if type(the_packet) == pywsjtx.StatusPacket:
+                wsjtx_id = the_packet.wsjtx_id
+                own_call = the_packet.de_call
+                if wsjtx_id == myWSJTX_ID:
+                    print("Status message received from WSJT-X ID : " + wsjtx_id + own_call)
+                    freq = str(the_packet.dial_frequency)
+                    freq = str(freq[:-6])                    
+                    if  freq != "":                     
+                            band = meter_data[2]
+                            band = str(band[:-3])
+                            if band != freq or freq != last_freq:
+                                #print(" Meter band not matched to radio: Meter: {}  Radio: {}" .format(band, freq))                    
+                                Send_Mtr_Cmds.send_meter_cmd(self, int(freq), "", False)
+                                print('{} {} {} {} {} {}' .format("Dial Frequency is : ", freq, "    Was : ", last_freq, "   Meter Band : ", band))                            
+                                last_freq = freq                                
+                            else:
+                                print("Frequency Now " + freq)       
+#
+#_________  Serial Port Handler in its own thread______________________________________________________________________________
+#  Handles the Serial Port Rx and TX duties
+#
+class Serial_RxTx(Thread):
+    def __init__(self):
+        # Call Thread constructor
+        super().__init__()
+        self.open_serial_port()        
+        self.keep_running = True
+        print(" ^^^^^^^^^^^^^serial thread startup ^^^^^^^^^^")
 
     def stop(self):
         # Call this from another thread to stop the serial handling process
@@ -243,8 +392,10 @@ class Serial_RX(Thread):
         # This will run when you call .start method
         while self.keep_running:
             self.meter_reader()
+            self.ser_meter_cmd()
 
     def open_serial_port(self):
+        print(" serial thread startup ^^^^^^^^^^")
         if ser.isOpen() == False:        
             try:
                 ser.open()
@@ -265,16 +416,14 @@ class Serial_RX(Thread):
 
     def ser_meter_cmd(self):
         global send_meter_cmd_flag
-        #global cmd
-        #global cmd_data
-        global IPADDR
-        global PORTNUM
-
-        if send_meter_cmd_flag == True:   # if True then the UDP thread has a cmd waiting to send out.       
+        global cmd
+        global cmd_data        
+        if send_meter_cmd_flag == True and comms != None:   # if True then the UDP thread has a cmd waiting to send out.       
             if ser.isOpen():
                 try:              
-                    #print("---> Write Cmd : " + str(cmd))
-                    #ser.write("{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode())
+                    print("---> Write Cmd:{}  Cmd2:{}" .format(str(cmd), str(cmd_data)))                    
+                    ser.write("{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode())
+                    print("---> Write Completed")
                     send_meter_cmd_flag = False                             
                 except serial.SerialException:
                     print ("error communicating while writing serial port: " + str(port_name))
@@ -283,44 +432,54 @@ class Serial_RX(Thread):
         
     def meter_reader(self):       
         global restart_serial
-
+        
         out = ""  # Preparing the out variable 
         try:
-            if restart_serial == 0:
-                if ser.isOpen():        
-                    if ser.inWaiting() > 0:
-                        try:
-                            out = ser.readline().decode() 
-                        except UnicodeDecodeError: # catch error and ignore it
-                            print("Unicode decode error caught")  # will get this on CPU resets
-                        except serial.SerialException:
-                            # There is nothing
-                            print("No Data waiting at serial port: " + str(port_name))
-                            return None
-                        except TypeError as e:
-                            restart_serial = 1      # restart serial_Rx thread to recover
-                            print("Error communicating while reading serial port: " + str(port_name))
-                            print(e)
-                        else:
-                            #print(out)
-                            self.get_power_data(out)
+            if restart_serial == 0:                             
+                if ser.isOpen():                                
+                    try:                           
+                        out = ser.read(ser.inWaiting()).decode()                                             
+                        if len(out) < 1:                            
+                            return    
+                        print(out)
+                        Power_Data.get_power_data(self, out)                                           
+                    except UnicodeDecodeError: # catch error and ignore it
+                        print("Unicode decode error caught")  # will get this on CPU resets
+                    except serial.SerialException:
+                        # There is nothing
+                        print("No Data waiting at serial port: " + str(port_name))
+                        restart_serial = 1      # restart serial_Rx thread to recover
+                        return None
+                    except TypeError as e:
+                        restart_serial = 1      # restart serial_Rx thread to recover
+                        print("Error communicating while reading serial port: " + str(port_name))
+                        print(e)
                     else:
+                        #print(out)
                         pass
                 else:
-                    print("Cannot access serial port to read input data")
-                    restart_serial = 1      # restart serial_Rx thread to recover
+                    pass
+            else:
+                print("Cannot access serial port to read input data")
+                restart_serial = 1      # restart serial_Rx thread to recover
         except serial.SerialException as e:
             print(" Error: Port access issue detected. Possibly disconnected USB cable.")
             print(" --> Shutting off comms. Hit \'On\' button to resume once problem is resolved. Actual error below:")                
             print(e)
             restart_serial = 1
+#
+# __________  Process power meter received data ________________________________________________________________
+#  Extracts data from either the Newtwork or Serial threads incoming messages 
+#  
+class Power_Data():
+    #def __init__(self):
+        #self.get_power_data(self, self.s_data)
 
     def get_power_data(self, s_data):
         global meter_data
         global meter_data_fl
         global meter_data2
         global meter_data_fl2
-        #global comms
         global cal_flag
         global cmd_flag
         global FwdVal_Hi
@@ -341,12 +500,12 @@ class Serial_RX(Thread):
         global CW_KEY_OUT_POLARITY_val
         global PORTA_IS_PTT_Val
         global PORTB_IS_PTT_Val
-        global PORTC_IS_PTT_Val      
+        global PORTC_IS_PTT_Val    
 
         try:
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
-                print("1  DATA HERE {}" .format(tempstr))
+                #print("1  DATA HERE {}" .format(tempstr))
                 if tempstr[0][0] == '>':   # Break out debug messages and skip processing
                     print("0 Dbg Msg = {}" .format(tempstr))    
                     return
@@ -427,79 +586,19 @@ class Serial_RX(Thread):
                 meter_data[0] = "NA"          # no meter ID match so tell the UI  
         except:
                 pass
-        self.ser_meter_cmd() # use period of no RX input to call cmd sender which will check a flag set by the UDP thread to see if any commands are wating to send out.
-
-
+    
     def debug_meter_string(self, debug_msg):
         for i in range(len(meter_data)):
             meter_data[i] = ""
             meter_data_fl[i] = 0.0
         print("{0:}    = {1:}" .format(debug_msg, meter_data))
         print("{0:} FLT= {1:}" .format(debug_msg, meter_data_fl))
-
-#__________  Network handler in its own thread.  ________________________________________________________________
-#               Monitors WSJT-X broadcast packets to extract frequency for band changing
-#   
-class Receiver(Thread):
-    def __init__(self):
-        # Call Thread constructor
-        super().__init__()
-        self.keep_running = True
-        global s
-        s = simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
-        #s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
-        # print(" Starting network thread")
-
-    def stop(self):
-        # Call this from another thread to stop the receiver
-        self.keep_running = False
-        print(" Stopping network thread")
-
-    def run(self):
-        # This will run when you call .start method
-        while self.keep_running:          
-            self.wsjt_reader()
-
-    def wsjt_reader(self):
-        # We use select here so that we are not *hung* forever in recvfrom.
-        # We'll wake up every .5 seconds to check whether we should keep running
-        #rfds, _wfds, _xfds = select.select([self.sock], [], [], 0.5)
-        #if self.sock in rfds:    
-        wsjtx_id = None    
-        global last_freq
-        global meter_data
-        global own_call
-        global heartbeat_timer
-
-        time.sleep(0.5)
-        (pkt, addr_port) = s.rx_packet()
-        if (pkt != None):
-            the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, pkt)
-            print("Looking only for WSJT-X ID of : {}" .format(myWSJTX_ID))
-            if wsjtx_id is None and (type(the_packet) == pywsjtx.HeartBeatPacket):                
-                # we have an instance of WSJTX
-                print("WSJT-X is detected, id is {}".format(the_packet.wsjtx_id))
-                print("--> HeartBeatPacket Received")
-                wsjtx_id = the_packet.wsjtx_id
-                heartbeat_timer = 0  # reset upcounter
-            if type(the_packet) == pywsjtx.StatusPacket:
-                wsjtx_id = the_packet.wsjtx_id
-                own_call = the_packet.de_call
-                if wsjtx_id == myWSJTX_ID:
-                    print("Status message received from WSJT-X ID : " + wsjtx_id + own_call)
-                    freq = str(the_packet.dial_frequency)
-                    freq = str(freq[:-6])                    
-                    if  freq != "":                     
-                            band = meter_data[2]
-                            band = str(band[:-3])
-                            if band != freq or freq != last_freq:
-                                #print(" Meter band not matched to radio: Meter: {}  Radio: {}" .format(band, freq))                    
-                                self.send_meter_cmd(int(freq), "", False)
-                                print('{} {} {} {} {} {}' .format("Dial Frequency is : ", freq, "    Was : ", last_freq, "   Meter Band : ", band))                            
-                                last_freq = freq                                
-                            else:
-                                print("Frequency Now " + freq)         
-
+        
+#
+#_____________________________________________________________________________________________________________
+# Used by the app to queue up a command to be sent the meter via either of the Network and Serial threads.
+#
+class Send_Mtr_Cmds():
     def send_meter_cmd(self, cmd_str, cmd_data_str, direct_cmd):
         # cmd is type chr to be converted to byte
         # direct_cmd is BOOL to specify if it is a direct command such as button push for 144 
@@ -511,14 +610,15 @@ class Receiver(Thread):
         global send_meter_cmd_flag
         global cmd
         global cmd_data
-
+ 
         # parse the frequency passed to call specific band command byte to be sent by another function
         #print("Meter Cmd Order is to " + str(cmd))
         send_meter_cmd_flag = True
-        if direct_cmd == True:  
+        if direct_cmd == True:              
             cmd = cmd_str           # now handle direct bands change commands
             cmd_data = cmd_data_str     # set data value if any. 
             #print(" ******> Direct cmd byte = " + str(cmd))
+            print("meter cmd={} cmd2={}" .format(cmd, cmd_data))
         else:            
             cmd_data = 0        # data value always zero for band change commands
             band = int(cmd_str)           # non direct band change commands
@@ -546,20 +646,7 @@ class Receiver(Thread):
                 cmd = "250"
             else: 
                 pass                    # in case we add more
-        # Send out to ethernet via UDP also if enabled
-        # initialize a socket, think of it as a cable
-        # SOCK_DGRAM specifies that this is UDP
-        t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            # send the command
-            m = "{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode()
-            t.sendto(m, (IPADDR, PORTNUM))      
-            print("TX to CPU Msg = {}" .format(m)) 
-        except:
-            print("TX to CPU FAILED Error = {}" .format(t)) 
-            #pass
-        # close the socket
-        t.close()  
+        
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
@@ -571,7 +658,8 @@ class App(tk.Frame):
         # Call superclass constructor
         super().__init__(master)
         self.serial_rx = None
-        self.receiver = None
+        self.WSJTX_Decode = WSJTX_Decode()
+        self.udp_meter = None
         #self.grid()
         self.pack_propagate(0) # don't shrink
         self.pack(fill=BOTH, expand=1)
@@ -589,8 +677,11 @@ class App(tk.Frame):
             if ser.isOpen() == True:                
                 if self.serial_rx:
                     self.serial_rx.stop()
-                if self.receiver:
-                    self.receiver.stop() 
+                if self.wsjtx_decode:
+                    self.wsjtx_decode.stop() 
+                if self.udp_meter:
+                    self.udp_meter.stop() 
+                    
         self.master.destroy()  # Destroy root window
         self.master.quit()  # Exiting the main loop
 
@@ -742,13 +833,21 @@ class App(tk.Frame):
         self.spacer4 = tk.Label(self, text='  ', font=('Helvetica', 10, 'bold'))
         self.spacer4.place(x=0, y=22, bordermode=OUTSIDE, height=20, width=10)
                
-        self.meter_id_f = tk.Label(self, text='Radio: ',font=('Helvetica', 10, 'bold'),pady=0,anchor="w", relief=tk.FLAT, borderwidth=1)  #, width=21)
+        self.meter_id_l = tk.Label(self, text='Radio: ',font=('Helvetica', 10, 'bold'),pady=0,anchor="w", relief=tk.FLAT, borderwidth=1)  #, width=21)
+        self.meter_id_l.configure(font=self.btn_font)
+        self.meter_id_l.place(x=10, y=22, bordermode=OUTSIDE, height=20, width=50) 
+
+        self.meter_id_f = tk.Label(self, text='           ',font=('Helvetica', 10, 'bold'),pady=0,anchor="w", relief=tk.FLAT, borderwidth=1)  #, width=21)
         self.meter_id_f.configure(font=self.btn_font)
-        self.meter_id_f.place(x=10, y=22, bordermode=OUTSIDE, height=20, width=170) 
+        self.meter_id_f.place(x=54, y=22, bordermode=OUTSIDE, height=20, width=100) 
  
-        self.band_f = tk.Label(self, text='Band:',font=('Helvetica', 10, 'bold'),padx = 5,pady = 0, anchor="w", width=7)
+        self.band_l = tk.Label(self, text='Band: ',font=('Helvetica', 10, 'bold'),padx = 5,pady = 0, anchor="w", width=7)
+        self.band_l.configure(font=self.btn_font)
+        self.band_l.place(x=140, y=22, bordermode=OUTSIDE, height=20, width=46)  
+        
+        self.band_f = tk.Label(self, text='%7s' % "       ",font=('Helvetica', 10, 'bold'),padx = 5,pady = 0, anchor="w", width=7)
         self.band_f.configure(font=self.btn_font)
-        self.band_f.place(x=180, y=22, bordermode=OUTSIDE, height=20, width=70)  
+        self.band_f.place(x=186, y=22, bordermode=OUTSIDE, height=20, width=66)
          
         self.F_Watts_f = tk.Label(self, text=' FWD:', font=('Helvetica', 12, 'bold'),anchor="e",width=5)
         self.F_Watts_f.configure(font=self.btn_font, pady = 0)          
@@ -795,6 +894,9 @@ class App(tk.Frame):
         global own_call    
         global heartbeat_timer
         global last_freq
+        global meter_data
+        global myRig_meter_ID
+        global myRig
 
         if own_call == "":     # allow for running without serial port to meter connection, network still running 
             #ID = "NA"       # No ID available from any source
@@ -807,10 +909,10 @@ class App(tk.Frame):
                 print(" * WSJ-TX Heartbeat_timer expiring at {}" .format(heartbeat_timer))     # post up the event for FYI
                 own_call = ""
                 last_freq = ""          # reset when no valid data arriving
-            heartbeat_timer += 1        # increment Watchdog counter. Itis reset with every heartbeat received message in Receiver thread.
+            heartbeat_timer += 1        # increment Watchdog counter. Itis reset with every heartbeat received message in WSJTX_Decode thread.
         else:
             ID = meter_data[0]
-        self.meter_id_f.configure(text=' Radio: {0:11s}   Band:' .format(ID), width=21) 
+        self.meter_id_f.configure(text='{0:11s}' .format(ID), width=6) 
 
         curr_band = meter_data[2]
         if curr_band == "":         # if blank then the meter is disconnected or turned off.  Instead post up WSJTX data if avaialble            
@@ -877,106 +979,106 @@ class App(tk.Frame):
     # These functions are called by a button to do something with the power meter such as change cal sets for a new band
 
     def get_cal_table(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Get the meter's calibation table")
         # Write command to change meter scale and change meter face to Watts
         rx.send_meter_cmd("252", "", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
        
     def change_band(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Go to Next Band ")
         # Write command to change Band
-        rx.send_meter_cmd("254","", True)
+        #rx.send_meter_cmd("254","", True)
+        rx.send_meter_cmd("102","0", True)
 
-
-    def cpl_Fwd(self): 
-        rx = Receiver()
-        print("Change Fwd Port Coupling Value ")
+    def Toggle_UDP_data_out(self): 
+        rx = Send_Mtr_Cmds()
+        print("Toggle UDP Power and Voltage Data output stream")
         # Write command to change meter face to SWR
-        rx.send_meter_cmd("","", True)
+        rx.send_meter_cmd("52","2", True)
 
-    def cpl_Ref(self):
-        rx = Receiver()
-        print("Change Ref Port Coupling Value ")
+    def enable_ENET(self):
+        rx = Send_Mtr_Cmds()
+        print("Toggle Ethernet ON/OFF")
         # Write command to slow data rate output from meter
-        rx.send_meter_cmd("","", True)
+        rx.send_meter_cmd("53","2", True)
         
     def band_10g(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 10GHz Band ")
         # Write command to jump to band 9
         rx.send_meter_cmd("194","", True)
         
     def band_5700(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 5.7GHz Band ")
         # Write command to jump to band 8
         rx.send_meter_cmd("193","", True)
         
     def band_3400(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 3.4GHz Band ")
         # Write command to jump to band 7
         rx.send_meter_cmd("195","", True)
         
     def band_2300(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 2.3GHz Band ")
         # Write command to jump to band 6
         rx.send_meter_cmd("247","", True)
         
     def band_1296(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 1296MHz Band ")
         # Write command to jump to band 5
         rx.send_meter_cmd("246","", True)
         
     def band_902(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 902MHz Band ")
         # Write command to jump to band 4
         rx.send_meter_cmd("245","", True)
 
     def band_432(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 432MHz Band ")
         # Write command to jump to band 3
         rx.send_meter_cmd("244","", True)
 
     def band_222(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 222MHz Band ")
         # Write command to jump to band 2
         rx.send_meter_cmd("243","", True)
 
     def band_144(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 144MHz Band ")
         # Write command to jump to band 1
         rx.send_meter_cmd("242","", True)
     
     def band_50(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to 50MHz Band ")
         # Write command to jump to band 0
         rx.send_meter_cmd("241","", True)
         
     def band_HF(self):
-        rx = Receiver()
+        rx = Send_Mtr_Cmds()
         print("Jump to HF Band")
         # Write command to speed up data rate output from meter
         rx.send_meter_cmd("240","", True)
 
-    def comm(self):         # toggle if on or off, do noting if neither (started up with out a serial port for example)
+    def comm(self):         # toggle Serial port (only) if on or off, do noting if neither (started up with out a serial port for example)
         global comms
+        global meter_data
+        global meter_data_fl
+
         if comms == True:
             # Closing comms   - do not call this if they are already off!
             comms = False
             self.QUIT.configure(text = format("Off"))
-            self.QUIT.configure(fg='black', bg="light grey")
-            #self.receiver.stop()
-            #self.receiver.join()
-            #self.receiver = None            
+            self.QUIT.configure(fg='black', bg="light grey")           
             self.serial_rx.stop()
             self.serial_rx.join()
             self.serial_rx = None
@@ -989,14 +1091,21 @@ class App(tk.Frame):
             comms = True
             self.QUIT.configure(text = format("On"))
             self.QUIT.configure(fg="black", bg="green")
-            #self.receiver = Receiver()
-            #self.receiver.start()
-            self.serial_rx = Serial_RX()
+            self.serial_rx = Serial_RxTx()
             self.serial_rx.start() 
             print(" Serial thread started ")
+        elif comms == None:         # USP thread for ethernet option to serial.  UDP_Meter or Serial, only one should be enabled at a time.
+            print(" main loop starting up UDP!")
+            self.udp_meter = UDP_Meter()
+            self.udp_meter.start()
+            #pass 
         else:
             print("Serial thread not started")
-            #pass     
+            #pass    
+        # Start the WSJTX thread in any case.  
+        self.wsjtx_decode = WSJTX_Decode()      # Statthe WSJTx UDP Thread - runs always for now.
+        self.wsjtx_decode.start()      # start the WSJTX_Decode thread now 
+
 
     def NewFile(self):
         print("New File!")
@@ -1026,16 +1135,17 @@ class App(tk.Frame):
         # *If* any arguments were provided, we would pass them on to Tk.frame
         super().mainloop(*args)
 
-        # When main loop finishes, shutdown Serial_RX and/or UDP receiver if necessary
+        # When main loop finishes, shutdown Serial_RxTx and UDP and WSJTX threads if necessary
         if self.serial_rx:
             self.serial_rx.stop()
-        if self.receiver:
-            self.receiver.stop()
+        if self.wsjtx_decode:
+            self.wsjtx_decode.stop()
+        if self.udp_meter:
+            self.udp_meter.stop()
 
     def start_cfg(self):
         cfg = Cfg_Mtr()
         print(" ---->  Started Config Window")
-
 
 class Cfg_Mtr(tk.Frame):      
 #    def __init__(self):
@@ -1056,52 +1166,52 @@ class Cfg_Mtr(tk.Frame):
         self.master.quit()  # Exiting the main loop
         
     def NexProgram(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Switch Nextion to Program Connection")
-        rx.send_meter_cmd("96","", True)
+        m_cmd.send_meter_cmd("96","", True)
         
     def NexOperate(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Switch Nextion to Operate Connection")
-        rx.send_meter_cmd("95","", True)
+        m_cmd.send_meter_cmd("95","", True)
 
     def Cal_Dump(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Dump Cal Table")
-        rx.send_meter_cmd("252","", True)
+        m_cmd.send_meter_cmd("252","", True)
 
     def Cal_Temp(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Cal Temperature")
-        rx.send_meter_cmd("84",self.Temp.get(), True)
+        m_cmd.send_meter_cmd("84",self.Temp.get(), True)
 
     def Cal_HVDC(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Cal HV DC")
-        rx.send_meter_cmd("88",self.HVDC.get(), True)
+        m_cmd.send_meter_cmd("88",self.HVDC.get(), True)
 
     def Cal_V14(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Cal 14VDC")
-        rx.send_meter_cmd("87",self.V14.get(), True)
+        m_cmd.send_meter_cmd("87",self.V14.get(), True)
   
     def Cal_Curr(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Cal Current")
-        rx.send_meter_cmd("86",self.Curr.get(), True)
+        m_cmd.send_meter_cmd("86",self.Curr.get(), True)
     
     def Cal_Curr0(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Cal No Load Current")
-        rx.send_meter_cmd("85",self.Curr0.get(), True)
+        m_cmd.send_meter_cmd("85",self.Curr0.get(), True)
 
     def Cal_Hi(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Measure Fwd and Ref High Power ADC Voltage at {}{}" .format(self.Pwr_Hi.get(), self.P_Units.get()))        
         if self.P_Units.get() == "dBm":
-            rx.send_meter_cmd("78",self.Pwr_Hi.get(), True)
+            m_cmd.send_meter_cmd("78",self.Pwr_Hi.get(), True)
         else:
-            rx.send_meter_cmd("79",self.Pwr_Hi.get(), True)
+            m_cmd.send_meter_cmd("79",self.Pwr_Hi.get(), True)
         time.sleep(2)
         self.Cal_HiV_F_Text.config(text="F:"+FwdVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))   
         self.Cal_HiV_R_Text.config(text="R:"+RefVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))        
@@ -1112,12 +1222,12 @@ class Cfg_Mtr(tk.Frame):
         self.Hi_Flag = 1
         
     def Cal_Lo(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Measure Fwd and Ref Low Power ADC Voltage at {}{}" .format(self.Pwr_Lo.get(), self.P_Units.get()))                
         if self.P_Units.get() == "dBm":
-            rx.send_meter_cmd("76",self.Pwr_Lo.get(), True)
+            m_cmd.send_meter_cmd("76",self.Pwr_Lo.get(), True)
         else:
-            rx.send_meter_cmd("77",self.Pwr_Lo.get(), True)
+            m_cmd.send_meter_cmd("77",self.Pwr_Lo.get(), True)
         time.sleep(2)
         self.Cal_LoV_F_Text.config(text="F:"+FwdVal_Lo+"VDC", font=('Helvetica', 12, 'bold')) 
         self.Cal_LoV_R_Text.config(text="R:"+RefVal_Lo+"VDC", font=('Helvetica', 12, 'bold'))  
@@ -1128,171 +1238,171 @@ class Cfg_Mtr(tk.Frame):
         self.Lo_Flag = 1
 
     def Cal_Fwd(self):    # used measured hi and lo values sent to host earlier, now calculate
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Calculate Fwd Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
-        rx.send_meter_cmd("75","", True)        
+        m_cmd.send_meter_cmd("75","", True)        
     
     def Cal_Ref(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Calculate Ref Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
-        rx.send_meter_cmd("74","", True)    
+        m_cmd.send_meter_cmd("74","", True)    
 
     def Set_B_Dec_In_Mode(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Applying Translation Mode {} to Band Decode Input Port".format(self.BDec_In.get()))
-        rx.send_meter_cmd("65",self.BDec_In.get(), True)    
+        m_cmd.send_meter_cmd("65",self.BDec_In.get(), True)    
         if self.BDec_In.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Input Port using {}".format(self.CustomIn.get()))
             time.sleep(0.1)
-            rx.send_meter_cmd("69",self.CustomIn.get(), True)  
+            m_cmd.send_meter_cmd("69",self.CustomIn.get(), True)  
         time.sleep(0.1)
         self.GetDecoderValues()  
         time.sleep(0.1)           
 
     def Set_B_Dec_A_Mode(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Applying Translation Mode {} to Band Decode Output Port A".format(self.BDec_A.get()))
-        rx.send_meter_cmd("64",self.BDec_A.get(), True)    
+        m_cmd.send_meter_cmd("64",self.BDec_A.get(), True)    
         if self.BDec_A.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Output Port A using {}".format(self.CustomA.get()))
             time.sleep(0.1)
-            rx.send_meter_cmd("68",self.CustomA.get(), True)
+            m_cmd.send_meter_cmd("68",self.CustomA.get(), True)
         time.sleep(0.1)
         self.GetDecoderValues()  
         time.sleep(0.1)           
 
     def Set_B_Dec_B_Mode(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Applying Translation Mode {} to Band Decode Output Port B".format(self.BDec_B.get()))
-        rx.send_meter_cmd("63",self.BDec_B.get(), True)    
+        m_cmd.send_meter_cmd("63",self.BDec_B.get(), True)    
         if self.BDec_B.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Output Port B using {}".format(self.CustomB.get()))
             time.sleep(0.1)
-            rx.send_meter_cmd("67",self.CustomB.get(), True)
+            m_cmd.send_meter_cmd("67",self.CustomB.get(), True)
         time.sleep(0.1)
         self.GetDecoderValues()              
         time.sleep(0.1)
 
     def Set_B_Dec_C_Mode(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Applying Translation Mode {} to Band Decode Output Port C".format(self.BDec_C.get()))
-        rx.send_meter_cmd("62",self.BDec_C.get(), True)    
+        m_cmd.send_meter_cmd("62",self.BDec_C.get(), True)    
         if self.BDec_C.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Applying Custom Pattern to Band Decode Output Port C using {}".format(self.CustomC.get()))
             time.sleep(0.1)
-            rx.send_meter_cmd("66",self.CustomC.get(), True)
+            m_cmd.send_meter_cmd("66",self.CustomC.get(), True)
         time.sleep(0.1)  
         self.GetDecoderValues()
         time.sleep(0.1)
 
     def Dis_OTRSP_Band_Change(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         if self.Dis_OTRPS_Ch.get() == 1:   # If custom mode then get the entered pattern and store it
             print("DISABLE Band Change by OTRSP AUX1 Command")  
-            rx.send_meter_cmd("61","1", True)  
+            m_cmd.send_meter_cmd("61","1", True)  
         else:
             print("ENABLE Band Change by OTRSP AUX1 Command")  
-            rx.send_meter_cmd("61","0", True) 
+            m_cmd.send_meter_cmd("61","0", True) 
         time.sleep(0.1)
         self.GetDecoderValues()
         time.sleep(0.1)
 
     def PTT_Input_Polarity(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         if self.PTT_IN_pol.get() == 1:   # If custom mode then get the entered pattern and store it
             print("Set PTT Input to Active HI mode")  
-            rx.send_meter_cmd("59","1", True)  
+            m_cmd.send_meter_cmd("59","1", True)  
         else:
             print("Set PTT Input to Active LOW mode")  
-            rx.send_meter_cmd("59","0", True) 
+            m_cmd.send_meter_cmd("59","0", True) 
         time.sleep(0.2)
         self.GetDecoderValues()
         time.sleep(0.2)
     
     def PTT_Ouput_Polarity(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         if self.PTT_OUT_pol.get() == 1:   # If custom mode then get the entered pattern and store it
             print("Set PTT Output to Active HI mode")  
-            rx.send_meter_cmd("58","1", True)  
+            m_cmd.send_meter_cmd("58","1", True)  
         else:
             print("Set PTT Output to Active LOW mode")  
-            rx.send_meter_cmd("58","0", True) 
+            m_cmd.send_meter_cmd("58","0", True) 
         time.sleep(0.2)
         self.GetDecoderValues()
         time.sleep(0.2)
     
     def CW_Key_Polarity(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         if self.CW_KEY_OUT_pol.get() == 1:   # If custom mode then get the entered pattern and store it
             print("Set CW Key Out to Active HI mode")  
-            rx.send_meter_cmd("57","1", True)  
+            m_cmd.send_meter_cmd("57","1", True)  
         else:
             print("Set CW Key Out to Active LOW mode")  
-            rx.send_meter_cmd("57","0", True) 
+            m_cmd.send_meter_cmd("57","0", True) 
         time.sleep(0.2)
         self.GetDecoderValues()
         time.sleep(0.2)
 
     def PortA_is_PTT(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         if self.PORTA_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Set Port A PTT Mode to Active HI mode")  
-            rx.send_meter_cmd("56","2", True)  
+            m_cmd.send_meter_cmd("56","2", True)  
         elif self.PORTA_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
             print("Set Port A PTT Mode to Active LOW mode")  
-            rx.send_meter_cmd("56","1", True)  
+            m_cmd.send_meter_cmd("56","1", True)  
         else:
             print("Set Port A PTT Mode OFF")  
-            rx.send_meter_cmd("56","0", True) 
+            m_cmd.send_meter_cmd("56","0", True) 
         time.sleep(0.2)
         self.GetDecoderValues()
         time.sleep(0.2)
 
     def PortB_is_PTT(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         if self.PORTB_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Set Port B PTT Mode to Active HI mode")  
-            rx.send_meter_cmd("55","2", True)  
+            m_cmd.send_meter_cmd("55","2", True)  
         elif self.PORTB_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
             print("Set Port B PTT Mode to Active LOW mode")  
-            rx.send_meter_cmd("55","1", True)  
+            m_cmd.send_meter_cmd("55","1", True)  
         else:
             print("Set Port B PTT Mode to OFF")
-            rx.send_meter_cmd("55","0", True)   
+            m_cmd.send_meter_cmd("55","0", True)   
         time.sleep(0.2)
         self.GetDecoderValues()
         time.sleep(0.2)
 
     def PortC_is_PTT(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         if self.PORTC_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
             print("Set Port C PTT Mode to Active HI mode")  
-            rx.send_meter_cmd("54","2", True)  
+            m_cmd.send_meter_cmd("54","2", True)  
         elif self.PORTC_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
             print("Set Port C PTT Mode to Active LOW mode")  
-            rx.send_meter_cmd("54","1", True)  
+            m_cmd.send_meter_cmd("54","1", True)  
         else:
             print("Set Port C PTT Mode to OFF")  
-            rx.send_meter_cmd("54","0", True) 
+            m_cmd.send_meter_cmd("54","0", True) 
         time.sleep(0.2)
         self.GetDecoderValues()
         time.sleep(0.2)
     
     def GetDecoderValues(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Retrieve Band Decoder Translation Modes and current band custom patterns")    # Used to prepopulate the Config Screen Band Decoder section to reflect current vlaues
-        rx.send_meter_cmd("60","", True)    # Will result in a reply message from CPU in message type 172 which will stash values into global variable
+        m_cmd.send_meter_cmd("60","", True)    # Will result in a reply message from CPU in message type 172 which will stash values into global variable
         time.sleep(0.1)
 
     def Save_to_Meter(self):   # Commit to EEPROM
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Save cal table changes to Meter's EEPROM")
-        rx.send_meter_cmd("195","", True)    
+        m_cmd.send_meter_cmd("195","", True)    
 
     def Toggle_Ser_Data(self):
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Toggle Meter Data Output Stream")
-        rx.send_meter_cmd("239","1", True)    
+        m_cmd.send_meter_cmd("239","2", True)    
     
     def Show_MeterID(self):
         print("Meter ID received is ", meter_data[0])
@@ -1726,18 +1836,20 @@ class Cfg_Mtr(tk.Frame):
         self.Update_cfg_Decoder()
 
     def Factory_Reset(self):      
-        rx = Receiver()
+        m_cmd = Send_Mtr_Cmds()
         print("Sending part 1 of 2 commands for Factory Reset")
-        rx.send_meter_cmd("193","", True)
+        m_cmd.send_meter_cmd("193","", True)
         while (cmd_flag == 0):            
             time.sleep(0.1)        
-        rx.send_meter_cmd("194","", True)
+        m_cmd.send_meter_cmd("194","", True)
         while (cmd_flag == 1):
             time.sleep(0.1)                    
         self.Reset_btn.configure(font=('Helvetica', 12, 'bold'), bg="grey94")                                
 
 def main(): 
     global hide_titlebar 
+    global meter_sock
+
     root = tk.Tk()
     # Place window in the upper right corner of the desktop display for now.  
     #   Later improve to save config file and remember the last position 
@@ -1770,10 +1882,23 @@ def main():
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=app.About)   
-    if comms == False:
-        app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
-    app.receiver = Receiver()
-    app.receiver.start()      # start the receiver thread now
+
+    meter_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
+    meter_sock.bind(("", PORTNUM_OF_METER))
+    meter_sock.settimeout(1.0)
+    meter_sock.setblocking(0)
+
+    #if comms == False:          # Serial Thread startup if enabled
+    app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
+
+    #if comms == None:           # USP thread for ethernet option to serial.  UDP_Meter or Serial, only one should be enabled at a time.
+    #    print(" main loop starting up UDP!")
+    #    app.udp_meter = UDP_Meter()
+    #    app.udp_meter.start()
+        #pass
+
+    app.wsjtx_decode = WSJTX_Decode()      # Statthe WSJTx UDP Thread - runs always for now.
+    app.wsjtx_decode.start()      # start the WSJTX_Decode thread now    
     app.mainloop()      # start the GUI
 
 if __name__ == '__main__':
@@ -1869,7 +1994,7 @@ if __name__ == '__main__':
                 i = i + 1
                 ports.append(port)           
                 #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        ports.append("Not_Used") 
+        ports.append("NoSerial") 
         for p in ports:
             listbox.insert(END, p)           
         if (len(ports) > 4):
@@ -1910,7 +2035,7 @@ if __name__ == '__main__':
                 i = i + 1
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        ports.append("Not_Used") 
+        ports.append("NoSerial") 
         #while True:  (for cmd line usage)
         #port = input('--- Enter port index number from list or any other key to continue without serial comms: ')       
         port = port_listbox        
@@ -1963,33 +2088,41 @@ if __name__ == '__main__':
     print("Meter ID final value set to  : " + myRig_meter_ID)
     print("Com Port final value set to : ", port_name)
 
-    if (port_name == "Not_Used"):
+    if (port_name == "NoSerial"):
         comms = None   
+        ser = None
+        print("  Starting with serial comms OFF, will use UDP if available ") 
     elif (port_name != ""):
         comms = False   
 
     if (comms == False):
-        print("Comms 3 = {}" .format(comms))
-        print ("Port {} will be used" .format(port_name))
-        print("Opening USB serial Port: " , port_name)
-        ser = serial.Serial(
-            port=port_name,
-            baudrate=115200,
-            parity=serial.PARITY_NONE,
-            bytesize=serial.EIGHTBITS,
-            stopbits=serial.STOPBITS_ONE,
-            xonxoff=0,
-            rtscts=0,
-            timeout=1
-        )
-        if ser: 
-            #print("Testing port by closing")
-            try:
-                ser.close()             
-            except:
-                print(" Cannot open serial port")   
-
-        print("** Started up Serial Port communication thread **")
+        try:
+            print ("Port {} will be used" .format(port_name))
+            print("Opening USB serial Port: " , port_name)
+            ser = serial.Serial(
+                port=port_name,
+                baudrate=115200,
+                parity=serial.PARITY_NONE,
+                bytesize=serial.EIGHTBITS,
+                stopbits=serial.STOPBITS_ONE,
+                xonxoff=0,
+                rtscts=0,
+                timeout=1
+            )                        
+            if ser: 
+                print("Testing port by closing")
+                try:
+                    ser.close()             
+                except:
+                    print(" Cannot open serial port") 
+                    comms = None
+                    port_name = "UDP"
+            print("** Started up Serial Port communication thread **")
+        except:
+            print(" ERROR: Serial port in Use, using ethernet UDP is available")
+            comms = None  
+            port_name = "UDP"
+            ser = None
 
     myTitle += " - " + port_name + " - Meter ID=" + myRig_meter_ID
        
