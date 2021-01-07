@@ -21,7 +21,7 @@ import tkinter.messagebox
 import socket
 
 PowerMeterVersionNum = "2.5"
-# pyRFPowerMeter  Version 2.3  Nov 24, 2020
+# pyRFPowerMeter  Version 2.5  January 7, 2021
 # Author: M. Lewis K7MDL
 #
 #   Companion Desktop app to montor and control the Arduino or PSoC5 version of the RF Wattmeter.
@@ -52,18 +52,25 @@ PowerMeterVersionNum = "2.5"
 #       Nextion Programming (only needed if the display is used - can use a temporary connection with a USB UART TTL converter)
 #       KitProg programming/debugging board for main CPU (only needed for initial programming or firmware updates later)
 #
+#   Ethernet usage:
+#       This app now supports UDP communication with the RF Meter/band decoder in addition to the USB Serial.  Configure the static
+#       IP and Ports for your network in the #defines below.  This was implemented in its own thread. WSJTX and Serial are the other 2.  
+#       The serial thread is stopped and started with the GUI ON/OFF button.  It will turn off on detection of serial port issues.
+#       Press the button to restore coms once fixed.  Ihe NoSerial is chosen, the serial thread is disabled from startup. 
+#       At startup "NoSerial" will be at the end of the USB comm ports list, choose this to use UDP.  
+#
 #   KitProg usage (in place of the main board):
 #       The programming board may be snapped off the Main CY8CKIT-059 dev module and used 
 #       standalone. It has a special bootloader installed that can load a user app. A Bootloader component
 #       included in the TopDesign drawing must be enabled and a new target CPU platform selected
 #       (-039 variant from the list, the -097 is the main device variant) 
 #       The Tools->Bootloader Host utility is used to upload the app program to the bootloader on the 
-#       KitProg board. To see the board in teh Bootloader Host, unplug the KitProg, hoid the reset button
+#       KitProg board. To see the board in the Bootloader Host, unplug the KitProg, hoid the reset button
 #       down, plug the KitProg back into the USB cable then let go of the switch.  You can now download.
-#       At completion of download, power cycle the Kitprog and your app wil run normally thereafter.
+#       At completion of download, power cycle the Kitprog and your app will run normally thereafter.
 #
-#   All capabilities are controlled by serial port commands.  Not all commands are used anymore as better
-#       commands such as in the calibraton area are preferred.
+#   All capabilities are controlled by serial port commands (an API of sorts) which this App leverages.  Not all commands are used anymore as better
+#       commands such as in the calibraton area are preferred. Some commands are yet to be implemented in the GUI.
 #    
 #   This program reuses a version of the Nextion Arduino library on GitHub ported to C by another Github user.
 #       https://github.com/itead/ITEADLIB_Arduino_Nextion
@@ -130,7 +137,8 @@ myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Chang
 
 # addressing information of target
 IPADDR_OF_METER = '192.168.2.188'
-PORTNUM_OF_METER = 8888
+PORTNUM_OF_METER_LISTEN = 7942
+PORTNUM_OF_METER_SENDTO = 7943
 #UDP_IP = '239.255.0.1'       # multicast address and port alternative
 #UDP_PORT = 2237
 MY_UDP_IP = "127.0.0.1"        # default local machine address
@@ -266,7 +274,7 @@ class UDP_Meter(Thread):
             try:
                 # send the command
                 m = "{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode()
-                t.sendto(m, (IPADDR_OF_METER, PORTNUM_OF_METER))
+                t.sendto(m, (IPADDR_OF_METER, PORTNUM_OF_METER_SENDTO))
                 print("TX to CPU Msg = {}" .format(m).encode) 
             except:
                 print("TX to CPU FAILED Error = {}" .format(t).encode()) 
@@ -989,7 +997,7 @@ class App(tk.Frame):
         print("Go to Next Band ")
         # Write command to change Band
         #rx.send_meter_cmd("254","", True)
-        rx.send_meter_cmd("102","0", True)
+        rx.send_meter_cmd("252","", True)
 
     def Toggle_UDP_data_out(self): 
         rx = Send_Mtr_Cmds()
@@ -1884,7 +1892,7 @@ def main():
     helpmenu.add_command(label="About...", command=app.About)   
 
     meter_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
-    meter_sock.bind(("", PORTNUM_OF_METER))
+    meter_sock.bind(("", PORTNUM_OF_METER_LISTEN))
     meter_sock.settimeout(1.0)
     meter_sock.setblocking(0)
 
