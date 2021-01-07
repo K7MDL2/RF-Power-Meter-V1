@@ -13,25 +13,34 @@
 #include <stdint.h> 
 
 /******************************************************************************
-  User edited values here for Callsign and Meter ID number and Some Setpoints
+  Select Features for compile time
 ******************************************************************************/
-#define SSD1306_OLED
-#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.
-#define NEXTION           // OK to run OLED at same time
+#define SSD1306_OLED   // local OLED display option
+#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
+//#define NEXTION           // OK to run OLED at same time 
 #define DETECTOR_TEMP_CONNECTED     // Tested with teh ADL5519 onboard temp output. 
-//#define LORA   // This is set in Serial.c also
-//#define SWR_ANALOG   // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
-//#define AMP1296    // enables specific hard coded cal values for voltages for 1296 amp
+//#define LORA            // This is set in Serial.c also (tesated on PSoC only so far)
+//#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
+//#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
-#define ENET  // Include support for ethernet
-
+#define ENET              // Include support for ethernet
+// Icom Analog (ACC) and C-IV Serial 
+//#define ICOM_ACC             // voltage 0-8V on pin4 ACC(2) connector - need calibrate table
+//#define ICOM_CIV             // read frequency from CIV
+#define ADS1115_ADC     // uncomment this line to active exernal 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
+#define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
+// Below choose single mode. Continuous mode hangs unless needs 20ms delay between mux channel and reads.  Test program does not need this delay (or very little)
+#define ADS1115_SINGLE_MODE  //uncomment this line to operate in single mode capture vs continuous mode
+/*
+ *  End Features Section
+ */
 // On the Teensy 4.X these are USB Serial so no pin assignments needed.  Teensy 4.x can have up to 3 Serial USB ports, 8 hardware serial ports.
 // Serial is main.  SerialUSB1 and SerialUSB2 are the others.
 #define RFWM_Serial Serial   // RF Wattmeter data output.  Also accepts control commands and debug output in Serial Monitor.
-#define OTRSP_Serial SerialUSB1    // OTRSP Serial protocol from programs like N1MM+ for transveter or antenna control
+#define OTRSP_Serial SerialUSB2    // OTRSP Serial protocol from programs like N1MM+ for transveter or antenna control
 //#define BAND_DEC_Serial SerialUSB2   // when and if serial band decoder methods used
-#define DBG_Serial Serial  // place to send debug messages to
-
+#define DBG_Serial SerialUSB1  // place to send debug messages to
+#define CIV_Serial SerialUSB2 // for Icom CI-V decoding
 #ifdef ENET
     #include <NativeEthernet.h>
     #include <NativeEthernetUdp.h>
@@ -42,15 +51,15 @@
     //  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEC
     //};
     IPAddress ip(192, 168, 2, 188);
-    unsigned int localPort = 8888;      // local port to listen on
+    unsigned int localPort = 7943;      // local port to LISTEN on
     
     // buffers for receiving and sending data
     char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
-    char ReplyBuffer[] = "#2 acknowledged";        // a string to send back
+    char ReplyBuffer[] = "Random Rplay";        // a string to send back
    
    //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-   IPAddress remote_ip(192, 168, 2, 186);
-   int remoteport = 8888;    // the destination port
+   IPAddress remote_ip(192, 168, 2, 199);
+   int remoteport = 7942;    // the destination port to SENDTO
    
     // An EthernetUDP instance to let us send and receive packets over UDP
     EthernetUDP Udp;
@@ -65,19 +74,27 @@
     #define NexSerialBAUD 38400
 #endif
 
+#ifdef ADS1115_ADC
+    #define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
+    #include<ADS1115_WE.h> 
+    #include <Wire.h>
+    #define I2C_ADDRESS 0x48
+    ADS1115_WE adc(I2C_ADDRESS);
+#endif
+
 #ifdef SSD1306_OLED
+    #include <Wire.h>
+    #define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
     //#include "ssd1306.h"
     //#define DISPLAY_ADDRESS 0x3C //  for OLED i2C - 011110+SA0+RW - 0x3C or 0x3D NOTE1
     // If you are using a 128x64 OLED screen, the address will be 0x3C or 0x3D, if one does not work try with the other one.
     #include <SPI.h>
-    #include <Wire.h>
     #include <Adafruit_GFX.h>
     #include <Adafruit_SSD1306.h>
     #define SCREEN_WIDTH 128 // OLED display width, in pixels
     #define SCREEN_HEIGHT 64 // OLED display height, in pixels    
     // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins OR SDA1, SCL1 pins with "Wire1" class)
-    #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
-    #define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
+    #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)    
     Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #endif
 
@@ -124,7 +141,9 @@ uint32_t Timer_X00ms_Last_OLED;
 //#define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.  Using sizeof eeprom function in code.
 
 #define ADC_VREF (3.29)   // For Teensy4.1 which is a 3.3V chip  
+
 // Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
+// These may not be used if using exernal ADC suchg as the ADS1115 4 channel board.  can use both if needed, mixed.
 #define ADC_FWD A4        // These are the Analog Mux input assignments for Teensy 4.1
 #define ADC_REF A5
 #define ADC_TEMP A6       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
@@ -195,7 +214,7 @@ uint8_t SEQ_Delay = 25;         // milliseconds delay for sequencing transveter 
 #define MENU 3
 #define NO 0
 #define YES 1
-#define ADC_COUNTS 1024.0       // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
+#define ADC_COUNTS 1024       // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
 
 // Edit the Coupler Set data in the Cal_Table function.  Set the max number of sets here, and the default to load at startup
 #define NUM_SETS 11 // 11 bands, 0 through 10 for example
@@ -236,6 +255,7 @@ uint8_t SEQ_Delay = 25;         // milliseconds delay for sequencing transveter 
 #define PORTB_IS_PTT            (0x0039)  // byte 39
 #define PORTC_IS_PTT            (0x003A)  // byte 3A
 #define ENET_ENABLE             (0x003B)  // byte 3B
+#define ENET_DATA_OUT_OFFSET    (0x003C)  // byte 3C
 
 // start row 4 data
 #define CAL_TBL_ARR_OFFSET      (0x0040)  /* start row 2 and beyond  */
@@ -255,6 +275,7 @@ float Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP3
 uint8_t METERID = 100;    // tracks current Meter ID number   Resets to default_METERID.
 uint8_t CouplerSetNum = 0;   // 0 is the default set on power up.  
 uint8_t ser_data_out = 0;
+uint8_t enet_data_out = 0;
 uint8_t Reset_Flag = 0;
 uint32_t updateTime = 0;       // time for next update
 float Fwd_dBm = 0;
@@ -333,6 +354,69 @@ uint8_t PortB_state = 0;
 uint8_t PortC_state = 0;
 uint8_t enet_ready = 0;
 unsigned long enet_start_fail_time = 0;
+
+//---------------------------------------------------------
+// Icom Analog (ACC) and C-IV Serial 
+#define SERBAUD        9600   // [baud] Serial port in/out baudrate
+#define REQUEST        500    // [ms] use TXD output for sending frequency request
+#define CIV_ADRESS    0x56    // CIV input HEX Icom adress (0x is prefix)
+#define CIV_ADR_OUT   0x56    // CIV output HEX Icom adress (0x is prefix)
+
+#if defined(ICOM_ACC)
+  const int ADPin = A4;             // [BD/ROT]
+  float DCinVoltage;
+  long VoltageRefresh[2] = {0, 3000};   // refresh in ms
+  float ArefVoltage = 5.0;  
+  float Divider = 2.00;
+  long RequestTimeout[2]={0,
+  #if defined(REQUEST)
+      REQUEST
+  #else
+      0
+  #endif
+  };
+  float AccVoltage = 0;
+  float prevAccVoltage=0;
+  //int band = 0;
+  int counter = 0;
+  int BAND = 0;
+  int previousBAND = -1;
+  long freq = 0;
+#endif
+
+#if defined(ICOM_CIV) || defined(ICOM_CIV_OUT)
+  int fromAdress = 0xE0;              // 0E
+  byte rdI[10];   //read data icom
+  String rdIS;    //read data icom string
+  long freqPrev1;
+  byte incomingByte = 0;
+  int state = 1;  // state machine
+  bool StateMachineEnd = false;
+
+//=====[ FREQUEN RULES ]===========================================================================================
+
+const long Freq2Band[16][2] = {/*
+Freq Hz from       to   Band number
+*/   {1810000,   2000000},  // #1 [160m]
+     {3500000,   3800000},  // #2  [80m]
+     {5298000,   5403000},  // #3  [60m]
+     {7000000,   7200000},  // #4  [40m]
+    {10100000,  10150000},  // #5  [30m]
+    {14000000,  14350000},  // #6  [20m]
+    {18068000,  18168000},  // #7  [17m]
+    {21000000,  21450000},  // #8  [15m]
+    {24890000,  24990000},  // #9  [12m]
+    {28000000,  29700000},  // #10  [10m]
+    {50000000,  52000000},  // #11  [6m]
+    {70000000,  72000000},  // #12  [4m]
+   {144000000, 146000000},  // #13  [2m]
+   {430000000, 440000000},  // #14  [70cm]
+   {1240000000, 1300000000},  // #15  [23cm]
+   {2300000000, 2450000000},  // #16  [13cm]
+   // {3300000000, 3500000000},  // #17  [9cm]
+   // {5650000000, 5850000000},  // #18  [6cm]
+};
+#endif
 
 // Function declarations
 void toggle_ser_data_output(uint8_t);

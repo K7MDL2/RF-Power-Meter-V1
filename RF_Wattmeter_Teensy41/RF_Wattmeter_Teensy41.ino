@@ -7,9 +7,29 @@
 #include <stddef.h> 
 //#include <usb_serial.h>   // not required for Teensy4.1 but maybe other Arduinos?
 #include "RF_Wattmeter_Arduino.h"
+
 /*
  *
- * RF Power Meter by K7MDL 1/1/2021   - RF Wattmetter and Band DEcoder on Arduino Teensy 4.1 with Ethernet option
+ * RF Power Meter by K7MDL 1/7/2021   - RF Wattmetter and Band Decoder on Arduino Teensy 4.1 with Ethernet option
+ * 
+ * 1/7/2021 - Added ADS1115 4 channel ADC for 16 bit RF power resolution, Tuned up serial and ethernet comms.  
+ *            Putting the Arduino Teensy Wattmeter and Band Decoder into service in my remote VHF+ transverter/amplifier/antenna switch boxes this week, it now seems ready to go.
+ *  1. Measure Bird Line section output (is in the form of dBV) as a power detector but requires too many cal points to warrant effort 
+ *      If close cal is not required then it does seem to work.  A significant UI effort would be needed to put that data in for every band.
+ *  2. Measuring temperature, RF Fwd & Ref, all 3 on the ADS1115 ADC board.  
+ *  3. The onboard ADC is still usable for more things like voltage, current, Icom CI-V.
+ *  4. The ADS1115 is far higher resolution with a 16 bit SAR ADC and has PGA with more suitable input ranges (using 4V single ended inputs) and a decent onboard Vref source.  
+ *  5. The PSoC5 version uses a 20bit SAR ADC.
+ *  6. Using ADS1115 SingleShot mode. Continuous mode does not work well unless a delay is added between changing mux ports and measuring.
+ *  7. Too short of delay also causes a startup hang.
+ *  8. Increased the i2c bus speed from 100KHz to 400KHz (fast mode) for better ADC results.
+ *  9. Found 8SPS on the ADS1115 was too slow.  64 or 128KSPS seem good.
+ * 10. Degugged several ethernet and serial port issues arising from toggling on and off the power data output streams. Goals is to always function regardless of outside cpomms state.  
+ * 11. Removed delays where possible.
+ * 12. Using the ADS1115_WE library per MIT license.  Tried a few, I liked this one best.  https://github.com/wollewald/ADS1115_WE
+ * 13. NOTE: Using the Teensy 4.1 alternate i2c pins. This requires using "Wire1" instead of Wire. Used #defines Wire Wire1 but 
+ *       I modified the library .cpp and .h fle and those #defines seemed to be ignored at times.
+ * 
  * 1/1/2021 - Added Ethernet UDP capability tht parallels the serial data control and montoring link.  Serial is always active.
  *   Ethernet support is a #define ENET.  If compiled there is the  (ENET_ENABLE) EEPROM flag to enable or disable it.  
  *   Used a 2nd Arduino on ethernet to test control/monitor comms.  This is a prep step to sending Nextion serial data to a remote location over the wire.  
@@ -35,6 +55,7 @@
  *   
  * 12/23/2020 - Changed pin assignmetns to suit simpler decoder build wiring with ULN2803 drivers.  Accounted for driver inversion in Band In and PTT.  
  *   Need to do the same for outputs.  Not required if no inverting buffers used or flip the Polarity settings.
+ *   
  * 
  * 12/18/2020 - Changed OLED WAtts line to "OFF" on band 0.  Fixed bug where band decoder was not reading input on boot up.
  * 
@@ -57,12 +78,17 @@
  * 4. Finish OTRSP PTT and CW debug.  Add polarity to the CW output pin.
  * 
 */
+/*
+    Icom CIV and ACC Voltage decoding sections from Band Decoder 2 project 
+      https://remoteqth.com/wiki/index.php?page=Band+decoder+MK2
+      GNU V2 applies
+*/
 
 //struct Band_Cal Band_Cal_Table[10];
 
 void(* resetFunc) (void) = 0; //declare reset function @ address 0
 
-#define RESET_EEPROM 0
+#define RESET_EEPROM 0    // Set this to 1 to force a EEPROM reset on program startup
 
 // #define SerialUSB1 SerialUSB1  // assign as needed for your CPU type. 
                                   // For Teesny set ports to Dual or Triple and Use Serial USB1 and Serial USB2 for 2 and 3rd ports
@@ -71,8 +97,8 @@ void setup(void)
 { 
   // Set up our input pins
   pinMode(ADC_FWD,INPUT);
-  pinMode(ADC_REF,INPUT_PULLUP);
-  pinMode(ADC_TEMP,INPUT_PULLUP);   // If nothing is connected to these pins then setting to INPUT_PULLUP wil lpin them to Vcc and prevent floating around.
+  pinMode(ADC_REF,INPUT);
+  pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP wil lpin them to Vcc and prevent floating around.
   pinMode(ADC_CURR,INPUT_PULLUP);
   pinMode(ADC_14V,INPUT_PULLUP);
   pinMode(ADC_HV,INPUT_PULLUP);
@@ -137,6 +163,131 @@ void setup(void)
   RFWM_Serial.begin(115200); // For debug or data output
   RFWM_Serial.println(" ");   // Clear our output text from CPU init text
 
+ #if defined(ICOM_ACC)
+    pinMode(ADPin, INPUT);
+#endif
+
+#ifdef ADS1115_ADC
+    Wire1.begin();   // Note Wire1. is used instead of Wire. to use teh Teensy alternate I2C bus port pins.
+    Wire1.setClock(400000);
+    if(!adc.init()){
+        RFWM_Serial.println("ADS1115 not connected!");
+    }
+    else 
+    {
+        //uint8_t success = 1;
+        //success = Wire1.endTransmission();
+        RFWM_Serial.print("ADS1115 board found at I2C address: ");
+        RFWM_Serial.println(I2C_ADDRESS, HEX);
+    }
+  /* Set the voltage range of the ADC to adjust the gain
+   * Please note that you must not apply more than VDD + 0.3V to the input pins!
+   * 
+   * ADS1115_RANGE_6144  ->  +/- 6144 mV
+   * ADS1115_RANGE_4096  ->  +/- 4096 mV
+   * ADS1115_RANGE_2048  ->  +/- 2048 mV (default)
+   * ADS1115_RANGE_1024  ->  +/- 1024 mV
+   * ADS1115_RANGE_0512  ->  +/- 512 mV
+   * ADS1115_RANGE_0256  ->  +/- 256 mV
+   */
+  adc.setVoltageRange_mV(ADS1115_RANGE_4096); //comment line/change parameter to change range
+
+  /* Set the inputs to be compared
+   *  
+   *  ADS1115_COMP_0_1    ->  compares 0 with 1 (default)
+   *  ADS1115_COMP_0_3    ->  compares 0 with 3
+   *  ADS1115_COMP_1_3    ->  compares 1 with 3
+   *  ADS1115_COMP_2_3    ->  compares 2 with 3
+   *  ADS1115_COMP_0_GND  ->  compares 0 with GND
+   *  ADS1115_COMP_1_GND  ->  compares 1 with GND
+   *  ADS1115_COMP_2_GND  ->  compares 2 with GND
+   *  ADS1115_COMP_3_GND  ->  compares 3 with GND
+   */
+  //adc.setCompareChannels(ADS1115_COMP_0_GND); //comment line/change parameter to change channel
+
+  /* Set number of conversions after which the alert pin will be active
+   * - or you can disable the alert 
+   *  
+   *  ADS1115_ASSERT_AFTER_1  -> after 1 conversion
+   *  ADS1115_ASSERT_AFTER_2  -> after 2 conversions
+   *  ADS1115_ASSERT_AFTER_4  -> after 4 conversions
+   *  ADS1115_DISABLE_ALERT   -> disable comparator / alert pin (default) 
+   */
+  //adc.setAlertPinMode(ADS1115_DISABLE_ALERT); //uncomment if you want to change the default
+
+  /* Set the conversion rate in SPS (samples per second)
+   * Options should be self-explaining: 
+   * 
+   *  ADS1115_8_SPS 
+   *  ADS1115_16_SPS  
+   *  ADS1115_32_SPS 
+   *  ADS1115_64_SPS  
+   *  ADS1115_128_SPS (default)
+   *  ADS1115_250_SPS 
+   *  ADS1115_475_SPS 
+   *  ADS1115_860_SPS 
+   */
+  // adc.setConvRate(ADS1115_64_SPS); //uncomment if you want to change the default
+
+  /* Set continuous or single shot mode:
+   * 
+   *  ADS1115_CONTINUOUS  ->  continuous mode
+   *  ADS1115_SINGLE     ->  single shot mode (default)
+   */
+  #ifdef ADS1115_SINGLE_MODE
+      adc.setMeasureMode(ADS1115_SINGLE); //comment line/change parameter to change mode
+  #else
+      adc.setMeasureMode(ADS1115_CONTINUOUS); //comment line/change parameter to change mode
+  #endif
+   /* Choose maximum limit or maximum and minimum alert limit (window)in Volt - alert pin will 
+   *  be active when measured values are beyond the maximum limit or outside the window 
+   *  Upper limit first: setAlertLimit_V(MODE, maximum, minimum)
+   *  In max limit mode the minimum value is the limit where the alert pin will be deactivated (if 
+   *  not latched)  
+   * 
+   *  ADS1115_MAX_LIMIT
+   *  ADS1115_WINDOW
+   * 
+   */
+  //adc.setAlertModeAndLimit_V(ADS1115_MAX_LIMIT, 3.0, 1.5); //uncomment if you want to change the default
+  
+  /* Enable or disable latch. If latch is enabled the alarm pin will be active until the
+   * conversion register is read (getResult functions). If disabled the alarm pin will be
+   * deactivated with next value within limits. 
+   *  
+   *  ADS1115_LATCH_DISABLED (default)
+   *  ADS1115_LATCH_ENABLED
+   */
+  //adc.setAlertLatch(ADS1115_LATCH_ENABLED); //uncomment if you want to change the default
+
+  /* Sets the alert pin polarity if active:
+   *  
+   * Enable or disable latch. If latch is enabled the alarm pin will be active until the
+   * conversion register is read (getResult functions). If disabled the alarm pin will be
+   * deactivated with next value within limits. 
+   *  
+   * ADS1115_ACT_LOW  ->  active low (default)   
+   * ADS1115_ACT_HIGH ->  active high
+   */
+  //adc.setAlertPol(ADS1115_ACT_LOW); //uncomment if you want to change the default
+ 
+  /* With this function the alert pin will be active, when a conversion is ready.
+   * In order to deactivate, use the setAlertLimit_V function  
+   */
+  //adc.setAlertPinToConversionReady(); //uncomment if you want to change the default
+  #ifdef ADS1115_SINGLE_MODE
+      RefVal = readChannel(ADS1115_COMP_1_GND);        
+      RFWM_Serial.print("ADS1115 Running in Single Mode, ADC Ch1 Voltage = ");
+  #else   // continuous mode locks up without 20ms+ delay
+      adc.setCompareChannels(ADS1115_COMP_1_GND); //comment line/change parameter to change channel           
+      delay(20);
+      RefVal = adc.getResult_V();    // for ADS1115 module  
+      RFWM_Serial.print("ADS1115 Running in Continuous Mode, ADC Ch1 Voltage = ");      
+  #endif
+
+  RFWM_Serial.println(RefVal); 
+#endif
+
 #ifdef SSD1306_OLED
     //display_init(DISPLAY_ADDRESS); // This line will initialize your display using the address you specified before.
 
@@ -144,7 +295,7 @@ void setup(void)
     if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))   // Address 0x3C for 128x64, if not working try 0x3D
     { 
       for(;;) // Don't proceed, loop forever
-        DBG_Serial.println(">SSD1306 allocation failed");
+        RFWM_Serial.println(">SSD1306 allocation failed");
     }
     // Show initial display buffer contents on the screen --
     // the library initializes this with an Adafruit splash screen.
@@ -200,7 +351,6 @@ void setup(void)
     readings_Fwd[thisReading] = 0;
     readings_Ref[thisReading] = 0;
   }
-  //delay(1000);
   // ensure the band index is in proper range in case of bad input or memory operation
   if (CouplerSetNum < 0)   // constrain newBand
       CouplerSetNum = 0;   // something wrong if you end up here
@@ -414,12 +564,12 @@ float read_vcc()
 
 float ADC_RF_Power_CountsTo_Volts(uint32_t counts)
 {
-  float Volts, VRef;
-  //analogReference(DEFAULT);
-  VRef = ADC_VREF;
-  Volts = (counts/ADC_COUNTS) * VRef;
-  //DBG_Serial.println(Volts);
-  return Volts;
+    float Volts, VRef;
+    //analogReference(DEFAULT);
+    VRef = ADC_VREF;
+    Volts = (counts/ADC_COUNTS) * VRef;
+    //DBG_Serial.println(Volts);
+    return Volts;
 }
 
 void adRead(void)   // A/D converter read function.  Normalize the AD output to 100%.
@@ -428,7 +578,6 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     float b;
     uint16_t c;
     float tmp, retry=0;
-    uint32_t ad_counts=0;
     uint16_t i;
 
     // Throttle the time the CPU spends here.   Offset the timing os teh data acquired is just before it is sent out
@@ -438,15 +587,29 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     Timer_X00ms_Last_AD = Timer_X00ms_InterruptCnt;  // time stamp our visit here.  Do not want to come back too soon.  
 
 __reread:   // jump label to reread values in case of odd result or hi SWR
-    
-    // Get Reflected Power     
+
+// Get Reflected Power  
+// ____________________ Ref Power Capture ___________________________
+//   
         total_Ref -= readings_Ref[readIndex_Ref];// subtract the last reading:    
     c = 1; // read from the sensor:
     a = 0;
-    for (i = 0; i < c; ++i)  {
-        // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC                    
-        ad_counts = analogRead(ADC_REF);  // single read but has locked up with N1MM commands at times               
-        RefVal = ADC_RF_Power_CountsTo_Volts(ad_counts);         
+    for (i = 0; i < c; ++i)  
+    {
+        #ifdef ADS1115_ADC  
+            #ifdef ADS1115_SINGLE_MODE
+                RefVal = readChannel(ADS1115_COMP_2_GND);        
+            #else   // continuous mode locks up without 20ms+ delay
+                adc.setCompareChannels(ADS1115_COMP_2_GND); //comment line/change parameter to change channel           
+                delay(20);
+                RefVal = adc.getResult_V();    // for ADS1115 module        
+            #endif
+            //RefVal = constrain(FwdVal, 0.000, 3300.0);
+        #else    // internal ADC           
+           uint32_t ad_counts=0;    
+           ad_counts = analogRead(ADC_REF);              
+           RefVal = ADC_RF_Power_CountsTo_Volts(ad_counts);         
+        #endif  
         a += RefVal;
     }
     a /= c; // calculate the average then use result in a running average
@@ -464,45 +627,62 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
             readIndex_Ref = 0;// ...wrap around to the beginning:
     //}
     // caclulate dB value for digital display section
-    b = total_Ref / NUMREADINGS;// calculate the average:        
+    RefVal = b = total_Ref / NUMREADINGS;// calculate the average:        
     b -= Offset_R;   // adjust to 0V reference point
     b /= Slope_R;   // will be negative for detectors like AD8318
     b += CouplingFactor_Ref;
     b += 0.0; // fudge factor for frequency independent factors like cabling
-    
+
     Ref_dBm = b;
     // 0dBm is max. = 1W fullscale on 1W scale.
     RefPwr = pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference 
     if (RefPwr > 999.9) 
         RefPwr = 999.9999;
-
-    // subtract the last reading for Fwd Power
+        
+// ____________________ Fwd Power Capture ___________________________
+//
+// subtract the last reading for Fwd Power
     total_Fwd -= readings_Fwd[readIndex_Fwd];
     // read from the sensor:
-    c = 1;   // short term smaples that feed into running average
+    c = 6;   // short term samples that feed into running average
     a = 0;
-    for (int i = 0; i < c; ++i) {                   
-        // ADC_RF_Power_SetGain(1);  // can be used to tweak in the ADC
-        ad_counts = analogRead(ADC_FWD);  // single read but has locked up with N1MM commands       
-        FwdVal = ADC_RF_Power_CountsTo_Volts(ad_counts);    
+
+    for (int i = 0; i < c; ++i) 
+    {
+        #ifdef ADS1115_ADC   
+            #ifdef ADS1115_SINGLE_MODE
+                FwdVal = readChannel(ADS1115_COMP_1_GND);   
+            #else   // continuous mode locks up without 20ms+ delay
+                adc.setCompareChannels(ADS1115_COMP_1_GND); //comment line/change parameter to change channel
+                delay(20);           
+                FwdVal = adc.getResult_V();    // for ADS1115 module
+            #endif
+        #else
+            uint32_t ad_counts=0;
+            ad_counts = analogRead(ADC_FWD);  // single read               
+            FwdVal = ADC_RF_Power_CountsTo_Volts(ad_counts); 
+        #endif   
         a += FwdVal;
     }
     a /= c; // calculate the average then use result in a running average
-    readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this runnign average
+    readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this running average
     total_Fwd += readings_Fwd[readIndex_Fwd];    // add the reading to the total: 
     readIndex_Fwd += 1;     // advance to the next position in the array:
     if (readIndex_Fwd >= NUMREADINGS) {     // if we're at the end of the array...      
         readIndex_Fwd = 0;  // ...wrap around to the beginning:
     }     
-    b = total_Fwd / NUMREADINGS;    // calculate the average:
+    FwdVal = b = (float) total_Fwd / NUMREADINGS;    // calculate the average:
+
     // caclulate dB value for digital display section
     b -= Offset_F;   // adjusts to 0V reference point - calculated during cal
     b /= Slope_F;   // will be negative for detectors like AD8318 - calculated during cal
     b += CouplingFactor_Fwd;
-    b += 0.0; // Fudge factor for frequency independent factors like cabling
-    Fwd_dBm = b;    // Now have calibrated Forward Value in dBm.
+    b += 0.0; // Fudge factor for frequency independent factors like cabling   
+    Fwd_dBm = b;    // Now have calibrated Forward Value in dBm.   
+    
     // 0dBm is max. = 1W fullscale on 1W scale for example
     FwdPwr =  pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
+    
     if (FwdPwr > 9999.9)
         FwdPwr = 9999.9999;    
     
@@ -511,7 +691,10 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     else 
         tmp = sqrt(FwdPwr-0.1/FwdPwr);
         //tmp = .99999;   // if Ref > Fwd, then SWR is sky high, limit number range < 99
-        
+
+//        
+// ------------------------ SWR -----------------------------------------------------------------------        
+//
     SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
     if (RefPwr > FwdPwr && FwdPwr < 0.2) // Remove false SWR values if no Fwd Pwr such as TX turns off and Fwd goes to 0 before Ref.
         SWRVal = 0;
@@ -553,6 +736,15 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     SWR_Serial_Val = SWRVal;
     FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
     sendSerialData();   // send this data to the serial port for remote monitoring
+}
+
+float readChannel(ADS1115_MUX channel) {
+  float voltage = 0.0;
+  adc.setCompareChannels(channel);
+  adc.startSingleMeasurement();
+  while(adc.isBusy()){}
+  voltage = adc.getResult_V(); // alternative: getResult_mV for Millivolt
+  return voltage;
 }
 
 #ifdef TEENSY4_OTRSP_CW_PTT
@@ -1058,7 +1250,7 @@ void Set1_Callback(void *ptr)
     }  
     else if (pg == 2)
     {
-        delay(25);
+        //delay(25);
         // The XYZ_max fields are considered the source for the slider to get its initial data from through the     
         //    the display's "Setpoints" page (page2) preinitialization section. After that the slider sends changes real time to the display
         //    not bothering the CPU until movement stops when an event is sent to the CPU where the slider callback will 
@@ -1431,18 +1623,25 @@ void OLED(void)
 { 
     char s[24];
     char TxRx[5];
+
+    if (PTT_IN_state)
+       strcpy(TxRx,"TX\0");
+    else
+       strcpy(TxRx,"RX\0");
         
     display.clearDisplay();    
     display.drawRect( 0, 17, 127, 47, SSD1306_WHITE);
     
     // Top row is Yellow with Power in Watts, size 2 font
     display.setTextColor(SSD1306_WHITE);
-    if (CouplerSetNum)
-        snprintf(s, 12, "  %*.1fW%c", 6, FwdPwr, '\0');
+    if (CouplerSetNum && FwdPwr <100)  // show decimal when < 100W
+        snprintf(s, 15, "%*s %*.1fW%c", 2, TxRx, 6, FwdPwr, '\0');
+    else if (CouplerSetNum)   // hide decimal when over 100W
+        snprintf(s, 15, "%*s %*.0fW%c", 2, TxRx, 6, FwdPwr, '\0');
     else
         snprintf(s, 12, "  %*s%c", 6, "OFF", '\0');
     display.setTextSize(2);    
-    display.setCursor(4,0);
+    display.setCursor(0,0);
     display.cp437(true);         // Use full 256 char 'Code Page 437' font
     display.println(s);
 
@@ -1453,26 +1652,23 @@ void OLED(void)
     display.println("Band");
     display.setCursor(62,20);
     display.println("Fwd");
-    //display.setCursor(98,20);
-    //display.println("SWR");
-    display.setCursor(100,20);
-    display.println("T/R");
+    display.setCursor(98,20);
+    display.println("SWR");
+    //display.setCursor(100,20);
+    //display.println("T/R");
        
     if (FwdPwr <= 0.1)
-        sprintf(s, " %*.1f%*.1f%*s%c", 5, 0.0, 7, 0.0, 5, "NA", '\0'); 
+        sprintf(s, " %*s%*.1f%*s%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, 0.0, 5, "", '\0'); 
     else
     {
-        if (PTT_IN_state)
-            strcpy(TxRx,"TX\0");
-        else
-            strcpy(TxRx,"RX\0");
-        //sprintf(s, " %*s%*.1f%*.1f%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, Fwd_dBm, 5, SWRVal, '\0');
-        sprintf(s, " %*s%*.1f%*s%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, Fwd_dBm, 5, TxRx, '\0');
+        sprintf(s, " %*s%*.1f%*.1f%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, Fwd_dBm, 5, SWRVal, '\0');
+        //sprintf(s, " %*s%*.1f%*s%c", 7, Band_Cal_Table[CouplerSetNum].BandName, 6, Fwd_dBm, 5, TxRx, '\0');
     }
+    
     if (CouplerSetNum == 0)
     {
-        sprintf(s, " %*s%*.1d%*.1d%c", 3, Band_Cal_Table[CouplerSetNum].BandName, 8, 0, 5, 0, '\0');   
-        display.setCursor(9,31);
+        sprintf(s, " %*s%*d%*s%c", 3, Band_Cal_Table[CouplerSetNum].BandName, 7, 0, 7, "", '\0');   
+        display.setCursor(7,31);
     }   
     else
     {
@@ -1579,6 +1775,32 @@ uint16_t serial_usb_read(void)
      return rx_count;
 }
 
+/*
+ *   Send out dBm, Watts, and SWR values to data channel
+*/
+void sendSerialData()
+{
+    Timer_X00ms_InterruptCnt = millis();
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last > 600)
+    {          
+        Timer_X00ms_Last_USB = Timer_X00ms_InterruptCnt;       
+        sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
+        if (ser_data_out)
+            RFWM_Serial.print((char*) tx_buffer);  //, tx_count); 
+        #ifdef ENET
+        if (enet_data_out)
+            enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
+        #endif    
+        sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
+        if (ser_data_out)
+            RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
+        #ifdef ENET            
+        if (enet_data_out)
+            enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
+        #endif
+    }
+}
+
 /*******************************************************************************
 * Function Name: serial_usb_write
 ********************************************************************************
@@ -1604,7 +1826,7 @@ void serial_usb_write(void)
         #ifdef ENET
           enet_write(tx_buffer, tx_count);   // mirror out ro the ethernet connection
         #endif        
-    } 
+    }
 }
 
 float hv_read(void)
@@ -1612,7 +1834,7 @@ float hv_read(void)
     uint32_t ad_counts=0;
     
     // Read voltage by ADC via MUX (If connected)
-    delay(5);
+    delay(0);
     ad_counts = analogRead(ADC_HV);  // single read but has locked up with N1MM commands
     return ad_counts;
 }
@@ -1622,7 +1844,7 @@ float v14_read(void)
     uint32_t ad_counts=0;
     
     // Read voltage by ADC via MUX (If connected)
-    delay(5);
+    delay(0);
     ad_counts = analogRead(ADC_14V);  // single read but has locked up with N1MM commands
     return ad_counts;
 }
@@ -1632,7 +1854,7 @@ float curr_read(void)
     uint32_t ad_counts=0;
     
     // Read ADC via MUX (If connected)
-    delay(5);
+    delay(0);
     ad_counts = analogRead(ADC_CURR);  // single read but has locked up with N1MM commands
     return ad_counts;
 }
@@ -1641,11 +1863,20 @@ float temp_read(void)
 {
 #ifdef DETECTOR_TEMP_CONNECTED
   float tmp;
-    uint32_t ad_counts=0;
     // Read detector temperature (If connected)
-    delay(5);
-    ad_counts = analogRead(ADC_TEMP);               // single read but has locked up with N1MM commands   
-    tmp = ADC_RF_Power_CountsTo_Volts(ad_counts);   // store the detector temp reading for cal optimization if desired.  For now jsut display it on the screen
+    #if defined ADS1115_ADC && defined ADS1115_ADC_TEMPERATURE  // Use external ADC
+        #ifdef ADS1115_SINGLE_MODE
+            tmp = readChannel(ADS1115_COMP_3_GND);   
+        #else 
+            adc.setCompareChannels(ADS1115_COMP_3_GND); //comment line/change parameter to change channel  
+            delay(20);// continuous mode locks up without 20ms+ delay           
+            tmp = adc.getResult_V();    // for ADS1115 module 
+        #endif 
+    #else  // use internal ADC
+        uint32_t ad_counts=0;
+        ad_counts = analogRead(ADC_TEMP);               // single read but has locked up with N1MM commands   
+        tmp = ADC_RF_Power_CountsTo_Volts(ad_counts);   // store the detector temp reading for cal optimization if desired.  For now jsut display it on the screen
+    #endif
     tmp -= 1.36;                                    // ADL5519 is 4.48mV/C at 27C which is typically 1.36VDC.  Convert to F.  
     tmp /= 0.00448;                                 // mV/C
     tmp += 27;                                      //1.36V at 27C (80.6F)
@@ -1656,22 +1887,6 @@ float temp_read(void)
     return TempVal;
 #endif 
     return 0;   // if not temp connected just return 0;
-}
-
-/*
- *   Send out dBm, Watts, and SWR values to data channel
-*/
-void sendSerialData()
-{
-    Timer_X00ms_InterruptCnt = millis();
-    if (((Timer_X00ms_InterruptCnt - Timer_X00ms_Last) > 1000) && (ser_data_out == 1))
-    {      
-        Timer_X00ms_Last_USB = Timer_X00ms_InterruptCnt;       
-        sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
-        serial_usb_write();
-        sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
-        serial_usb_write();   
-    }
 }
 
 void get_remote_cmd()
@@ -1921,7 +2136,7 @@ void get_remote_cmd()
                                     // decrement 
                                     CouplingFactor_Ref -= 0.5;
                                     adRead();  // get new values                                                                   
-                                    serial_usb_write();
+                                    //serial_usb_write();
                                     print_Cal_Table_progress(1);
                                 }
                                 else if (RefPwr > cmd2+0.1) // coarse tune range
@@ -1929,7 +2144,7 @@ void get_remote_cmd()
                                     // decrement 
                                     CouplingFactor_Ref -= 0.01;
                                     adRead();  // get new values                                                                    
-                                    serial_usb_write();
+                                    //serial_usb_write();
                                     print_Cal_Table_progress(1);
                                 }
                                 else if (RefPwr < cmd2-1.0)
@@ -1937,7 +2152,7 @@ void get_remote_cmd()
                                     // increment
                                     CouplingFactor_Ref += 0.5;
                                     adRead();  // get new values                                
-                                    serial_usb_write();
+                                    //serial_usb_write();
                                     print_Cal_Table_progress(1);
                                 }  
                                 else if (RefPwr < cmd2-0.1)
@@ -1945,7 +2160,7 @@ void get_remote_cmd()
                                     // increment
                                     CouplingFactor_Ref += 0.01;
                                     adRead();  // get new values                                
-                                    serial_usb_write();
+                                    //serial_usb_write();
                                     print_Cal_Table_progress(1);
                                 }  
                                 else    
@@ -2189,6 +2404,13 @@ void get_remote_cmd()
                                 enet_start();   // start up ethernet system
                           #endif
                         } 
+                        if (cmd1 == 52)  // 1 is enable enet data, 0 is disable, 2 is toggle
+                        {   
+                          #ifdef ENET                       
+                            if (cmd2)
+                                toggle_enet_data_out(cmd2);   // turn on or off the UDP power and voltage data stream                        #endif
+                          #endif
+                        } 
                     } // end of msg_type 120                                      
                 } // end of msg_type length check
             } // end of meter ID OK    
@@ -2319,6 +2541,7 @@ void read_Arduino_EEPROM()
         // Other variables are read and written directly from EEPROM only so do not appear here.
         //Translate options using first 5 bytes of row 3 - read and write directly to EEPROM, no variable used.
         // They are initialized in write_Cal_Table_from_Default() function.
+        enet_data_out = EEPROM.read(ENET_DATA_OUT_OFFSET);    // this one we want a regular variable to read
     
   // Now get the band table struct data   
    for (i=0; i<NUM_SETS; i++) 
@@ -2332,7 +2555,7 @@ void read_Arduino_EEPROM()
          DBG_Serial.println(Band_Cal_Table[i].BandName);
          DBG_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
          DBG_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
-         delay(10); 
+         delay(1); 
       }
    }
    if (len_ee > EEPROM.length())  //EEPROM_SIZE)
@@ -2459,8 +2682,9 @@ void write_Arduino_EEPROM()
          DBG_Serial.println(tempvar4[j]);     
     }
 */  
-    // First 4 bytes of Row 3 are reserved for Translate options and initialized in write_Cal_Table_from_Default() function
+    // Byte in Row 3 are reserved for Translate and other lesser used options and initialized in write_Cal_Table_from_Default() function
     // They are read and written direct to EEPROM so nothing to do here for these values, same for some other EEPROM only vars
+    EEPROM.update(ENET_DATA_OUT_OFFSET, enet_data_out);    // this one we want a regular variable or
 
    // Now write the Cal Table array 
    for (i=0; i< NUM_SETS; i++) {
@@ -2473,7 +2697,7 @@ void write_Arduino_EEPROM()
          DBG_Serial.println(Band_Cal_Table[i].BandName);
          DBG_Serial.println(Band_Cal_Table[i].Cpl_Fwd);
          DBG_Serial.println(Band_Cal_Table[i].Cpl_Ref);        
-         delay(10);
+         delay(1);
          EEPROM.update(0,'G');
       }
       if (len_ee > EEPROM.length())    // EEPROM_SIZE)
@@ -2520,6 +2744,7 @@ void write_Cal_Table_from_Default()
     CouplerSetNum = 0;
     op_mode=PWR;
     ser_data_out = 1;
+    enet_data_out = 1;
     hv_cal_factor=1;          
     v14_cal_factor=1;
     curr_cal_factor=1;        
@@ -2576,6 +2801,9 @@ uint8_t EE_Save_State()
     EEPROM.update(SER_DATA_OUT_OFFSET, ser_data_out);
     DBG_Serial.print(">ser_data_out Write =");
     DBG_Serial.println(ser_data_out);
+    EEPROM.update(ENET_DATA_OUT_OFFSET, enet_data_out);
+    DBG_Serial.print(">enet_data_out Write =");
+    DBG_Serial.println(enet_data_out);
     Cal_Table();
     DBG_Serial.println(">EE_Save_State - End");
     return 1;
@@ -2613,6 +2841,8 @@ void reset_EEPROM()
         EEPROM.update(PORTB_IS_PTT, 0);
         EEPROM.update(PORTC_IS_PTT, 0);   // 0 is NO or off.  Decoder output ports can check this to see if the pin should follow PTT        
         EEPROM.update(ENET_ENABLE, 1);   // if enet code is not compiled this is jsut ignored.  Enet is enabled by default otherwise
+        EEPROM.update(ENET_DATA_OUT_OFFSET, 1);  // if enet is enabled this will toggle the power and voltage data stream output.  Does nto stop comand responses or debug/info messages
+        EEPROM.update(SER_DATA_OUT_OFFSET, 1);  // same as for enet but for serial port power and voltage info only
         //EEPROM_Init(EE_SAVE_YES);
         printf("Erased Byte 0");
         EEPROM_Init_Read();     // load the values into m
@@ -2620,21 +2850,52 @@ void reset_EEPROM()
     }
 }
 
-// Toggle USB serial output data
-void toggle_ser_data_output(uint8_t force_on)
+#ifdef ENET                       
+// Toggle UDP output data
+void toggle_enet_data_out(uint8_t mode)
 {
-      if (force_on == 1)
-      {
-        EEPROM.update(SER_DATA_OUT_OFFSET, 1);
-        DBG_Serial.println(">Enabled Serial Data Output");
-        ser_data_out = 1;
+      if (mode == 1)
+        enet_data_out = 1;
+      if (mode ==0)
+        enet_data_out = 0;
+      if (mode ==2){
+          if (enet_data_out == 0)
+              enet_data_out = 1;
+          else         
+              enet_data_out = 0; 
       }
-      else 
-      { 
-        EEPROM.update(SER_DATA_OUT_OFFSET, 0);
-        DBG_Serial.println(">Disabled Serial Data Output");
+      if (enet_data_out == 1){
+          EEPROM.update(ENET_DATA_OUT_OFFSET, 1);      
+          DBG_Serial.println(">Enabled UDP Data Output");
+      }
+      else {
+          EEPROM.update(ENET_DATA_OUT_OFFSET, 0);      
+          DBG_Serial.println(">Disabled UDP Data Output");
+      }
+}
+#endif
+
+// Toggle USB serial output data
+void toggle_ser_data_output(uint8_t mode)
+{
+      if (mode == 1)
+        ser_data_out = 1;
+      if (mode ==0)
         ser_data_out = 0;
-      } 
+      if (mode ==2){
+          if (ser_data_out == 0)
+              ser_data_out = 1;
+          else         
+              ser_data_out = 0; 
+      }
+      if (ser_data_out == 1){
+          EEPROM.update(SER_DATA_OUT_OFFSET, 1);      
+          DBG_Serial.println(">Enabled Serial Data Output");
+      }
+      else {
+          EEPROM.update(SER_DATA_OUT_OFFSET, 0);      
+          DBG_Serial.println(">Disabled Serial Data Output");
+      }
 }
 
 uint8_t EEPROM_Init_Write(void)
@@ -2985,7 +3246,7 @@ void Band_Decode_A_Output(uint8_t pattern)
     if ( trans_a == 0)  // bit 0 and 1 is for Group A translation (or not).
         {}  // do nothing, pass straight through. Normally will be last OTRSP AuxNum1 value
     else if (trans_a == 1)  
-        pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection
+        pattern = bit(pattern)>>1;    // Translate to 1 of 8 pins at a time only such as for amp or transverter selection
     else if (trans_a == 2)  // Ignore OTRSP, follow Current  Band
         pattern = Band_Cal_Table[CouplerSetNum].band_A_output_pattern;  // Use stored pattern for this band 
     else if (trans_a == 3)        
@@ -3041,18 +3302,19 @@ void Band_Decode_A_Output(uint8_t pattern)
   // So 1 = bit 0=1 or 1dec, 2=bit 1=1 or 2dec, 3=bit 2=1 or 4dec, 4=bit 3=1 or 8dec, 5=bit 4=1 or 16dec, 6=bit 5=1 or 32dec, 7=bit 6=1 or 64,  8=bit7=1 or 128dec
   // All numbers above 7 will be ignored.
   // Need option for user to choose to translate or pass untouched (Leave BCD). 
-// Write out the Group B pins that together are a pattern stored in 1 byte for Band Out B group
 
+// Write out the Group B pins that together are a pattern stored in 1 byte for Band Out B group
+//-----------------------------------------------------------------------------------------------------------------
 // Normally this will be used only for OTRSP AUX1 control
 void Band_Decode_B_Output(uint8_t pattern)
 {
     uint8_t trans_b;
     
     trans_b = EEPROM.read(TRANS_B);
-    if (trans_b == 0)  // bit 0 and 1 is for Group A translation (or not).
+    if (trans_b == 0)  // bit 0 and 1 is for Group B translation (or not).
         {}  // do nothing, pass straight through
     else if (trans_b == 1)  
-        pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection
+        pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection (1-of-8)
     else if (trans_b == 2)
         pattern = Band_Cal_Table[CouplerSetNum].band_B_output_pattern;  // Use stored pattern for this band, Ignore AuxNum1 (effectively ignore OTRSP)
     else if (trans_b == 3)        
@@ -3106,7 +3368,7 @@ void Band_Decode_C_Output(uint8_t pattern)
     uint8_t trans_c;
 
     trans_c = EEPROM.read(TRANS_C);
-    if (trans_c == 0)  // bit 0 and 1 is for Group A translation (or not).
+    if (trans_c == 0)  // bit 0 and 1 is for Group C translation (or not).
         {}  // do nothing, pass straight through
     else if (trans_c == 1)  
         pattern = bit(pattern)>>1;    // Translate to 1 of 8 pins at a time only such as for amp or transverter selection
@@ -3253,6 +3515,8 @@ uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
 {   
    if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
    {
+       //DBG_Serial.print("ENET Write");
+       //DBG_Serial.println((char *) tx_buffer);
        Udp.beginPacket(remote_ip, remoteport);
        Udp.write((char *) tx_buffer);
        Udp.endPacket();
@@ -3322,6 +3586,289 @@ void enet_start(void)
  */
 #endif
 
-void DBG_Print(void);
+#if defined(ICOM_CIV) || defined(ICOM_CIV_OUT)
 
+void FrequencyRequest(){
+  #if defined(REQUEST)
+  if(REQUEST > 0 && (millis() - RequestTimeout[0] > RequestTimeout[1])){
+
+    #if defined(ICOM_CIV)
+      txCIV(3, 0, CIV_ADRESS);  // ([command], [freq]) 3=read
+    #endif
+
+    RequestTimeout[0]=millis();
+  }
+  #endif
+}
+
+//-------------------------------------------------------------------------------------------------------
+
+unsigned char hexToDecBy4bit(unsigned char hex)
+// convert a character representation of a hexidecimal digit into the actual hexidecimal value
+{
+  if(hex > 0x39) hex -= 7; // adjust for hex letters upper or lower case
+  return(hex & 0xf);
+}
+//-------------------------------------------------------------------------------------------------------
+float volt(int raw, float divider) {
+  // float voltage = (raw * 5.0) / 1024.0 * ResistorCoeficient;
+  float voltage = float(raw) * ArefVoltage * divider / 1023.0;
+  #if defined(SERIAL_debug)
+    Serial.print(F("Voltage "));
+    Serial.println(voltage);
+  #endif
+  return voltage;
+}
+
+//-------------------------------------------------------------------------------------------------------
+
+void BandDecoderOutput()
+{
+  //=====[ Output Icom CIV ]=======================
+  #if defined(ICOM_CIV_OUT)
+      if(freq!= freqPrev1){                    // if change
+          txCIV(0, freq, CIV_ADR_OUT);         // 0 - set freq
+          freqPrev1 = freq;
+      }
+  #endif
+}
+//---------------------------------------------------------------------------------------------------------
+
+
+void ICOM_Decoder(void)
+{
+  //----------------------------------- Icom ACC
+  #if defined(ICOM_ACC)
+    AccVoltage = volt(analogRead(ADPin), 1.0);
+    if (counter == 5) {
+        // AccVoltage = float(AccVoltage) * ArefVoltage * Divider / 1023.0;
+
+        //=====[ Icom ACC voltage range ]===========================================================
+        if (AccVoltage > 0.73 && AccVoltage < 1.00 ) {BAND=10;}  //   6m   * * * * * * * * * * * * * * * *
+        if (AccVoltage > 1.00 && AccVoltage < 1.09 ) {BAND=9;}   //  10m   *           Need              *
+        if (AccVoltage > 1.09 && AccVoltage < 1.32 ) {BAND=8;}   //  12m   *    calibrated to your       *
+        if (AccVoltage > 1.32 && AccVoltage < 1.55 ) {BAND=7;}   //  15m   *         own ICOM            *
+        if (AccVoltage > 1.55 && AccVoltage < 1.77 ) {BAND=6;}   //  17m   *     ----------------        *
+        if (AccVoltage > 1.77 && AccVoltage < 2.24 ) {BAND=5;}   //  20m   *    (These values have       *
+        if (AccVoltage > 0.10 && AccVoltage < 0.50 ) {BAND=4;}   //  30m   *   been measured by any)     *
+        if (AccVoltage > 2.24 && AccVoltage < 2.73 ) {BAND=3;}   //  40m   *          ic-746             *
+        if (AccVoltage > 2.73 && AccVoltage < 2.99 ) {BAND=2;}   //  80m   *                             *
+        if (AccVoltage > 2.99 && AccVoltage < 4.00 ) {BAND=1;}   // 160m   * * * * * * * * * * * * * * * *
+        if (AccVoltage > 0.00 && AccVoltage < 0.10 ) {BAND=0;}   // parking
+
+        //==========================================================================================
+
+        //bandSET();                                // set outputs
+        delay (20);
+    }else{
+        if (abs(prevAccVoltage-AccVoltage)>10) {            // average
+            //means change or spurious number
+            prevAccVoltage=AccVoltage;
+        }else {
+            counter++;
+            prevAccVoltage=AccVoltage;
+        }
+    }
+    #if defined(SERIAL_echo)
+        serialEcho();
+        Serial.print(AccVoltage);
+        Serial.println(F(" V"));
+        Serial.flush();
+    #endif
+
+    delay(500);                                   // refresh time
+  #endif
+
+  //----------------------------------- Icom CIV
+  #if defined(ICOM_CIV)
+    if (Serial.available() > 0) {
+        incomingByte = Serial.read();
+        #if defined(DEBUG)
+          Serial.print(incomingByte);
+          Serial.print(F("|"));
+          Serial.println(incomingByte, HEX);
+        #endif
+        icomSM(incomingByte);
+        rdIS="";
+        // if(rdI[10]==0xFD){    // state machine end
+        if(StateMachineEnd == true){    // state machine end
+          StateMachineEnd = false;
+          for (int i=9; i>=5; i-- ){
+              if (rdI[i] < 10) {            // leading zero
+                  rdIS = rdIS + 0;
+              }
+              rdIS = rdIS + String(rdI[i], HEX);  // append BCD digit from HEX variable to string
+          }
+          freq = rdIS.toInt();
+          // Serial.println(freq);
+          // Serial.println("-------");
+          FreqToBandRules();
+          //bandSET();
+
+          #if defined(SERIAL_echo)
+              serialEcho();
+          #endif
+          RequestTimeout[0]=millis();
+        }
+    }
+  #endif
+}
+
+void CIV_BandDecoderOutput(){
+  //=====[ Output Icom CIV ]=======================
+  #if defined(ICOM_CIV_OUT)
+    if(freq!= freqPrev1)
+    {                    // if change
+        txCIV(0, freq, CIV_ADR_OUT);         // 0 - set freq
+        freqPrev1 = freq;
+    }
+  #endif
+} 
+
+/*
+FE|FE|0|56|0|70|99|99|52|0|FD
+FE|FE|0|56|0|30| 0| 0|53|0|FD
+*/
+void icomSM(byte b){      // state machine
+    // This filter solves read from 0x00 0x05 0x03 commands and 00 E0 F1 address used by software
+    // Serial.print(b, HEX);
+    // Serial.print(" | ");
+    // Serial.println(state);
+    switch (state) {
+        case 1: if( b == 0xFE ){ state = 2; rdI[0]=b; rdI[10]=0x00; }; break;
+        case 2: if( b == 0xFE ){ state = 3; rdI[1]=b; }else{ state = 1;}; break;
+        // addresses that use different software 00-trx, e0-pc-ale, winlinkRMS, f1-winlink trimode
+        case 3: if( b == 0x00 || b == 0xE0 || b == 0x0E || b == 0xF1 ){ state = 4; rdI[2]=b;                       // choose command $03
+        }else if( b == CIV_ADRESS ){ state = 6; rdI[2]=b;
+                }else if( b == 0xFE ){ state = 3; rdI[1]=b;      // FE (3x reduce to 2x)
+                }else{ state = 1;}; break;                       // or $05
+  
+        case 4: if( b == CIV_ADRESS ){ state = 5; rdI[3]=b; }else{ state = 1;}; break;                      // select command $03
+        case 5: if( b == 0x00 || b == 0x03 ){state = 8; rdI[4]=b;  // freq
+                }else if( b == 0x04 ){state = 14; rdI[4]=b;        // mode
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;        // FE
+                }else{ state = 1;}; break;
+  
+        case 6: if( b == 0x00 || b == 0xE0 || b == 0xF1 ){ state = 7; rdI[3]=b; }else{ state = 1;}; break;  // select command $05
+        case 7: if( b == 0x00 || b == 0x05 ){ state = 8; rdI[4]=b; }else{ state = 1;}; break;
+  
+        case 8: if( b <= 0x99 ){state = 9; rdI[5]=b;             // 10Hz 1Hz
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1;}; break;
+        case 9: if( b <= 0x99 ){state = 10; rdI[6]=b;            // 1kHz 100Hz
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1;}; break;
+       case 10: if( b <= 0x99 ){state = 11; rdI[7]=b;            // 100kHz 10kHz
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1;}; break;
+       case 11: if( b <= 0x52 ){state = 12; rdI[8]=b;            // 10MHz 1Mhz
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1;}; break;
+       case 12: if( b <= 0x01 || b == 0x04){state = 13; rdI[9]=b; // 1GHz 100MHz  <-- 1xx/4xx MHz limit
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1;}; break;
+       case 13: if( b == 0xFD ){state = 1; rdI[10]=b; StateMachineEnd = true;
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1; rdI[10] = 0x00;}; break;
+  
+       case 14: if( b <= 0x12 ){state = 15; rdI[5]=b;
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1;}; break;   // Mode
+       case 15: if( b <= 0x03 ){state = 16; rdI[6]=b;
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1;}; break;   // Filter
+       case 16: if( b == 0xFD ){state = 1; rdI[7]=b;
+                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                }else{state = 1; rdI[7] = 0;}; break;
+    }
+}
+
+//---------------------------------------------------------------------------------------------------------
+bool CheckPartFreqInRange(byte FRQ, int PART){
+  bool result=false;
+  for (int i=0; i<16; i++){
+    if( PartFreqToByte(Freq2Band[i][0],PART)<FRQ && FRQ<PartFreqToByte(Freq2Band[i][1],PART)){
+      result=true;
+    }
+  }
+  return result;
+}
+//---------------------------------------------------------------------------------------------------------
+byte PartFreqToByte(long FREQ, int PART)
+{
+  String StrFreq=String(FREQ);
+  StrFreq.reserve(10);
+  while (StrFreq.length() < 10){                 // leding zeros
+    StrFreq = 0 + StrFreq;
+  }
+  StrFreq=StrFreq.substring(PART*2,PART*2+2);
+  byte PartFreq = StrFreq.toInt();
+  return PartFreq;
+}
+//---------------------------------------------------------------------------------------------------------
+
+int txCIV(int commandCIV, long dataCIVtx, int toAddress) 
+{
+    //Serial.flush();
+    Serial.write(254);                                    // FE
+    Serial.write(254);                                    // FE
+    Serial.write(toAddress);                              // to adress
+    Serial.write(fromAdress);                             // from OE
+    Serial.write(commandCIV);                             // data
+    if (dataCIVtx != 0){
+        String freqCIVtx = String(dataCIVtx);             // to string
+        freqCIVtx.reserve(11);
+        String freqCIVtxPart;
+        freqCIVtxPart.reserve(11);
+        while (freqCIVtx.length() < 10) {                 // leding zeros
+            freqCIVtx = 0 + freqCIVtx;
+        }
+        for (int x=8; x>=0; x=x-2){                       // loop for 5x2 char [xx xx xx xx xx]
+            freqCIVtxPart = freqCIVtx.substring(x,x+2);   // cut freq to five part
+                Serial.write(hexToDec(freqCIVtxPart));    // HEX to DEC, because write as DEC format from HEX variable
+        }
+    }
+    Serial.write(253);                                    // FD
+    // Serial.flush();
+    while(Serial.available()){        // clear buffer
+      Serial.read();
+    }
+}
+  
+//---------------------------------------------------------------------------------------------------------
+
+unsigned int hexToDec(String hexString) 
+{
+    hexString.reserve(2);
+    unsigned int decValue = 0;
+    int nextInt;
+    for (int i = 0; i < hexString.length(); i++) {
+        nextInt = int(hexString.charAt(i));
+        if (nextInt >= 48 && nextInt <= 57) nextInt = map(nextInt, 48, 57, 0, 9);
+        if (nextInt >= 65 && nextInt <= 70) nextInt = map(nextInt, 65, 70, 10, 15);
+        if (nextInt >= 97 && nextInt <= 102) nextInt = map(nextInt, 97, 102, 10, 15);
+        nextInt = constrain(nextInt, 0, 15);
+        decValue = (decValue * 16) + nextInt;
+    }
+    return decValue;
+}
+
+//---------------------------------------------------------------------------------------------------------
+
+void FreqToBandRules(){
+         if (freq >=Freq2Band[0][0] && freq <=Freq2Band[0][1] )  {BAND=1;}  // 160m
+    else if (freq >=Freq2Band[1][0] && freq <=Freq2Band[1][1] )  {BAND=2;}  //  80m
+    else if (freq >=Freq2Band[2][0] && freq <=Freq2Band[2][1] )  {BAND=3;}  //  40m
+    else if (freq >=Freq2Band[3][0] && freq <=Freq2Band[3][1] )  {BAND=4;}  //  30m
+    else if (freq >=Freq2Band[4][0] && freq <=Freq2Band[4][1] )  {BAND=5;}  //  20m
+    else if (freq >=Freq2Band[5][0] && freq <=Freq2Band[5][1] )  {BAND=6;}  //  17m
+    else if (freq >=Freq2Band[6][0] && freq <=Freq2Band[6][1] )  {BAND=7;}  //  15m
+    else if (freq >=Freq2Band[7][0] && freq <=Freq2Band[7][1] )  {BAND=8;}  //  12m
+    else if (freq >=Freq2Band[8][0] && freq <=Freq2Band[8][1] )  {BAND=9;}  //  10m
+    else if (freq >=Freq2Band[9][0] && freq <=Freq2Band[9][1] ) {BAND=10;}  //   6m
+    else if (freq >=Freq2Band[10][0] && freq <=Freq2Band[10][1] ) {BAND=11;}  // 2m
+    else if (freq >=Freq2Band[11][0] && freq <=Freq2Band[11][1] ) {BAND=12;}  // 70cm
+    else {BAND=0;}                                                // out of range
+}
+#endif
 /* [] END OF FILE */
