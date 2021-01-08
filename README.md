@@ -2,6 +2,22 @@
 
 *** Release V2.5 created January 1, 2021 ***
 
+ RF Wattmetter and Band Decoder combo on Arduino Teensy 4.1 with Ethernet option or PSoC5LP with Nextion Touchscreen, OLED, and/or headless  display options.
+  
+Update 1/7/2021: Fixed bugs in Serial and Enet comms.  Added ADS1115 16-bit 4 channel ADC board for better RF power measuring performance. Putting the first complete Arduino Teensy Wattmeter and Band Decoder build into service in my remote VHF+ transverter/amplifier/antenna switch outdoor boxes this week, it now seems ready to go.
+1. Modifed code to read a Bird Line section output which is roughly in the form of dBV. Got it working mostly but requires too many cal points to warrant the effort.  The AD83xx boards (including the ADL5519 dual detector I use these days output a linear, higher accuracy, temperature compensated voltage output representing a log power measurement.  If close cal with the Bird is not required then it does seem to work.  A significant UI effort would be needed to put that data in for every band.  It cannot be calibrated using this program's 2 point straight line approach (slope and intercept).  See the "Meter Builder" offering for a product that added digital cal on top of the Bird slugs extending the use of a single slug over wider frequencies and power ranges.
+2. Measuring temperature, RF Fwd & Ref, all 3 on the ADS1115 ADC board. The onboard ADC is still usable for more things like voltage, current, Icom CI-V.
+3. The ADS1115 is far higher resolution with a 16 bit SAR ADC and has PGA with more suitable input ranges (using 4V single ended inputs) and a decent onboard Vref source. The PSoC5 version uses a 20bit SAR ADC.
+4. Using ADS1115 SingleShot mode. Continuous mode does not work well unless a 20ms delay is added between changing mux ports and measuring. Too short of delay also causes a startup hang.
+5. Increased the i2c bus speed from 100KHz to 400KHz (fast mode) for better ADC results.
+6. Found 8SPS on the ADS1115 was too slow.  64 or 128KSPS seem good.
+7. Degugged several ethernet and serial port issues arising from toggling on and off the power data output streams. Goals is to always function regardless of outside cpomms state.  
+8. Removed delays where possible.
+9. Using the ADS1115_WE library per MIT license.  Tried a few, I liked this one best.  https://github.com/wollewald/ADS1115_WE
+10. NOTE: Using the Teensy 4.1 alternate i2c pins. This requires using "Wire1" instead of Wire. Used #defines Wire Wire1 but I modified the library .cpp and .h fle and those #defines seemed to be ignored at times.
+11. I have included on the Arduino side some code snippets from Band Decoder mk2 opens source Band Decoder project from http://RemoteQTH.com. The code is not used at this point but is staged (commented out) as a reference to implementing Icom CI-V support soon. This is particularly for IC-9700 users driving transverters and amplifiers but several other ICOM rigs will benefit.
+12. 3 of the 4 ToDo items from below are still unfinished.  These are just nice to have features mostly to keep the Nextion in feature step with the Desktop App.
+
 Update 1/2/2021: Added ethernet support into Desktop App.
 1. Can choose to skip selecting a USB com port at startup. Probably need to turn off ethernet UDP commands if serial is enabled to prevent duplicate message side effects, if any.   
 2. On the Arduino, started adding in support for Icom CIV and ACC jack band select voltage for optional band decoder inputs.
