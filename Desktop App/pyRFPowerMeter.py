@@ -11,6 +11,13 @@ import tkinter as tk
 import tkinter.font as tkFont
 from tkinter import *
 from tkinter.filedialog import askopenfilename
+import sys, threading
+thread_names = {t.ident: t.name for t in threading.enumerate()}
+
+#for thread_id, frame in sys._current_frames().iteritems():
+#   print("Thread %s:" % thread_names.get(thread_id, thread_id))
+#   traceback.print_stack(frame)
+#    print()
 
 
 print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__,__name__,str(__package__)))
@@ -21,6 +28,7 @@ import tkinter.messagebox
 import socket
 
 PowerMeterVersionNum = "2.5"
+version_string = "RF Wattmeter Remote\nby K7MDL\nV2.5 January 2021"
 # pyRFPowerMeter  Version 2.5  January 7, 2021
 # Author: M. Lewis K7MDL
 #
@@ -223,6 +231,9 @@ CW_KEY_OUT_POLARITY_val = 0
 PORTA_IS_PTT_Val = 0
 PORTB_IS_PTT_Val = 0
 PORTC_IS_PTT_Val = 0
+my_git_site = "https://github.com/K7MDL2/RF-Power-Meter-V1"
+pywsjtx_git_site = "https://github.com/bmo/py-wsjtx"
+nextion_git_site = "https://github.com/itead/ITEADLIB_Arduino_Nextion"
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -238,9 +249,10 @@ def isfloat(x):
 #  
 class UDP_Meter(Thread):
     def __init__(self):
+        #self.setDaemon(True)
         # Call Thread constructor
         super().__init__()
-        self.keep_running = True
+        self.keep_running_UDP = True
         print(" UDP Network Thread Startup ^^^^^^^^^^")
         if comms != None:
             print("Should not be here in UDP_Meter thread right now")
@@ -248,12 +260,14 @@ class UDP_Meter(Thread):
 
     def stop(self):
         # Call this from another thread to stop the serial handling process
-        self.keep_running = False
+        self.keep_running_UDP = False
+        t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        t.close()
         print(" UDP Network Thread Stopping ^^^^^^^^^^")
 
     def run(self):
         # This will run when you call .start method
-        while self.keep_running:
+        while self.keep_running_UDP:
             self.UDP_Rx()
             self.UDP_Tx()
     
@@ -321,7 +335,9 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
     def __init__(self):
         # Call Thread constructor
         super().__init__()
-        self.keep_running = True
+        self.setDaemon(True)
+        self.keep_running_WSJTX = True
+        print("WSJTX Start")
         global s
         s = simple_server.SimpleServer(MY_UDP_IP, WSJTX_UDP_PORT, timeout=2.0)
 
@@ -330,12 +346,13 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
 
     def stop(self):
         # Call this from another thread to stop the WSJTX_Decode
-        self.keep_running = False
-        print(" Stopping WSJTX network thread")
+        self.keep_running_WSJTX = False
+        print(" Stopping WSJTX network thread^^^^^^^^^^")
+        #print(thread_names)
 
     def run(self):
         # This will run when you call .start method
-        while self.keep_running:          
+        while self.keep_running_WSJTX:          
             self.wsjt_reader()   # Check for WSJT-X packets
 
     def wsjt_reader(self):
@@ -403,7 +420,7 @@ class Serial_RxTx(Thread):
             self.ser_meter_cmd()
 
     def open_serial_port(self):
-        print(" serial thread startup ^^^^^^^^^^")
+        print(" Attempting to open Serial port in Thread^^^^^^^^^^")
         if ser.isOpen() == False:        
             try:
                 ser.open()
@@ -666,7 +683,8 @@ class App(tk.Frame):
         # Call superclass constructor
         super().__init__(master)
         self.serial_rx = None
-        self.WSJTX_Decode = WSJTX_Decode()
+        #self.WSJTX_Decode = WSJTX_Decode()
+        self.WSJTX_Decode = None
         self.udp_meter = None
         #self.grid()
         self.pack_propagate(0) # don't shrink
@@ -674,6 +692,7 @@ class App(tk.Frame):
         self.createWidgets()
         self.update()
         self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol)
+        print(threading.enumerate())
 
     def exit_protocol(self):
         # Will be called when the main window is closed
@@ -681,17 +700,19 @@ class App(tk.Frame):
         # been previously closed
         #global comms
 
-        if comms:
-            if ser.isOpen() == True:                
-                if self.serial_rx:
-                    self.serial_rx.stop()
-                if self.wsjtx_decode:
-                    self.wsjtx_decode.stop() 
-                if self.udp_meter:
-                    self.udp_meter.stop() 
+        #if comms:
+        #if ser.isOpen() == True:                
+        if self.serial_rx:
+            self.serial_rx.stop()
+        if self.wsjtx_decode:
+            self.wsjtx_decode.stop() 
+        if self.udp_meter:
+            self.udp_meter.stop() 
                     
         self.master.destroy()  # Destroy root window
         self.master.quit()  # Exiting the main loop
+        #print(thread_names)
+        #sys.exit(" sys exit called")
 
     #---- Create the GUI Layout ----
     def createWidgets(self):
@@ -1102,7 +1123,7 @@ class App(tk.Frame):
             self.serial_rx = Serial_RxTx()
             self.serial_rx.start() 
             print(" Serial thread started ")
-        elif comms == None:         # USP thread for ethernet option to serial.  UDP_Meter or Serial, only one should be enabled at a time.
+        elif comms == None:         # USB thread for ethernet option to serial.  UDP_Meter or Serial, only one should be enabled at a time.
             print(" main loop starting up UDP!")
             self.udp_meter = UDP_Meter()
             self.udp_meter.start()
@@ -1111,7 +1132,8 @@ class App(tk.Frame):
             print("Serial thread not started")
             #pass    
         # Start the WSJTX thread in any case.  
-        self.wsjtx_decode = WSJTX_Decode()      # Statthe WSJTx UDP Thread - runs always for now.
+        print(" WSJTX thread started in comms function ")
+        self.wsjtx_decode = WSJTX_Decode()      # Start the WSJTx UDP Thread - runs always for now.
         self.wsjtx_decode.start()      # start the WSJTX_Decode thread now 
 
 
@@ -1123,7 +1145,7 @@ class App(tk.Frame):
         print(name)
 
     def About(self):
-        print("RF Wattmeter Remote\nby K7MDL\nV2.3 November 2020")
+        print(version_string)
         abt = tk.Tk()      
         #   Later improve to save config file and remember the last position 
         screen_width = abt.winfo_screenwidth()
@@ -1135,21 +1157,24 @@ class App(tk.Frame):
         print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
         abt.title("Remote RF Wattmeter Desktop Companion")
         abt.geometry('%dx%d+%d+%d' % (w, h, x, y))
-        self.abt_label = tk.Label(abt, text="November 2020\n\nby K7MDL\n\nhttps://github.com/K7MDL2/RF-Power-Meter-V1\n\n\nIncludes portions of work from https://github.com/itead/ITEADLIB_Arduino_Nextion and\n  https://github.com/bmo/py-wsjtx ",font=('Helvetica', 10, 'bold'), bg="grey94", fg="black")
+        self.abt_label = tk.Label(abt, text="{}\n\n More info @ {}\n\nIncludes portions of work from {} and\n{}" .format(version_string, my_git_site, nextion_git_site, pywsjtx_git_site),font=('Helvetica', 10, 'bold'), bg="grey94", fg="black")
         self.abt_label.place(x=60, y=0)
 
     def mainloop(self, *args):
         # Overriding mainloop so that we can do cleanup of our threads
         # *If* any arguments were provided, we would pass them on to Tk.frame
         super().mainloop(*args)
-
+        global comms
         # When main loop finishes, shutdown Serial_RxTx and UDP and WSJTX threads if necessary
         if self.serial_rx:
             self.serial_rx.stop()
+            print("Stopping Serial Thread")
         if self.wsjtx_decode:
             self.wsjtx_decode.stop()
+            print("Stopping WSJT-X Thread")
         if self.udp_meter:
             self.udp_meter.stop()
+            print("Stopping UDP Network Thread")
 
     def start_cfg(self):
         cfg = Cfg_Mtr()
@@ -1903,10 +1928,7 @@ def main():
     #    print(" main loop starting up UDP!")
     #    app.udp_meter = UDP_Meter()
     #    app.udp_meter.start()
-        #pass
-
-    app.wsjtx_decode = WSJTX_Decode()      # Statthe WSJTx UDP Thread - runs always for now.
-    app.wsjtx_decode.start()      # start the WSJTX_Decode thread now    
+        #pass 
     app.mainloop()      # start the GUI
 
 if __name__ == '__main__':
@@ -1997,12 +2019,13 @@ if __name__ == '__main__':
 
         ports = []
         i = 0
+        ports.append("NoSerial") 
+        i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
             if "USB" in desc:   #  Only expecting USB serial ports for our CPU Target
                 i = i + 1
                 ports.append(port)           
                 #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        ports.append("NoSerial") 
         for p in ports:
             listbox.insert(END, p)           
         if (len(ports) > 4):
@@ -2038,12 +2061,14 @@ if __name__ == '__main__':
         sys.stderr.write('\n--- Choose an available USB port to connect to your RF Power Meter:\n')        
         ports = []
         i = 0
+        ports.append("NoSerial") 
+        i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
             if "USB" in desc:   #  Only expecting USB serial ports for our Arduino
                 i = i + 1
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        ports.append("NoSerial") 
+        
         #while True:  (for cmd line usage)
         #port = input('--- Enter port index number from list or any other key to continue without serial comms: ')       
         port = port_listbox        
