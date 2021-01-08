@@ -2019,10 +2019,10 @@ if __name__ == '__main__':
 
         ports = []
         i = 0
-        ports.append("NoSerial") 
+        ports.append("UDP") 
         i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if "USB" in desc:   #  Only expecting USB serial ports for our CPU Target
+            if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our CPU Target
                 i = i + 1
                 ports.append(port)           
                 #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
@@ -2061,10 +2061,11 @@ if __name__ == '__main__':
         sys.stderr.write('\n--- Choose an available USB port to connect to your RF Power Meter:\n')        
         ports = []
         i = 0
-        ports.append("NoSerial") 
+        ports.append("UDP") 
+        sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(1, "UDP", "Use UDP over Ethernet"))
         i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if "USB" in desc:   #  Only expecting USB serial ports for our Arduino
+            if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our Arduino
                 i = i + 1
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
@@ -2085,11 +2086,10 @@ if __name__ == '__main__':
             comms = None        # continue with comms off.
             port_name = None
             return None
-        else:
+        #else:
             #port = ports[index] 
-            port_name = None
-            return None
-        print("**** Missing condition if you got here! ****" + port)  
+        #    port_name = None
+        #   return None
 
     # This is the actual startup code that calls the functions above as needed.  
     # Meter ID and Com port are harvested from the cmd line if provided.
@@ -2105,7 +2105,7 @@ if __name__ == '__main__':
         port_name = sys.argv[1]
         print("COM port name provided: " + sys.argv[1]) # Collect serial port COMX from command line or terminal input
         # print("\r\nArguments List: %s" % str(sys.argv))    # accept comm port via cmd line  
-        if validate_provided_port_name(port_name):            
+        if validate_provided_port_name(port_name) or port_name == "UDP":            
             comms = False
         else:       # no valid port match
             #port_name = ask_for_input()     # No valid COMM port match found (for cmd line usage)             
@@ -2121,7 +2121,7 @@ if __name__ == '__main__':
     print("Meter ID final value set to  : " + myRig_meter_ID)
     print("Com Port final value set to : ", port_name)
 
-    if (port_name == "NoSerial"):
+    if (port_name == "UDP"):
         comms = None   
         ser = None
         print("  Starting with serial comms OFF, will use UDP if available ") 
