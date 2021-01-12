@@ -19,7 +19,6 @@
 #define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
 //#define NEXTION           // OK to run OLED at same time 
 #define DETECTOR_TEMP_CONNECTED     // Tested with teh ADL5519 onboard temp output. 
-//#define LORA            // This is set in Serial.c also (tesated on PSoC only so far)
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
@@ -144,9 +143,9 @@ uint32_t Timer_X00ms_Last_OLED;
 
 // Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
 // These may not be used if using exernal ADC suchg as the ADS1115 4 channel board.  can use both if needed, mixed.
-#define ADC_FWD A4        // These are the Analog Mux input assignments for Teensy 4.1
-#define ADC_REF A5
-#define ADC_TEMP A6       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
+#define ADC_FWD ADS1115_COMP_1_GND     //A4        // These are the Analog Mux input assignments for Teensy 4.1
+#define ADC_REF ADS1115_COMP_2_GND     //A5
+#define ADC_TEMP ADS1115_COMP_3_GND     //A6       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
 #define ADC_CURR A7
 #define ADC_14V A8
 #define ADC_HV A9
@@ -214,7 +213,7 @@ uint8_t SEQ_Delay = 25;         // milliseconds delay for sequencing transveter 
 #define MENU 3
 #define NO 0
 #define YES 1
-#define ADC_COUNTS 1024       // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.
+#define ADC_COUNTS 1024       // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.  Not used for ADS1115
 
 // Edit the Coupler Set data in the Cal_Table function.  Set the max number of sets here, and the default to load at startup
 #define NUM_SETS 11 // 11 bands, 0 through 10 for example

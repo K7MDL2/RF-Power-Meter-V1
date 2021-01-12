@@ -96,9 +96,11 @@ void(* resetFunc) (void) = 0; //declare reset function @ address 0
 void setup(void) 
 { 
   // Set up our input pins
+  #ifndef ADS1115_ADC
   pinMode(ADC_FWD,INPUT);
   pinMode(ADC_REF,INPUT);
   pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP wil lpin them to Vcc and prevent floating around.
+  #endif
   pinMode(ADC_CURR,INPUT_PULLUP);
   pinMode(ADC_14V,INPUT_PULLUP);
   pinMode(ADC_HV,INPUT_PULLUP);
@@ -598,9 +600,9 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     {
         #ifdef ADS1115_ADC  
             #ifdef ADS1115_SINGLE_MODE
-                RefVal = readChannel(ADS1115_COMP_2_GND);        
+                RefVal = readChannel(ADC_REF);        
             #else   // continuous mode locks up without 20ms+ delay
-                adc.setCompareChannels(ADS1115_COMP_2_GND); //comment line/change parameter to change channel           
+                adc.setCompareChannels(ADC_REF); //comment line/change parameter to change channel           
                 delay(20);
                 RefVal = adc.getResult_V();    // for ADS1115 module        
             #endif
@@ -651,9 +653,9 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     {
         #ifdef ADS1115_ADC   
             #ifdef ADS1115_SINGLE_MODE
-                FwdVal = readChannel(ADS1115_COMP_1_GND);   
+                FwdVal = readChannel(ADC_FWD);   
             #else   // continuous mode locks up without 20ms+ delay
-                adc.setCompareChannels(ADS1115_COMP_1_GND); //comment line/change parameter to change channel
+                adc.setCompareChannels(ADC_FWD); //comment line/change parameter to change channel
                 delay(20);           
                 FwdVal = adc.getResult_V();    // for ADS1115 module
             #endif
@@ -1866,9 +1868,9 @@ float temp_read(void)
     // Read detector temperature (If connected)
     #if defined ADS1115_ADC && defined ADS1115_ADC_TEMPERATURE  // Use external ADC
         #ifdef ADS1115_SINGLE_MODE
-            tmp = readChannel(ADS1115_COMP_3_GND);   
+            tmp = readChannel(ADC_TEMP);   
         #else 
-            adc.setCompareChannels(ADS1115_COMP_3_GND); //comment line/change parameter to change channel  
+            adc.setCompareChannels(ADC_TEMP); //comment line/change parameter to change channel  
             delay(20);// continuous mode locks up without 20ms+ delay           
             tmp = adc.getResult_V();    // for ADS1115 module 
         #endif 

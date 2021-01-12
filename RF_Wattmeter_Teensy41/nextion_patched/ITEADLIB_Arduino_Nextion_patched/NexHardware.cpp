@@ -34,7 +34,7 @@
 #define NEX_RET_INVALID_OPERATION       (0x1B)
 
 
-// added for K7MDL version 12/2020 - some of this is carry over fro mPSoC5, otehrs are for LoRA form the PSoC5 so far.
+// added for K7MDL version 12/2020 - some of this is carry over from PSoC5, others are for LoRA from the PSoC5 so far.
 //extern unsigned char WAIT;  // traffic flag - if a function is waiting for a response for the display set this flag to hold off display updates
 extern unsigned char pg;
 //extern unsigned int DLY;  // // Set the value to prevent missed messages.  
