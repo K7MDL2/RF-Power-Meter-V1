@@ -18,7 +18,7 @@
 #define SSD1306_OLED   // local OLED display option
 #define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
 //#define NEXTION           // OK to run OLED at same time 
-#define DETECTOR_TEMP_CONNECTED     // Tested with teh ADL5519 onboard temp output. 
+#define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
@@ -26,10 +26,11 @@
 // Icom Analog (ACC) and C-IV Serial 
 //#define ICOM_ACC             // voltage 0-8V on pin4 ACC(2) connector - need calibrate table
 //#define ICOM_CIV             // read frequency from CIV
-#define ADS1115_ADC     // uncomment this line to active exernal 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
+#define ADS1115_ADC     // uncomment this line to active external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
 #define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
 // Below choose single mode. Continuous mode hangs unless needs 20ms delay between mux channel and reads.  Test program does not need this delay (or very little)
 #define ADS1115_SINGLE_MODE  //uncomment this line to operate in single mode capture vs continuous mode
+//#define Nex_UDP
 /*
  *  End Features Section
  */
@@ -39,29 +40,34 @@
 #define OTRSP_Serial SerialUSB2    // OTRSP Serial protocol from programs like N1MM+ for transveter or antenna control
 //#define BAND_DEC_Serial SerialUSB2   // when and if serial band decoder methods used
 #define DBG_Serial SerialUSB1  // place to send debug messages to
-#define CIV_Serial SerialUSB2 // for Icom CI-V decoding
+//#define CIV_Serial SerialUSB2 // for Icom CI-V decoding
 #ifdef ENET
     #include <NativeEthernet.h>
     #include <NativeEthernetUdp.h>
     
-    // Enter a MAC address and IP address for your controller below.
+    // Enter a MAC address and IP address for your controller below. MAC not required for Teensy cause we are using TeensyMAC function.
     // The IP address will be dependent on your local network:  don't need this since we can automatically figure ou tthe mac
     //byte mac[] = {
     //  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEC
     //};
-    IPAddress ip(192, 168, 2, 188);
-    unsigned int localPort = 7943;      // local port to LISTEN on
+    IPAddress ip(192, 168, 2, 188);    // Our static IP address.  OUdl use DHCP but preferring static address.
+    unsigned int localPort = 7943;     // local port to LISTEN for the remote display/Desktop app
+    unsigned int localPort_Nex = 7945;     // local port to LISTEN for the remote display/Desktop app
     
     // buffers for receiving and sending data
     char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
-    char ReplyBuffer[] = "Random Rplay";        // a string to send back
+    char ReplyBuffer[] = "Random Reply";        // a string to send back
    
    //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-   IPAddress remote_ip(192, 168, 2, 199);
-   int remoteport = 7942;    // the destination port to SENDTO
+   IPAddress remote_ip(192, 168, 2, 199);  // destination  IP (desktop app or remote display Arduino
+   unsigned int remoteport = 7942;    // the destination port to SENDTO (a remote display or Desktop app)
+   unsigned int remoteport_Nex = 7944;    // the destination port to SENDTO (a remote display or Desktop app)
    
     // An EthernetUDP instance to let us send and receive packets over UDP
     EthernetUDP Udp;
+    #ifdef Nex_UDP
+      EthernetUDP Udp_Nex;
+    #endif
 #endif
 
 #ifdef NEXTION
@@ -70,7 +76,7 @@
     #define SERIAL1_TX_PIN 1
     //#define dbSerial Serial     // defined in NexConfig.h
     #include <Nextion.h>
-    #define NexSerialBAUD 38400
+    #define NexSerialBAUD 115200
 #endif
 
 #ifdef ADS1115_ADC
@@ -163,12 +169,13 @@ uint32_t Timer_X00ms_Last_OLED;
 
 // Band Decoder Banks A and B and C
 #define BAND_DEC_A_0    33      // Only using 5 pins for BCD transverter control so bits 5, 6, and 7 are disabled in this example.
-#define BAND_DEC_A_1    34
+#define BAND_DEC_A_1    34      // For the Q5 Signal 5-band transverter will output 5 line BCD using bits 0-4
 #define BAND_DEC_A_2    35
 #define BAND_DEC_A_3    36
-#define BAND_DEC_A_4    37
-#define BAND_DEC_A_5    99      //38      
-#define BAND_DEC_A_6    99      // 39 used for PTT_OUT
+#define BAND_DEC_A_4    37      // Bit 4 is always a 1 for the 5 band transverter when active.  Make it a zero when not.  
+                                // The K3 makes Digout a 0 when the transverter bands are active.  Would need to invert that if ever read on the input.
+#define BAND_DEC_A_5    38      // not used for now
+#define BAND_DEC_A_6    99      // 39 used for CW
 #define BAND_DEC_A_7    99      // 40 used for PTT_OUT2
 
 #define BAND_DEC_B_0    24
@@ -185,20 +192,20 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_C_2    10
 #define BAND_DEC_C_3    11
 #define BAND_DEC_C_4    12
-#define BAND_DEC_C_5    99    // not using so set pin to somehting impossible
-#define BAND_DEC_C_6    99    // not using so set pin to somehting impossible
-#define BAND_DEC_C_7    99    // not using so set pin to somehting impossible
+#define BAND_DEC_C_5    99    // not using so set pin to something impossible
+#define BAND_DEC_C_6    99    // not using so set pin to something impossible
+#define BAND_DEC_C_7    99    // not using so set pin to something impossible
 
 // I2C pins for use with OLED or other IO
 #define SDA1_PIN 17
 #define SCL1_PIN 16
 
 // Arduino Band Decoder and CW/PTT output Pin Assignments
-#define PTT_OUT         39    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
+#define PTT_OUT         13    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
 #define PTT_OUT2        40    // Follows PTT IN from Band decoder input and/or OTRSP serial line DTR/RTS.  May have translations applied
-#define CW_KEY_OUT      13    // CW is from OTRSP serial line RTS/DTR 
+#define CW_KEY_OUT      39    // CW is from OTRSP serial line RTS/DTR 
 
-// 4 pins unused --->  41/a17, 14/A0, 15/A1, and 32 are unused still in this example tailered to one of my installations.
+// 4 pins unused --->  41/a17, 14/A0, 15/A1, and 32 are unused still in this example tailored to one of my installations.
 
 uint8_t Band_Dec_In_Byte;       // Byte storing decoder input pattern
 uint8_t Band_Dec_OutA_Byte;     // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)
@@ -487,14 +494,11 @@ void BandSelect_5_7G_pop_Callback(void *ptr);
 void BandSelect_10G_pop_Callback(void *ptr);
 uint8_t update_Nextion(uint8_t);
 uint8_t pg;
-uint8_t WAIT = 0;  // traffic flag - if a function is waiting for a response for the display set this flag to hold off display updates
-#ifdef LORA
-uint16_t DLY = 600;  // Set the value to prevent missed messages. 50 for wired, 500 for LoRa set in LoRaCfg
-#endif
-#ifndef LORA
-uint16_t DLY = 50;  // Set the value to prevent missed messages. 50 for wired, 500 for LoRa set in LoRaCfg    
 #endif
 
+#ifdef NEX_UDP
+  void Nex_Redirect_to_UDP(char *);
+  unsigned int Nex_Redirect_from_UDP(char *, uint8_t);
 #endif
 
 // EEPROM related functions
@@ -581,6 +585,8 @@ struct Band_Cal Band_Cal_Table[NUM_SETS];   // Calibration table, one for each b
     NexText band_set = NexText(page2_ID,band_set_ID,"band_set"); 
     NexSlider band_set_adj= NexSlider(page2_ID,band_set_adj_ID,"band_set_adj"); // slider
     NexButton band = NexButton(page0_ID, band_ID, "band");
+    NexText FdBm = NexText(page0_ID, FdBm_ID,"FdBm");
+    NexText RdBm = NexText(page0_ID, RdBm_ID,"RdBm");
     NexText band_cal = NexText(page1_ID,band_cal_ID,"band_cal"); 
     NexWaveform fPwrGraph = NexWaveform(page3_ID,fPwrGraph_ID,"fPwrGraph"); 
     NexWaveform swrGraph = NexWaveform(page3_ID,swrGraph_ID,"swrGraph");
@@ -619,10 +625,11 @@ struct Band_Cal Band_Cal_Table[NUM_SETS];   // Calibration table, one for each b
     NexNumber Aux1 = NexNumber(page0_ID, Aux1_ID,"Aux1");
     NexNumber Aux2 = NexNumber(page0_ID, Aux2_ID,"Aux2");
     NexText PTT_CW = NexText(page0_ID, PTT_CW_ID,"PTT_CW");
+
                         
     NexTouch *nex_listen_list[] = {
-        &savecfg_btn_1, &fwd_cal, &ref_cal, &f_att_minus, &f_att_plus, &r_att_minus, &r_att_plus, &band, &toMain, &toMain1, \
-        &toConfig, &toSet1, &toPwrGraph, &FactoryRst1, &FactoryRst2, &Main, &Coupler, &Set1, \
+        &savecfg_btn_1, &fwd_cal, &ref_cal, &f_att_minus, &f_att_plus, &r_att_minus, &r_att_plus, \
+        &band, &toMain, &toMain1, &toConfig, &toSet1, &toPwrGraph, &FactoryRst1, &FactoryRst2, &Main, &Coupler, &Set1, \
         &hv_adj, &v14_adj, &temp_adj, &band_set_adj, &meterID_adj, &Set1_Bandvar, &curr_adj, \
         &savecfg_btn_2, &savecfg_btn_4, &Measure_hi, &Measure_lo, &CalcFwd, &CalcRef, \
         &B_HF, &B_50, &B_144, &B_222, &B_432, &B_902, &B_1296, &B_2_3G, &B_3_4G, &B_5_7G, &B_10G, NULL};

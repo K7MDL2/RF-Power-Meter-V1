@@ -10,7 +10,7 @@
 
 /*
  *
- * RF Power Meter by K7MDL 1/7/2021   - RF Wattmetter and Band Decoder on Arduino Teensy 4.1 with Ethernet option
+ * RF Power Meter by K7MDL 1/12/2021   - RF Wattmetter and Band Decoder on Arduino Teensy 4.1 with Ethernet option
  * 
  * 1/7/2021 - Added ADS1115 4 channel ADC for 16 bit RF power resolution, Tuned up serial and ethernet comms.  
  *            Putting the Arduino Teensy Wattmeter and Band Decoder into service in my remote VHF+ transverter/amplifier/antenna switch boxes this week, it now seems ready to go.
@@ -121,15 +121,15 @@ void setup(void)
       CW_KEY_OUT_state = 0; 
       CW_KEY_OUT_state_last = 200;
       digitalWrite(CW_KEY_OUT, HIGH);    // need to initialize these according to polarity config
-      
+  #endif  
+     
       pinMode(PTT_OUT, OUTPUT);
       PTT_OUT_state = 0;
       PTT_OUT_state_last = 200;
-      digitalWrite(PTT_OUT, HIGH);    // need to initializze these according to polarity config
+      //digitalWrite(PTT_OUT, HIGH);    // need to initializze these according to polarity config
       pinMode(PTT_OUT2, OUTPUT);
-      digitalWrite(PTT_OUT2, HIGH);    // need to initializze these according to polarity config
-  #endif
-
+      //digitalWrite(PTT_OUT2, HIGH);    // need to initializze these according to polarity config
+ 
   // now our other IO pins
   pinMode(BAND_DEC_A_0, OUTPUT);   // Band Decoder bank A pin (bit) 0
   pinMode(BAND_DEC_A_1, OUTPUT);   // Band Decoder bank A pin (bit) 1
@@ -526,7 +526,7 @@ void loop()
     }
     else   // state has stayed the same since last look
     {
-        if (((PTT_IN_debounce_timestamp - millis()) > 5) && PTT_IN_changed == 0)
+        if (((PTT_IN_debounce_timestamp - millis()) > 3) && PTT_IN_changed == 0)
         {   // change the state of the T/R status
             PTT_IN_changed = 1;   // reset changed flag
             PTT_IN_handler(PTT_IN_pin);  // Set RX or TX state corrected for configured polarity
@@ -547,7 +547,7 @@ void loop()
       nexLoop(nex_listen_list);  // Process Nextion Display  
     if (NewBand != CouplerSetNum)
         update_Nextion(1);
-    else if (!WAIT)   // skip if waiting for response from a diaplsy query to reduce traffic
+    else   // skip if waiting for response from a diaplsy query to reduce traffic
         update_Nextion(0);    
 #endif
 }
@@ -838,7 +838,7 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
 {
     if (PTT_IN_state == TX)   // We are in TX Mode
     {
-        if (EEPROM.read(PTT_OUT_POLARITY) == LOW) 
+        if (EEPROM.read(PTT_OUT_POLARITY) == HIGH) // Change this to LOW if NOT using an inverting driver
         {            
             digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 0 to PTT2 OUT pin )(sequencer for Amps first)
             delay(SEQ_Delay);
@@ -858,7 +858,7 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
     }
     else   // We are in RX mode
     {
-        if (EEPROM.read(PTT_OUT_POLARITY) == LOW) 
+        if (EEPROM.read(PTT_OUT_POLARITY) == HIGH) // Change this to LOW if NOT using an inverting driver
         {
             digitalWrite(PTT_OUT, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Sequence Xvtr release first)
             PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT
@@ -1309,6 +1309,7 @@ uint8_t update_Nextion(uint8_t force_update)
         // force all status tracking variables to 0 forcing them to update on this pass.
         //FwdPwr_old=RefPwr_old=SWRVal_old=hv_value_old=V14_value_old=temp_value_old=curr_value_old=NewBand_old=0;
     }
+   
     if (pg != pg_last)
     {
         sendCommand("sendme");
@@ -1329,7 +1330,7 @@ uint8_t update_Nextion(uint8_t force_update)
     { 
         // only send these Page 0 commands if we are on page 0 else we will get invalid data return messages
         // Update float fields on display        
-        if (round(FwdPwr*16) != round(FwdPwr_old*16) && !WAIT)
+        if (round(FwdPwr*16) != round(FwdPwr_old*16))
         {
             FwdPwr_old = FwdPwr;
             if (FwdPwr > 9999.99)
@@ -1341,7 +1342,7 @@ uint8_t update_Nextion(uint8_t force_update)
             //xx.setText(FwdPwr, cmd);   // alternative way to update val;ue using the library commands
             sendCommand(cmd);
         }
-        if (round(RefPwr*16) != round(RefPwr_old*16) && !WAIT)
+        if (round(RefPwr*16) != round(RefPwr_old*16))
         {   
             RefPwr_old = RefPwr;
             if (RefPwr > 999.99)
@@ -1353,21 +1354,21 @@ uint8_t update_Nextion(uint8_t force_update)
             sendCommand(cmd);
         }    
         
-        if (round(Fwd_dBm*16) != round(Fwd_dBm_old*16) && !WAIT)
+        if (round(Fwd_dBm*16) != round(Fwd_dBm_old*16))
         {   
             Fwd_dBm_old = Fwd_dBm;
             sprintf(cmd, "FdBm.txt=\"%.2fdBm\"", Fwd_dBm);
             sendCommand(cmd);
         }
         
-        if (round(Ref_dBm*16) != round(Ref_dBm_old*16) && !WAIT)
+        if (round(Ref_dBm*16) != round(Ref_dBm_old*16))
         {   
             Ref_dBm_old = Ref_dBm;
             sprintf(cmd, "RdBm.txt=\"%.2fdBm\"", Ref_dBm);
             sendCommand(cmd);        
         }
         
-        if  (SWRVal != SWRVal_old && !WAIT)
+        if  (SWRVal != SWRVal_old)
         {
             SWRVal_old = SWRVal;
             value = SWRVal;
@@ -1403,7 +1404,7 @@ uint8_t update_Nextion(uint8_t force_update)
 
         value = hv_read();   // convert to full ADC read function - this is temp for now.   
         value *= hv_cal_factor;
-        if ((round(value*16) != round(hv_value_old*16) || set_hv_max_old != set_hv_max) && !WAIT)
+        if ((round(value*16) != round(hv_value_old*16) || set_hv_max_old != set_hv_max))
         {
             hv_value_old = value;
             set_hv_max_old = set_hv_max;      
@@ -1423,7 +1424,7 @@ uint8_t update_Nextion(uint8_t force_update)
         
         value = v14_read();   
         value *= v14_cal_factor;
-        if ((round(value*16) != round(V14_value_old*16) || set_v14_max_old != set_v14_max) && !WAIT)
+        if ((round(value*16) != round(V14_value_old*16) || set_v14_max_old != set_v14_max))
         {
             V14_value_old = value;
             set_v14_max_old = set_v14_max;
@@ -1444,7 +1445,7 @@ uint8_t update_Nextion(uint8_t force_update)
         value = curr_read();
         value -= curr_zero_offset;
         value *= curr_cal_factor;
-        if  ((round(value*16) != round(curr_value_old*16) || set_curr_max_old != set_curr_max) && !WAIT)
+        if  ((round(value*16) != round(curr_value_old*16) || set_curr_max_old != set_curr_max))
         {
             curr_value_old = value;
             set_curr_max_old = set_curr_max;
@@ -1464,7 +1465,7 @@ uint8_t update_Nextion(uint8_t force_update)
         
         value = temp_read();
         value *= temp_cal_factor;
-        if  ((round(value*16) != round(temp_value_old*16) || set_temp_max_old != set_temp_max) && !WAIT)
+        if  ((round(value*16) != round(temp_value_old*16) || set_temp_max_old != set_temp_max))
         {
             temp_value_old = value;
             set_temp_max_old = set_temp_max;
@@ -1511,13 +1512,13 @@ uint8_t update_Nextion(uint8_t force_update)
         }
         
         // Update Display for state of AUX 1 and 2 ports
-        if ((AuxNum1 != AuxNum1_old || force_update == 1) && !WAIT)        
+        if ((AuxNum1 != AuxNum1_old || force_update == 1))        
         {
             AuxNum1_old = AuxNum1;
             number32 = (uint32_t) AuxNum1;
             Aux1.setValue(number32);
         }
-        if ((AuxNum2 != AuxNum2_old || force_update == 1) && !WAIT)
+        if ((AuxNum2 != AuxNum2_old || force_update == 1))
         {
             AuxNum2_old = AuxNum2;    
             number32 = (uint32_t) AuxNum2;
@@ -1906,8 +1907,10 @@ void get_remote_cmd()
             cmd_str_len = pSdata - pSdata1;                     
             strncpy(cmd_str, (char *) pSdata1, cmd_str_len);   // copy chars between p1 and the terminator
             pSdata1 += (cmd_str_len+1);  // reset ch pointer back to strat of string for char parsing
+
             if (pSdata1 >= pSdata2 || cmd_str_len > BUF_LEN)  // if we have caught up to the end p2 then reset to beginning of buffer position.
-                pSdata1 = pSdata2 = sdata;           
+                pSdata1 = pSdata2 = sdata;      
+
             if (strlen((char *) sdata) >= BUF_LEN-1) {
                 //pSdata = sdata;
                 sdata[0] = '\0';
@@ -2377,10 +2380,12 @@ void get_remote_cmd()
                         if (cmd1 == 59)  // Set or Clear Band Decoder Output translate mode
                         {                          
                             EEPROM.update(PTT_IN_POLARITY,cmd2);
+                            PTT_IN_pin_last = ~PTT_IN_pin_last;
                         }
                         if (cmd1 == 58)  // Set or Clear Band Decoder Output translate mode
                         {                          
                             EEPROM.update(PTT_OUT_POLARITY,cmd2);
+                            PTT_IN_pin_last = ~PTT_IN_pin_last;
                         }
                         if (cmd1 == 57)  // Set or Clear Band Decoder Output translate mode
                         {                          
@@ -2880,9 +2885,9 @@ void toggle_enet_data_out(uint8_t mode)
 // Toggle USB serial output data
 void toggle_ser_data_output(uint8_t mode)
 {
-      if (mode == 1)
+       if (mode == 1)
         ser_data_out = 1;
-      if (mode ==0)
+     if (mode ==0)
         ser_data_out = 0;
       if (mode ==2){
           if (ser_data_out == 0)
@@ -3517,8 +3522,8 @@ uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
 {   
    if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
    {
-       //DBG_Serial.print("ENET Write");
-       //DBG_Serial.println((char *) tx_buffer);
+       DBG_Serial.print("ENET Write: ");
+       DBG_Serial.println((char *) tx_buffer);
        Udp.beginPacket(remote_ip, remoteport);
        Udp.write((char *) tx_buffer);
        Udp.endPacket();
@@ -3563,6 +3568,9 @@ void enet_start(void)
       Serial.println("Ethernet cable connected.");
       // start UDP
       Udp.begin(localPort);
+      #ifdef Nex_UDP
+        //Udp_Nex.begin(localPort+2);
+      #endif
     }
   }
 }
@@ -3871,6 +3879,58 @@ void FreqToBandRules(){
     else if (freq >=Freq2Band[10][0] && freq <=Freq2Band[10][1] ) {BAND=11;}  // 2m
     else if (freq >=Freq2Band[11][0] && freq <=Freq2Band[11][1] ) {BAND=12;}  // 70cm
     else {BAND=0;}                                                // out of range
+}
+#endif
+
+#ifdef Nex_UDP
+// pass through Nextion serial port commands to UDP fore remote display
+void Nex_Redirect_to_UDP(uint8_t *nex_cmd)
+{
+  Serial.println("Data to Nextion");
+  Nex_enet_write(nex_cmd);
+}
+
+// pass through responses from Nextion serial port to UDP
+unsigned int Nex_Redirect_from_UDP(char * rx_string, uint8_t len)
+{
+  Serial.println("Data From Remote Nextion Display over UDP");
+   int packetSize = Udp_Nex.parsePacket();
+  if (packetSize) 
+  {
+    Serial.print("#1 Received packet of size ");
+    Serial.println(packetSize);
+    Serial.print("From ");
+    IPAddress remote = Udp.remoteIP();
+    for (int i=0; i < 4; i++) {
+      Serial.print(remote[i], DEC);
+      if (i < 3) {
+        Serial.print(".");
+      }
+    }
+    Serial.print(", port ");
+    Serial.println(Udp.remotePort());
+    
+    // read the packet into packetBufffer
+    Udp_Nex.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    //Serial.println("Contents:");
+    Serial.println(packetBuffer);
+    return 1;
+  }  
+  return 0;
+}
+
+uint8_t Nex_enet_write(uint8_t *tx_buffer)
+{  
+   if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+   {
+       DBG_Serial.print("Data to Remote Nextion Display via UDP: ");
+       DBG_Serial.println((char *) tx_buffer);
+       Udp_Nex.beginPacket(remote_ip, remoteport_Nex);
+       Udp_Nex.write((char *) tx_buffer);
+       Udp_Nex.endPacket();
+       return 1;
+   }
+   return 0;
 }
 #endif
 /* [] END OF FILE */
