@@ -29,7 +29,7 @@ import socket
 
 PowerMeterVersionNum = "2.5"
 version_string = "RF Wattmeter Remote\nby K7MDL\nV2.5 January 2021"
-# pyRFPowerMeter  Version 2.5  January 7, 2021
+# pyRFPowerMeter  Version 2.5  January 14, 2021
 # Author: M. Lewis K7MDL
 #
 #   Companion Desktop app to montor and control the Arduino or PSoC5 version of the RF Wattmeter.
@@ -234,6 +234,7 @@ PORTC_IS_PTT_Val = 0
 my_git_site = "https://github.com/K7MDL2/RF-Power-Meter-V1"
 pywsjtx_git_site = "https://github.com/bmo/py-wsjtx"
 nextion_git_site = "https://github.com/itead/ITEADLIB_Arduino_Nextion"
+update_cfg_win_callback = None
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -367,7 +368,7 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
         global heartbeat_timer
         global band
         
-        print("Listening for WSJTX messages")
+        #print("Listening for WSJTX messages")
         time.sleep(0.5)
         (pkt, addr_port) = s.rx_packet()
         if (pkt != None):
@@ -466,7 +467,7 @@ class Serial_RxTx(Thread):
                         out = ser.read(ser.inWaiting()).decode()                                             
                         if len(out) < 1:                            
                             return    
-                        print(out)
+                        #print(out)
                         Power_Data.get_power_data(self, out)                                           
                     except UnicodeDecodeError: # catch error and ignore it
                         print("Unicode decode error caught")  # will get this on CPU resets
@@ -1018,7 +1019,7 @@ class App(tk.Frame):
         print("Go to Next Band ")
         # Write command to change Band
         #rx.send_meter_cmd("254","", True)
-        rx.send_meter_cmd("252","", True)
+        rx.send_meter_cmd("254","", True)
 
     def Toggle_UDP_data_out(self): 
         rx = Send_Mtr_Cmds()
@@ -1181,6 +1182,7 @@ class App(tk.Frame):
         print(" ---->  Started Config Window")
 
 class Cfg_Mtr(tk.Frame):      
+    global update_cfg_win_callback
 #    def __init__(self):
         # Call superclass constructor
 #        super().__init__()   
@@ -1195,6 +1197,7 @@ class Cfg_Mtr(tk.Frame):
 
     def exit_protocol(self):
         # Will be called when the main window is closed
+        self.after_cancel(update_cfg_win_callback)  
         self.master.destroy()  # Destroy root window
         self.master.quit()  # Exiting the main loop
         
@@ -1767,7 +1770,7 @@ class Cfg_Mtr(tk.Frame):
         if meter_data[2] != self.Old_Band:
             self.Update_cfg_Decoder()
         self.Old_Band = meter_data[2]
-        self.Cfg_Band_label.after(500, self.update_cfg_win)   
+        update_cfg_win_callback = self.Cfg_Band_label.after(500, self.update_cfg_win)   
 
     def Update_cfg_Decoder(self):  
         self.GetDecoderValues()
