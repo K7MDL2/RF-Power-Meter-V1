@@ -128,7 +128,9 @@ myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Ti
 myRig = "K3 Camano"       # Rig name and location - about 10 characters max
 myRig_meter_ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
                            # --> Always 3 digits, 100 to 119 only allowed.  
-myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
+#myWSJTX_ID = "WSJT-X"     # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
+myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to match your WSJT-X instance name. 
+# Can name your WSJT-X instance on startup with command line -r <rigname> in a desktop shortcut
 
 # examples to inspire ....
 #myRig = "K3 WA"           # My home in WA state
@@ -147,10 +149,10 @@ myWSJTX_ID = "WSJT-X"      # "WSJT-X" default as of WSJT-X version V2.1.   Chang
 IPADDR_OF_METER = '192.168.2.188'
 PORTNUM_OF_METER_LISTEN = 7942
 PORTNUM_OF_METER_SENDTO = 7943
-#UDP_IP = '239.255.0.1'       # multicast address and port alternative
-#UDP_PORT = 2237
-MY_UDP_IP = "127.0.0.1"        # default local machine address
-WSJTX_UDP_PORT = 2237            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
+MY_UDP_IP = '224.255.0.1'       # multicast address and port alternative
+WSJTX_UDP_PORT = 2237
+#MY_UDP_IP = "127.0.0.1"        # default local machine address
+#WSJTX_UDP_PORT = 2237            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
 # I am using 2334 with JTAlert re-broadcasting
 
 #  This program can optionally use WSJT-X UDP reporting broadcasts to automatically track your radio's frequency and send a command
@@ -235,6 +237,7 @@ my_git_site = "https://github.com/K7MDL2/RF-Power-Meter-V1"
 pywsjtx_git_site = "https://github.com/bmo/py-wsjtx"
 nextion_git_site = "https://github.com/itead/ITEADLIB_Arduino_Nextion"
 update_cfg_win_callback = None
+meter_sock = None
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -338,12 +341,11 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
         super().__init__()
         self.setDaemon(True)
         self.keep_running_WSJTX = True
-        print("WSJTX Start")
+        #print("WSJTX Start")
         global s
         s = simple_server.SimpleServer(MY_UDP_IP, WSJTX_UDP_PORT, timeout=2.0)
-
         #s = pywsjtx.extra.simple_server.SimpleServer(UDP_IP, UDP_PORT, timeout=2.0)
-        # print(" Starting network thread")
+        print(" Starting WSJT-X Network Thread")
 
     def stop(self):
         # Call this from another thread to stop the WSJTX_Decode
@@ -383,8 +385,8 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
             if type(the_packet) == pywsjtx.StatusPacket:
                 wsjtx_id = the_packet.wsjtx_id
                 own_call = the_packet.de_call
-                if wsjtx_id == myWSJTX_ID:
-                    print("Status message received from WSJT-X ID : " + wsjtx_id + own_call)
+                if wsjtx_id == myWSJTX_ID:   # match on a selected instance of WSJT-X only
+                    print("Status message received from WSJT-X ID {} for call {}: " .format(wsjtx_id, own_call))
                     freq = str(the_packet.dial_frequency)
                     freq = str(freq[:-6])                    
                     if  freq != "":                     
@@ -823,7 +825,7 @@ class App(tk.Frame):
         self.band_1296M.place(x=356, y=0, bordermode=OUTSIDE, height=20, width=36) 
 
         #  Voltage, Current and Temp
-        self.hv = tk.Label(self, text='28V:',font=('Helvetica', 10, 'bold'))
+        self.hv = tk.Label(self, text=' HV:',font=('Helvetica', 10, 'bold'))
         self.hv.configure(font=self.btn_font)
         self.hv.place(x=404, y=0, bordermode=OUTSIDE, height=20, width=30)
 
@@ -1103,6 +1105,7 @@ class App(tk.Frame):
         global comms
         global meter_data
         global meter_data_fl
+        global meter_sock
 
         if comms == True:
             # Closing comms   - do not call this if they are already off!
@@ -1126,7 +1129,11 @@ class App(tk.Frame):
             print(" Serial thread started ")
         elif comms == None:         # USB thread for ethernet option to serial.  UDP_Meter or Serial, only one should be enabled at a time.
             print(" main loop starting up UDP!")
-            self.udp_meter = UDP_Meter()
+            self.udp_meter = UDP_Meter()            
+            meter_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
+            meter_sock.bind(("", PORTNUM_OF_METER_LISTEN))
+            meter_sock.settimeout(1.0)
+            meter_sock.setblocking(0)
             self.udp_meter.start()
             #pass 
         else:
@@ -1197,7 +1204,7 @@ class Cfg_Mtr(tk.Frame):
 
     def exit_protocol(self):
         # Will be called when the main window is closed
-        self.after_cancel(update_cfg_win_callback)  
+        #self.after_cancel(update_cfg_win_callback)  
         self.master.destroy()  # Destroy root window
         self.master.quit()  # Exiting the main loop
         
@@ -1918,11 +1925,6 @@ def main():
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=app.About)   
-
-    meter_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
-    meter_sock.bind(("", PORTNUM_OF_METER_LISTEN))
-    meter_sock.settimeout(1.0)
-    meter_sock.setblocking(0)
 
     #if comms == False:          # Serial Thread startup if enabled
     app.comm()           # calling this here (with comms=false) will toggle serial comms to start up and run and comms will be = True
