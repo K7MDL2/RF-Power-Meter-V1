@@ -850,9 +850,9 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
         else
         {
             
-            digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (sequencer for Amps first)
+            digitalWrite(PTT_OUT2, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (sequencer for Amps first)
             delay(SEQ_Delay);
-            digitalWrite(PTT_OUT, HIGH);    // TX is on, TX is ACTIVE HIGH so send out a 1 to PTT OUT pin (Now Xvtr)
+            digitalWrite(PTT_OUT, HIGH);    // TX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Now Xvtr)
             PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT            
         }
     }
