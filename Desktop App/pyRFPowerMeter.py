@@ -146,6 +146,9 @@ myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to mat
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
+#IPADDR_OF_METER = '192.168.2.189'
+#PORTNUM_OF_METER_LISTEN = 7947
+#PORTNUM_OF_METER_SENDTO = 7946
 IPADDR_OF_METER = '192.168.2.188'
 PORTNUM_OF_METER_LISTEN = 7942
 PORTNUM_OF_METER_SENDTO = 7943
@@ -1021,7 +1024,7 @@ class App(tk.Frame):
         print("Go to Next Band ")
         # Write command to change Band
         #rx.send_meter_cmd("254","", True)
-        rx.send_meter_cmd("254","", True)
+        rx.send_meter_cmd("254","8", True)
 
     def Toggle_UDP_data_out(self): 
         rx = Send_Mtr_Cmds()
@@ -1093,13 +1096,13 @@ class App(tk.Frame):
         rx = Send_Mtr_Cmds()
         print("Jump to 50MHz Band ")
         # Write command to jump to band 0
-        rx.send_meter_cmd("241","", True)
+        rx.send_meter_cmd("241","160", True)
         
     def band_HF(self):
         rx = Send_Mtr_Cmds()
         print("Jump to HF Band")
         # Write command to speed up data rate output from meter
-        rx.send_meter_cmd("240","", True)
+        rx.send_meter_cmd("240","300", True)
 
     def comm(self):         # toggle Serial port (only) if on or off, do noting if neither (started up with out a serial port for example)
         global comms
