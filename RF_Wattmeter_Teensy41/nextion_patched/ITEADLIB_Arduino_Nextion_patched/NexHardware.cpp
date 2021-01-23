@@ -14,6 +14,8 @@
  */
 #include "NexHardware.h"
 #include "RF_Wattmeter_Nextion.h"
+#include <NativeEthernet.h>
+#include <NativeEthernetUdp.h>
 
 #define NEX_RET_CMD_FINISHED            (0x01)
 #define NEX_RET_EVENT_LAUNCHED          (0x88)
@@ -41,6 +43,14 @@ extern unsigned char pg;
 // Delay value is critical.   LoRa at 9600 500 is good. 50 for wired connection.
 // Less and you start missing events, numbers come back 0.  After a while LoRa data gets backed up, missing events
 // Need flow control on the Nextion end likely.
+
+#define NEX_UDP
+
+#ifdef NEX_UDP
+    extern void Nex_Redirect_from_UDP(char *);
+    extern void Nex_Redirect_to_UDP(char *);
+#endif
+
 
 /*
  * Receive page number. 
@@ -229,6 +239,13 @@ void sendCommand(const char* cmd)
     {
         nexSerial.read();
     }
+#ifdef NEX_UDP
+    Nex_Redirect_to_UDP(cmd);
+    Nex_Redirect_to_UDP(0xFF);
+    Nex_Redirect_to_UDP(0xFF);
+    Nex_Redirect_to_UDP(0xFF);
+    dbSerialPrintln(cmd);
+#endif
     nexSerial.print(cmd);
     nexSerial.write(0xFF);
     nexSerial.write(0xFF);
