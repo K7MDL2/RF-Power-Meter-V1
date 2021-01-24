@@ -79,9 +79,9 @@ void Rotor_commands(void)
 //
 void Rotor_state(void)
 {  
-  //Serial.print("RTR1-AZCnt:");
-  //rotor_position_counts();
-  //Serial.print(RotorPosCounts);
+  if (DBG==1) Serial.print("RTR1-AZCnt:");
+  if (DBG==1) rotor_position_counts();
+  if (DBG==1) Serial.print(RotorPosCounts);
 
   if (DBG==1) Serial.print("RTR1- AZSt:");
   if (DBG==1) Serial.print(RotorAZ_StartPos);
@@ -114,8 +114,8 @@ void Rotor_state(void)
   rotor_position_AZ();
   if (DBG==1) Serial.println(RotorAZ);
 
-  if (RotorTargetAZ > 360) sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZSt:%.1f AZVDC:%.1f CWLim:%.1f CCWLim:%.1f AZRaw:%.1f AZTargRaw:%.1f AZTarg:%.1f AZPos:%.1f", RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ-360, RotorAZ);
-  else sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZSt:%.1f AZVDC:%.1f CWLim:%.1f CCWLim:%.1f AZRaw:%.1f AZTargRaw:%.1f AZTarg:%.1f AZPos:%.1f", RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ, RotorAZ);
+  if (RotorTargetAZ > 360) sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZCts:%d AZSt:%d AZVDC:%.3f CWLim:%d CCWLim:%d AZRaw:%.1f AZTargRaw:%d AZTarg:%d AZPos:%.1f", RotorPosCounts, RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ-360, RotorAZ);
+  else sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZCts:%d AZSt:%d AZVDC:%.3f CWLim:%d CCWLim:%d AZRaw:%.1f AZTargRaw:%d AZTarg:%d AZPos:%.1f", RotorPosCounts, RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ, RotorAZ);
   send_status();
 }
 // 
@@ -198,23 +198,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                   
                         // Now do the commands     
                         // add code to limit variables received to allowed range
-                        if (cmd1 == 241) {
-                            Serial.print("RTR1-Cmd1=");
-                            Serial.print(cmd1);
-                            MoveRotor = CW; // valid options are CW, CCW or STOP
-                            MovetoPreset = OFF;
-                            RotorTargetAZ = cmd2; 
-                            allOff();  
-                            delay(200);
-                            Serial.print("  Move CW to ");   
-                            Serial.println(RotorTargetAZ);                      
-                            if (RotorTargetAZ < RotorAZ_StartPos)
-                                RotorTargetAZ += 360; 
-                            stall_detect_timer = millis();  // reset timer  
-                            RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
-                            compute_rotor_move(); 
-                        } 
-                        if (cmd1 == 240) { 
+                        if (cmd1 == 240) {   // Move rotor CCW
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
                             MoveRotor = CCW; // valid options are CW, CCW or STOP
@@ -230,15 +214,31 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
                             compute_rotor_move(); 
                         }
-                        if (cmd1 == 242) { 
+                        if (cmd1 == 241) {  // Move rotor CW
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);
+                            MoveRotor = CW; // valid options are CW, CCW or STOP
+                            MovetoPreset = OFF;
+                            RotorTargetAZ = cmd2; 
+                            allOff();  
+                            delay(200);
+                            Serial.print("  Move CW to ");   
+                            Serial.println(RotorTargetAZ);                      
+                            if (RotorTargetAZ < RotorAZ_StartPos)
+                                RotorTargetAZ += 360; 
+                            stall_detect_timer = millis();  // reset timer  
+                            RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
+                            compute_rotor_move();
+                        }                        
+                        if (cmd1 == 242) {  // STOP rotor
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
                             MoveRotor = STOP; // valid options are CW, CCW or STOP
                             MovetoPreset = OFF;
                             Serial.println("  STOP ROTOR");
-                            allOff(); 
+                            allOff();
                         }
-                        if (cmd1 == 254) { 
+                        if (cmd1 == 254) {   // Move to Preset heading (number 0 to 9)
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
                             MovetoPreset = ON; // valid options are CW, CCW or STOP 
@@ -256,15 +256,93 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
                             compute_rotor_move();
                         }
-                        if (cmd1 == 252) {                             
+                        if (cmd1 == 252) {     // Report Rotor Position
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);                                                    
-                            Serial.print("  Rotor Position is ");                            
+                            Serial.print("  Current Rotor Position is ");                            
                             Serial.println((uint8_t) RotorAZ);
                             sprintf((char*) tx_buffer, "RTR1-%.2f", RotorAZ);                     
                             enet_write(tx_buffer, 1);
-                        }                        
+                        } 
+                        if (cmd1 == 244) {    // Calibrate Rotor analog voltage full CCW
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);
+                            Serial.print("  Manually Set Rotor Full CCW counts = ");
+                            Serial.println(cmd2);
+                            map_pos_low_Counts = cmd2;
+                            set_EE_Vars();
+                        }
+                        if (cmd1 == 245) {    // Calibrate Rotor analog voltage full CW
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Mannually Set Rotor Full CW ADC Counts = ");
+                            Serial.println(cmd2);
+                            map_pos_high_Counts = cmd2;
+                            set_EE_Vars();
+                        }  
+                        if (cmd1 == 246) { 
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set Manual Limit CW = ");
+                            Serial.println(cmd2);
+                            manual_limit_CW = cmd2;
+                            set_EE_Vars();
+                        }
+                        if (cmd1 == 247) {
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set Manual Limit CCW =  ");
+                            Serial.println(cmd2);
+                            manual_limit_CCW = cmd2;
+                            set_EE_Vars();
+                        } 
+                        if (cmd1 == 248) {
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set RotorAZ_StartPos = ");
+                            Serial.println(cmd2);
+                            RotorAZ_StartPos  = cmd2;
+                            set_EE_Vars();
+                        } 
+                        if (cmd1 == 249) {   // Set the stall detection distance it must travel within the timeout period
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set STALL_DETECT_DISTANCE = ");
+                            Serial.println(cmd2);
+                            STALL_DETECT_DISTANCE = cmd2;
+                            set_EE_Vars(); // Store byte into EEPROM                                            
+                        } 
+                        if (cmd1 == 249) {      // Set the stall detection timeout period
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set STALL_TIMEOUT = ");
+                            Serial.println(cmd2);
+                            STALL_TIMEOUT = cmd2 * 1000;  // convert sec to ms
+                            set_EE_Vars(); // Store high and low bytes into EEPROM
+                        } 
+                        if (cmd1 == 250) {   // Set hte Rotor Stopband - allows a small window for deciding when to stop rotation
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set Rotor_StopBand = ");
+                            Serial.println(cmd2);
+                            Rotor_StopBand = cmd2;
+                            set_EE_Vars(); // Store byte into EEPROM                             
+                        } 
+                        if (cmd1 == 139) {   // Reset to default settings on next reboot
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set Rotor_StopBand = ");
+                            Serial.println(cmd2);
+                            if (cmd2 == 'R')
+                                EEPROM.write(0, 'R');   // make it not a 'G'.  'G' means EEPROM has been programmed. Anything else forces an overwite.
+                            delay(5);
+                            //resetFunc();  // now reset so it can test for the 'G' at startup
+                            reboot();
+                        } 
+                        //
                         // New commands here
+                        // --------------------- insert ---------------
+                        //
                    } // end of msg_type 120                                      
                 } // end of msg_type length check
             } // end of meter ID OK    
@@ -345,7 +423,11 @@ void compute_rotor_move(void)
       {   // Test for CW move to target possible   
           if (DBG == 4) Serial.print("RTR1-Requested Move to Preset CW");
           if (DBG == 4) Serial.print(" - Manual Limit CW is ");    
-          if (DBG == 4) Serial.println(manual_limit_CW);    
+          if (DBG == 4) Serial.print(manual_limit_CW); 
+          if (DBG == 4) Serial.print(" - Manual Limit CCW is ");    
+          if (DBG == 4) Serial.print(manual_limit_CCW);
+          if (DBG == 4) Serial.print(" - RotorAZ raw is ");    
+          if (DBG == 4) Serial.println(RotorAZ_raw);    
           // should not be in the dead zone or move out of it, only do that in manual mode          
           if ((man_lim_tmp_CCW < RotorAZ_raw) && (RotorTargetAZ < man_lim_tmp_CW))  
           {
@@ -368,8 +450,9 @@ void compute_rotor_move(void)
       {
           if (DBG == 4) Serial.print("RTR1-Requested Move to Preset CCW");  
           if (DBG == 4) Serial.print(" - Manual Limit CCW is ");    
-          if (DBG == 4) Serial.println(manual_limit_CCW);
-               
+          if (DBG == 4) Serial.print(manual_limit_CCW);
+          if (DBG == 4) Serial.print(" - RotorAZ raw is ");    
+          if (DBG == 4) Serial.println(RotorAZ_raw);       
           if ((man_lim_tmp_CW > RotorAZ_raw) && (RotorTargetAZ > man_lim_tmp_CCW)) // try CCW path to target
           {    
               if (DBG == 4) Serial.println("RTR1-Attempting Move to Preset CCW");
@@ -419,7 +502,7 @@ void move_CW(void)
     }
     else if (RotorAZ_raw > man_lim_tmp)
     {
-        sprintf((char*) tx_buffer, "RTR1-CW Manual limit reached! %.1f", manual_limit_CW);
+        sprintf((char*) tx_buffer, "RTR1-CW Manual limit reached! %d", manual_limit_CW);
         send_status();
         allOff();
     }
@@ -461,7 +544,7 @@ void move_CCW(void)
     }
     else if (RotorAZ_raw < man_lim_tmp) 
     {
-        sprintf((char*) tx_buffer, "RTR1-CCW Manual limit reached! %.1f", manual_limit_CCW);
+        sprintf((char*) tx_buffer, "RTR1-CCW Manual limit reached! %d", manual_limit_CCW);
         send_status();
         allOff();
     }
@@ -599,50 +682,73 @@ void init_relay_state(void)
 //
 void stress_test_relays(void)
 {
-  // Test section to operate the rotator control relays and turn on the motor transfomer 24VAC.
-  digitalWrite(LED, ON);
- 
-  leftFast();
-  delay(400);
+    // Test section to operate the rotator control relays and turn on the motor transfomer 24VAC.
+    digitalWrite(LED, ON);
+   
+    leftFast();
+    delay(400);
+    
+    allOff();
+    delay(200);
+    
+    leftSlow();
+    delay(400);
   
-  allOff();
-  delay(200);
+    allOff();
+    delay(200);
+    
+    rightFast();
+    delay(400);
+    
+    allOff();
+    delay(200);
+    
+    rightSlow();
+    delay(400);
   
-  leftSlow();
-  delay(400);
-
-  allOff();
-  delay(200);
-  
-  rightFast();
-  delay(400);
-  
-  allOff();
-  delay(200);
-  
-  rightSlow();
-  delay(400);
-
-  allOff();
-  delay(500);
+    allOff();
+    delay(500);
 }
 // 
 //____________________________________ set_pins _________________________________________________
 //
 void set_pins(void)
 {
-  pinMode(LED, OUTPUT);
-  digitalWrite(LED, OFF);
-  pinMode(ROTOR_AC_POWER_PIN, INPUT);
-  pinMode(LEFT_FAST_PIN, INPUT);
-  pinMode(LEFT_SLOW_PIN, INPUT);
-  pinMode(RIGHT_FAST_PIN, INPUT);
-  pinMode(RIGHT_SLOW_PIN, INPUT);
-  pinMode(ROTOR_ANALOG_AZ_PIN, INPUT);
-  digitalWrite(LED, ON);
-  delay(500);
-  digitalWrite(LED, OFF);
-  delay(500);
-  digitalWrite(LED, ON);
-  delay(500);
+    pinMode(LED, OUTPUT);
+    digitalWrite(LED, OFF);
+    pinMode(ROTOR_AC_POWER_PIN, INPUT);
+    pinMode(LEFT_FAST_PIN, INPUT);
+    pinMode(LEFT_SLOW_PIN, INPUT);
+    pinMode(RIGHT_FAST_PIN, INPUT);
+    pinMode(RIGHT_SLOW_PIN, INPUT);
+    pinMode(ROTOR_ANALOG_AZ_PIN, INPUT);
+    digitalWrite(LED, ON);
+    delay(500);
+    digitalWrite(LED, OFF);
+    delay(500);
+    digitalWrite(LED, ON);
+    delay(500);
+}
+
+void set_EE_Vars(void)
+{
+    EEPROM.put(2, map_pos_low_Counts); // Store high and low bytes into EEPROM
+    EEPROM.put(4, map_pos_high_Counts); // Store high and low bytes into EEPROM                
+    EEPROM.put(6, manual_limit_CW); // Store high and low bytes into EEPROM                
+    EEPROM.put(8, manual_limit_CCW); // Store high and low bytes into EEPROM                
+    EEPROM.put(10, RotorAZ_StartPos); // Store high and low bytes into EEPROM                
+    EEPROM.put(12, STALL_DETECT_DISTANCE); // Store byte into EEPROM                                            
+    EEPROM.put(13, STALL_TIMEOUT); // Store high and low bytes into EEPROM                
+    EEPROM.put(15, Rotor_StopBand); // Store byte into EEPROM 
+}
+void get_EE_Vars(void)
+{
+    EEPROM.get(2, map_pos_low_Counts); // Store high and low bytes into EEPROM
+    EEPROM.get(4, map_pos_high_Counts); // Store high and low bytes into EEPROM                
+    EEPROM.get(6, manual_limit_CW); // Store high and low bytes into EEPROM                
+    EEPROM.get(8, manual_limit_CCW); // Store high and low bytes into EEPROM                
+    EEPROM.get(10, RotorAZ_StartPos); // Store high and low bytes into EEPROM                
+    EEPROM.get(12, STALL_DETECT_DISTANCE); // Store byte into EEPROM                                            
+    EEPROM.get(13, STALL_TIMEOUT); // Store high and low bytes into EEPROM                
+    EEPROM.get(15, Rotor_StopBand); // Store byte into EEPROM 
 }
