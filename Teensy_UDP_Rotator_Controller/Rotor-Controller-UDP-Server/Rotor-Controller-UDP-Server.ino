@@ -41,7 +41,7 @@ void setup()
   init_relay_state();
   load_presets();  
   enet_start();
-  Serial.println("Completed Setup()");
+  Serial.println("RTR1-Completed Setup()");
 }
 // 
 //____________________________________ LOOP _________________________________________________
@@ -71,7 +71,7 @@ void loop()
       compute_rotor_move();  // mnually or auto move rotor
       if (!MovetoPreset && !MoveRotor)
             RotorTargetAZ = 0;
-      if (DBG==1) Serial.print("Rotor AZ = ");
+      if (DBG==1) Serial.print("RTR1-Rotor AZ = ");
       if (DBG==1) Serial.print(RotorAZ);
       if (DBG==1) Serial.print(" Target AZ = ");
       if (RotorTargetAZ > 360)
@@ -89,7 +89,7 @@ void rotor_position_counts(void)
     RotorPosCounts = analogRead(ROTOR_ANALOG_AZ_PIN); 
     if (DBG==2)
     {
-      if (DBG==2) Serial.print("Rotor Pos Counts =");
+      if (DBG==2) Serial.print("RTR1-Rotor Pos Counts =");
       if (DBG==2) Serial.println(RotorPosCounts);
     }
 }
@@ -102,7 +102,7 @@ void rotor_position_volts(void)
     RotorPosV = RotorPosCounts * (Vref/1024);
     if (DBG==2)
     {
-      if (DBG==2) Serial.print("Rotor Pos Volts =");
+      if (DBG==2) Serial.print("RTR1-Rotor Pos Volts =");
       if (DBG==2) Serial.println(RotorPosV);
     }
 }
@@ -122,7 +122,7 @@ void rotor_position_AZ(void)
     RotorAZ_raw += RotorAZ_StartPos;
     if (DBG==2)
     {
-      Serial.print("RotorAZ_raw =");
+      Serial.print("RTR1-RotorAZ_raw =");
       Serial.print(RotorAZ_raw);
       Serial.print("  RotorAZ =");
       Serial.println(RotorAZ);      

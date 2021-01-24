@@ -79,11 +79,11 @@ void Rotor_commands(void)
 //
 void Rotor_state(void)
 {  
-  //Serial.print("AZCnt:");
+  //Serial.print("RTR1-AZCnt:");
   //rotor_position_counts();
   //Serial.print(RotorPosCounts);
 
-  if (DBG==1) Serial.print(" AZSt:");
+  if (DBG==1) Serial.print("RTR1- AZSt:");
   if (DBG==1) Serial.print(RotorAZ_StartPos);
 
   if (DBG==1) Serial.print(" AZV:");
@@ -114,8 +114,8 @@ void Rotor_state(void)
   rotor_position_AZ();
   if (DBG==1) Serial.println(RotorAZ);
 
-  if (RotorTargetAZ > 360) sprintf((char *) tx_buffer, "Rotor Status: AZSt:%.1f AZVDC:%.1f CWLim:%.1f CCWLim:%.1f AZRaw:%.1f AZTargRaw:%.1f AZTarg:%.1f AZPos:%.1f", RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ-360, RotorAZ);
-  else sprintf((char *) tx_buffer, "Rotor Status: AZSt:%.1f AZVDC:%.1f CWLim:%.1f CCWLim:%.1f AZRaw:%.1f AZTargRaw:%.1f AZTarg:%.1f AZPos:%.1f", RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ, RotorAZ);
+  if (RotorTargetAZ > 360) sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZSt:%.1f AZVDC:%.1f CWLim:%.1f CCWLim:%.1f AZRaw:%.1f AZTargRaw:%.1f AZTarg:%.1f AZPos:%.1f", RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ-360, RotorAZ);
+  else sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZSt:%.1f AZVDC:%.1f CWLim:%.1f CCWLim:%.1f AZRaw:%.1f AZTargRaw:%.1f AZTarg:%.1f AZPos:%.1f", RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ, RotorAZ);
   send_status();
 }
 // 
@@ -136,7 +136,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
             *pSdata = '\0';
             cmd_str_len = pSdata - pSdata1;                     
             strncpy(cmd_str, (char *) pSdata1, cmd_str_len);   // copy chars between p1 and the terminator
-            pSdata1 += (cmd_str_len+1);  // reset ch pointer back to strat of string for char parsing
+            pSdata1 += (cmd_str_len+1);  // reset ch pointer back to start of string for char parsing
 
             if (pSdata1 >= pSdata2 || cmd_str_len > BUF_LEN)  // if we have caught up to the end p2 then reset to beginning of buffer position.
                 pSdata1 = pSdata2 = sdata;      
@@ -156,7 +156,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                     cmd_str[j++] = (sdata[i]);                 
             }
             cmd_str[j] = '\0';  
-            //DBG_Serial.print("> Meter ID  ");
+            //DBG_Serial.print("RTR1-> Meter ID  ");
             //DBG_Serial.println("%s\n",cmd_str);
             if (atoi(cmd_str) == METERID) {
                 if (i < cmd_str_len) {
@@ -199,7 +199,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                         // Now do the commands     
                         // add code to limit variables received to allowed range
                         if (cmd1 == 241) {
-                            Serial.print("Cmd1=");
+                            Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
                             MoveRotor = CW; // valid options are CW, CCW or STOP
                             MovetoPreset = OFF;
@@ -215,7 +215,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             compute_rotor_move(); 
                         } 
                         if (cmd1 == 240) { 
-                            Serial.print("Cmd1=");
+                            Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
                             MoveRotor = CCW; // valid options are CW, CCW or STOP
                             MovetoPreset = OFF;
@@ -231,7 +231,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             compute_rotor_move(); 
                         }
                         if (cmd1 == 242) { 
-                            Serial.print("Cmd1=");
+                            Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
                             MoveRotor = STOP; // valid options are CW, CCW or STOP
                             MovetoPreset = OFF;
@@ -239,7 +239,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             allOff(); 
                         }
                         if (cmd1 == 254) { 
-                            Serial.print("Cmd1=");
+                            Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
                             MovetoPreset = ON; // valid options are CW, CCW or STOP 
                             constrain((uint8_t)cmd2, 0, 9); 
@@ -257,11 +257,11 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             compute_rotor_move();
                         }
                         if (cmd1 == 252) {                             
-                            Serial.print("Cmd1=");
+                            Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);                                                    
                             Serial.print("  Rotor Position is ");                            
                             Serial.println((uint8_t) RotorAZ);
-                            sprintf((char*) tx_buffer, "%.2f", RotorAZ);                     
+                            sprintf((char*) tx_buffer, "RTR1-%.2f", RotorAZ);                     
                             enet_write(tx_buffer, 1);
                         }                        
                         // New commands here
@@ -284,26 +284,26 @@ void stall_detect(void)
         return;
     if (DBG==3)
     {
-        Serial.print("Reset Stall Detector elapsed time =");
+        Serial.print("RTR1-Reset Stall Detector elapsed time =");
         Serial.println(RotorAZ_raw - RotorAZ_raw_last);
     }
     if ( abs(RotorAZ_raw - RotorAZ_raw_last) > STALL_DETECT_DISTANCE)
     {
         RotorAZ_raw_last = RotorAZ_raw;  // update new position
         stall_detect_timer = millis();   // reset timer
-        if (DBG==3) Serial.println("Reset Stall Detector Timer");
+        if (DBG==3) Serial.println("RTR1-Reset Stall Detector Timer");
     }
     else if (millis()- stall_detect_timer > STALL_TIMEOUT)  // if not moved far enough then check for timeout
     {
         if (DBG==3)
         {
-            Serial.print("Timer now at ");
+            Serial.print("RTR1-Timer now at ");
             Serial.println(millis() - stall_detect_timer);
         }
         MoveRotor = STOP;
         MovetoPreset = STOP;
         allOff();        
-        sprintf((char *)tx_buffer, "\nERROR - Stall Detect Timer Expired, All Off! Timer= %lu\n", (unsigned long)STALL_TIMEOUT);
+        sprintf((char *)tx_buffer, "\nRTR1-ERROR - Stall Detect Timer Expired, All Off! Timer= %lu\n", (unsigned long)STALL_TIMEOUT);
         send_status();
     }
 }
@@ -334,7 +334,7 @@ void compute_rotor_move(void)
       {
           MovetoPreset = OFF;
           allOff();      
-          sprintf((char*) tx_buffer, "All OFF Called");
+          sprintf((char*) tx_buffer, "RTR1-All OFF Called");
           send_status();
       }
   }
@@ -343,46 +343,46 @@ void compute_rotor_move(void)
       // Start with computing dead zone and adjust target to not go into any dead zone      
       if (RotorTargetAZ > RotorAZ_raw)
       {   // Test for CW move to target possible   
-          if (DBG == 4) Serial.print("Requested Move to Preset CW");
+          if (DBG == 4) Serial.print("RTR1-Requested Move to Preset CW");
           if (DBG == 4) Serial.print(" - Manual Limit CW is ");    
           if (DBG == 4) Serial.println(manual_limit_CW);    
           // should not be in the dead zone or move out of it, only do that in manual mode          
           if ((man_lim_tmp_CCW < RotorAZ_raw) && (RotorTargetAZ < man_lim_tmp_CW))  
           {
-              if (DBG == 4) Serial.println("Attempting Move to Preset CW");              
+              if (DBG == 4) Serial.println("RTR1-Attempting Move to Preset CW");              
               if ( RotorTargetAZ < (RotorAZ_StartPos+360)) // check for hard stop limit
               {
-                  if (DBG == 4) Serial.println(" Moving to Preset CW");
+                  if (DBG == 4) Serial.println("RTR1- Moving to Preset CW");
                   MoveRotor = CW;
                   move_CW();
               }
           }
           else
           {
-              sprintf((char*) tx_buffer, " Current position inside limits, movement not allowed");              
+              sprintf((char*) tx_buffer, "RTR1-Current position inside limits, movement not allowed");              
               send_status();
               MovetoPreset = OFF;
           }
       }        
       else
       {
-          if (DBG == 4) Serial.print("Requested Move to Preset CCW");  
+          if (DBG == 4) Serial.print("RTR1-Requested Move to Preset CCW");  
           if (DBG == 4) Serial.print(" - Manual Limit CCW is ");    
           if (DBG == 4) Serial.println(manual_limit_CCW);
                
           if ((man_lim_tmp_CW > RotorAZ_raw) && (RotorTargetAZ > man_lim_tmp_CCW)) // try CCW path to target
           {    
-              if (DBG == 4) Serial.println("Attempting Move to Preset CCW");
+              if (DBG == 4) Serial.println("RTR1-Attempting Move to Preset CCW");
               if ( RotorTargetAZ  > RotorAZ_StartPos)
                   {
-                      if (DBG == 4) Serial.println("Moving to Preset CCW");
+                      if (DBG == 4) Serial.println("RTR1-Moving to Preset CCW");
                       MoveRotor = CCW;
                       move_CCW();
                   }
           }
           else
           {              
-              sprintf((char*) tx_buffer, " Current position inside limits, movement not allowed");              
+              sprintf((char*) tx_buffer, "RTR1-Current position inside limits, movement not allowed");              
               send_status();
               MovetoPreset = OFF;
           }
@@ -392,7 +392,7 @@ void compute_rotor_move(void)
           allOff();
           MovetoPreset = OFF;
           MoveRotor = STOP;
-          sprintf((char*) tx_buffer, "Destination Reached");
+          sprintf((char*) tx_buffer, "RTR1-Destination Reached");
           send_status();
           return;
       }
@@ -414,31 +414,31 @@ void move_CW(void)
     if (RotorAZ_raw >= RotorTargetAZ)
     {
         allOff();
-        sprintf((char*) tx_buffer, "Destination Reached");
+        sprintf((char*) tx_buffer, "RTR1-Destination Reached");
         send_status();
     }
     else if (RotorAZ_raw > man_lim_tmp)
     {
-        sprintf((char*) tx_buffer, "CW Manual limit reached! %.1f", manual_limit_CW);
+        sprintf((char*) tx_buffer, "RTR1-CW Manual limit reached! %.1f", manual_limit_CW);
         send_status();
         allOff();
     }
     else if (abs(RotorAZ_raw - 360 - RotorAZ_StartPos) <= Rotor_StopBand)
     {
         allOff();
-        sprintf((char*) tx_buffer, " AZ Motion Stopped ");
+        sprintf((char*) tx_buffer, "RTR1-AZ Motion Stopped ");
         send_status();
     }
     else if (RotorTargetAZ - RotorAZ_raw < SlowdownDegrees || man_lim_tmp - RotorAZ_raw < SlowdownDegrees)  
     {
         rightSlow();
-        sprintf((char*) tx_buffer, " Moving CW SLOW ");
+        sprintf((char*) tx_buffer, "RTR1-Moving CW SLOW ");
         send_status();
     }
     else     
     {
         rightFast();
-        sprintf((char*) tx_buffer, " Moving CW FAST ");              
+        sprintf((char*) tx_buffer, "RTR1-Moving CW FAST ");              
         send_status();
     }
 }
@@ -456,31 +456,31 @@ void move_CCW(void)
     if (RotorAZ_raw <= RotorTargetAZ)
     {
         allOff();
-        sprintf((char*) tx_buffer, "Destination Reached");
+        sprintf((char*) tx_buffer, "RTR1-Destination Reached");
         send_status();
     }
     else if (RotorAZ_raw < man_lim_tmp) 
     {
-        sprintf((char*) tx_buffer, "CCW Manual limit reached! %.1f", manual_limit_CCW);
+        sprintf((char*) tx_buffer, "RTR1-CCW Manual limit reached! %.1f", manual_limit_CCW);
         send_status();
         allOff();
     }
     else if (abs(RotorAZ_raw - RotorAZ_StartPos) <= Rotor_StopBand)
     {
         allOff();
-        sprintf((char*) tx_buffer, " AZ Motion Stopped");
+        sprintf((char*) tx_buffer, "RTR1-AZ Motion Stopped");
         send_status();
     }
     else if ((RotorAZ_raw - RotorTargetAZ) < SlowdownDegrees || RotorAZ_raw - man_lim_tmp < SlowdownDegrees)
     {
         leftSlow();        
-        sprintf((char*) tx_buffer, " Moving CCW SLOW"); 
+        sprintf((char*) tx_buffer, "RTR1-Moving CCW SLOW"); 
         send_status();
     }
     else 
     {          
         leftFast();        
-        sprintf((char*) tx_buffer, " Moving CCW FAST"); 
+        sprintf((char*) tx_buffer, "RTR1-Moving CCW FAST"); 
         send_status();
     }
 }
@@ -494,7 +494,7 @@ void leftFast(void)
   digitalWrite(LEFT_SLOW_PIN, 1);
   digitalWrite(RIGHT_FAST_PIN, 1);
   digitalWrite(RIGHT_SLOW_PIN, 1);
-  if(DBG==1) Serial.println("AC On, Turn LEFT FAST, Pin 1 On");
+  if(DBG==1) Serial.println("RTR1-AC On, Turn LEFT FAST, Pin 1 On");
   digitalWrite(LED, OFF);
   send_pin_Status();
 }
@@ -508,7 +508,7 @@ void leftSlow(void)
   digitalWrite(LEFT_SLOW_PIN, 0);
   digitalWrite(RIGHT_FAST_PIN, 1);
   digitalWrite(RIGHT_SLOW_PIN, 1);
-  if(DBG==1)Serial.println("AC On, Turn LEFT SLOW, Pin 2 On");
+  if(DBG==1)Serial.println("RTR1-AC On, Turn LEFT SLOW, Pin 2 On");
   digitalWrite(LED, ON);
   send_pin_Status(); 
 }
@@ -523,7 +523,7 @@ void rightFast(void)
   digitalWrite(LEFT_SLOW_PIN, 1);
   digitalWrite(RIGHT_FAST_PIN, 0);
   digitalWrite(RIGHT_SLOW_PIN, 1);
-  if(DBG==1) Serial.println("AC On, Turn RIGHT FAST, Pin 3 On");
+  if(DBG==1) Serial.println("RTR1-AC On, Turn RIGHT FAST, Pin 3 On");
   digitalWrite(LED, OFF);
   send_pin_Status();
 }
@@ -537,7 +537,7 @@ void rightSlow(void)
   digitalWrite(LEFT_SLOW_PIN, 1);
   digitalWrite(RIGHT_FAST_PIN, 1);
   digitalWrite(RIGHT_SLOW_PIN, 0);
-  if(DBG==1) Serial.println("AC On, Turn RIGHT SLOW, Pin 4 On");
+  if(DBG==1) Serial.println("RTR1-AC On, Turn RIGHT SLOW, Pin 4 On");
   digitalWrite(LED, ON);
   send_pin_Status();
 }
@@ -551,7 +551,7 @@ void allOff(void)
   digitalWrite(LEFT_SLOW_PIN, 1);
   digitalWrite(RIGHT_FAST_PIN, 1);
   digitalWrite(RIGHT_SLOW_PIN, 1);
-  if(DBG==1) Serial.println("All Off");
+  if(DBG==1) Serial.println("RTR1-All Off");
   digitalWrite(LED, OFF);
   send_pin_Status();
 }
@@ -562,7 +562,7 @@ void send_pin_Status(void)
 {
     if(DBG==1)
     {
-      Serial.print("AC Power=");
+      Serial.print("RTR1-AC Power=");
       Serial.print(digitalRead(ROTOR_AC_POWER_PIN));
       Serial.print("  Left Fast=");
       Serial.print(digitalRead(LEFT_FAST_PIN));
@@ -579,7 +579,7 @@ void send_pin_Status(void)
 //
 void init_relay_state(void)
 {
-  if(DBG==1) Serial.println("Initializing relay driver state");
+  if(DBG==1) Serial.println("RTR1-Initializing relay driver state");
   pinMode(ROTOR_AC_POWER_PIN, OUTPUT);
   digitalWrite(ROTOR_AC_POWER_PIN, 0);
   pinMode(LEFT_FAST_PIN, OUTPUT);
@@ -590,7 +590,7 @@ void init_relay_state(void)
   digitalWrite(RIGHT_FAST_PIN, 1);
   pinMode(RIGHT_SLOW_PIN, OUTPUT);
   digitalWrite(RIGHT_SLOW_PIN, 1);
-  if(DBG) Serial.println("Completed relay driver port config");
+  if(DBG) Serial.println("RTR1-Completed relay driver port config");
   send_pin_Status();
   delay(1000);
 }

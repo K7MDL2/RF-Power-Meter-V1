@@ -49,7 +49,7 @@ uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
 {   
    if (enet_ready)   // skip if no enet connection
    {
-       if (DBG==6) Serial.print("ENET Write: ");
+       if (DBG==6) Serial.print("RTR1-ENET Write: ");
        if (DBG==6) Serial.println((char *) tx_buffer);
        Udp.beginPacket(remote_ip, remoteport);
        Udp.write((char *) tx_buffer);
@@ -73,7 +73,7 @@ void enet_start(void)
   enet_ready = 0;
   if (Ethernet.hardwareStatus() == EthernetNoHardware) 
   {
-    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+    Serial.println("RTR1-Ethernet shield was not found.  Sorry, can't run without hardware. :(");
     //while (true) {
     //  delay(1); // do nothing, no point running without Ethernet hardware
     //}
@@ -82,19 +82,19 @@ void enet_start(void)
   else
   {
     delay(1000);
-    Serial.print("Ethernet Address = ");
+    Serial.print("RTR1-Ethernet Address = ");
     Serial.println(Ethernet.localIP());
     delay(5000);
     if (Ethernet.linkStatus() == LinkOFF) 
     {
-      Serial.println("Ethernet cable is not connected.");
+      Serial.println("RTR1-Ethernet cable is not connected.");
       enet_ready = 0;
     }
     else
     {  
       enet_ready = 1;
       delay(100);
-      Serial.println("Ethernet cable connected.");
+      Serial.println("RTR1-Ethernet cable connected.");
       // start UDP
       Udp.begin(localPort);
       #ifdef Nex_UDP
@@ -117,7 +117,7 @@ void enet_start(void)
     uint16_t escape_counter = 0;
     while(!link_status && escape_counter < 200){
         escape_counter++;
-        Serial.println("Waiting for Link Status");
+        Serial.println("RTR1-Waiting for Link Status");
         delay(10);
         return;
     }  
@@ -131,7 +131,7 @@ void teensyMAC(uint8_t *mac) {
   static char teensyMac[23];
   
   #if defined (HW_OCOTP_MAC1) && defined(HW_OCOTP_MAC0)
-    Serial.println("using HW_OCOTP_MAC* - see https://forum.pjrc.com/threads/57595-Serial-amp-MAC-Address-Teensy-4-0");
+    Serial.println("RTR1-using HW_OCOTP_MAC* - see https://forum.pjrc.com/threads/57595-Serial-amp-MAC-Address-Teensy-4-0");
     for(uint8_t by=0; by<2; by++) mac[by]=(HW_OCOTP_MAC1 >> ((1-by)*8)) & 0xFF;
     for(uint8_t by=0; by<4; by++) mac[by+2]=(HW_OCOTP_MAC0 >> ((3-by)*8)) & 0xFF;
 
@@ -147,7 +147,7 @@ void teensyMAC(uint8_t *mac) {
     __disable_irq();
     
     #if defined(HAS_KINETIS_FLASH_FTFA) || defined(HAS_KINETIS_FLASH_FTFL)
-      Serial.println("using FTFL_FSTAT_FTFA - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+      Serial.println("RTR1-using FTFL_FSTAT_FTFA - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
       
       FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
       FTFL_FCCOB0 = 0x41;
@@ -159,7 +159,7 @@ void teensyMAC(uint8_t *mac) {
       #define MAC_OK
       
     #elif defined(HAS_KINETIS_FLASH_FTFE)
-      Serial.println("using FTFL_FSTAT_FTFE - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+      Serial.println("RTR1-using FTFL_FSTAT_FTFE - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
       
       kinetis_hsrun_disable();
       FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
@@ -180,10 +180,10 @@ void teensyMAC(uint8_t *mac) {
   #endif
 
   #ifdef MAC_OK
-    sprintf(teensyMac, "MAC: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    sprintf(teensyMac, "RTR1-MAC: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
     Serial.println(teensyMac);
   #else
-    Serial.println("ERROR: could not get MAC");
+    Serial.println("RTR1-ERROR: could not get MAC");
   #endif
 }
 // 
@@ -194,9 +194,9 @@ void generic_UDP_Read(void)
   // if there's data available, read a packet
   int packetSize = Udp.parsePacket();
   if (packetSize) {
-    Serial.print("#2 Received packet of size from client ");
+    Serial.print("RTR1-#2 Received packet of size from client ");
     Serial.println(packetSize);
-    Serial.print("From ");
+    Serial.print("RTR1-From ");
     IPAddress remote = Udp.remoteIP();
     for (int i=0; i < 4; i++) {
       Serial.print(remote[i], DEC);
@@ -208,7 +208,7 @@ void generic_UDP_Read(void)
     Serial.println(Udp.remotePort());
       // read the packet into packetBufffer
     Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-    Serial.println("Contents:");
+    Serial.println("RTR1-Contents:");
     Serial.println(packetBuffer);
   }    
     // send a reply to the IP address and port that sent us the packet we received

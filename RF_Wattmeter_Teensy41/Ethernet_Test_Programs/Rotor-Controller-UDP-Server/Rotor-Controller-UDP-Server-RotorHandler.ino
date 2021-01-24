@@ -238,7 +238,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             Serial.println("  STOP ROTOR");
                             allOff(); 
                         }
-                        if (cmd1 == 254) { 
+                        if (cmd1 == 254) {  // Presets
                             Serial.print("Cmd1=");
                             Serial.print(cmd1);
                             MovetoPreset = ON; // valid options are CW, CCW or STOP 
