@@ -187,8 +187,12 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_B_6    30
 #define BAND_DEC_B_7    31
 
-#define BAND_DEC_C_0    8
-#define BAND_DEC_C_1    9
+// External Switchdoc Labs Watchdog board
+#define WD1_PIN         8     // External Watchdog board trigger input #1   Pulse low to reset the hardware timer
+#define WD2_PIN         9     // External Watchdog board trigger input #2   Pulse low to reset the hardware timer
+
+#define BAND_DEC_C_0    99    // not using so set pin to something impossible
+#define BAND_DEC_C_1    99    // not using so set pin to something impossible
 #define BAND_DEC_C_2    10
 #define BAND_DEC_C_3    11
 #define BAND_DEC_C_4    12
@@ -360,6 +364,8 @@ uint8_t PortB_state = 0;
 uint8_t PortC_state = 0;
 uint8_t enet_ready = 0;
 unsigned long enet_start_fail_time = 0;
+unsigned long wd_timestamp = 0;
+uint8_t WD_reset_flag = 0;
 
 //---------------------------------------------------------
 // Icom Analog (ACC) and C-IV Serial 

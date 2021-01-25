@@ -86,6 +86,9 @@ void Rotor_state(void)
   if (DBG==1) Serial.print("RTR1- AZSt:");
   if (DBG==1) Serial.print(RotorAZ_StartPos);
 
+  if (DBG==1) Serial.print("RTR1- AZOff:");
+  if (DBG==1) Serial.print(RotorAZ_Offset);
+
   if (DBG==1) Serial.print(" AZV:");
   rotor_position_volts();
   if (DBG==1) Serial.print(RotorPosV);
@@ -114,8 +117,8 @@ void Rotor_state(void)
   rotor_position_AZ();
   if (DBG==1) Serial.println(RotorAZ);
 
-  if (RotorTargetAZ > 360) sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZCts:%d AZSt:%d AZVDC:%.3f CWLim:%d CCWLim:%d AZRaw:%.1f AZTargRaw:%d AZTarg:%d AZPos:%.1f", RotorPosCounts, RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ-360, RotorAZ);
-  else sprintf((char *) tx_buffer, "RTR1-Rotor Status: AZCts:%d AZSt:%d AZVDC:%.3f CWLim:%d CCWLim:%d AZRaw:%.1f AZTargRaw:%d AZTarg:%d AZPos:%.1f", RotorPosCounts, RotorAZ_StartPos, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ, RotorAZ);
+  if (RotorTargetAZ > 360) sprintf((char *) tx_buffer, "RTR1: AZCts:%04d AZSt:%03d AZOff:%03d AZVDC:%1.3f CWLim:%03d CCWLim:%03d AZRaw:%03.1f AZTargRaw:%03d AZTarg:%03d AZPos:%03.1f", RotorPosCounts, RotorAZ_StartPos, RotorAZ_Offset, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ-360, RotorAZ);
+  else sprintf((char *) tx_buffer, "RTR1: AZCts:%04d AZSt:%03d AZOff:%03d AZVDC:%1.3f CWLim:%03d CCWLim:%03d AZRaw:%03.1f AZTargRaw:%03d AZTarg:%03d AZPos:%03.1f", RotorPosCounts, RotorAZ_StartPos, RotorAZ_Offset, RotorPosV, manual_limit_CW, manual_limit_CCW, RotorAZ_raw, RotorTargetAZ, RotorTargetAZ, RotorAZ);
   send_status();
 }
 // 
@@ -214,6 +217,22 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
                             compute_rotor_move(); 
                         }
+                        if (cmd1 == 230) {   // Move rotor CCW up to manual limit
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);
+                            MoveRotor = CCW; // valid options are CW, CCW or STOP
+                            MovetoPreset = OFF;
+                            RotorTargetAZ = manual_limit_CCW;
+                            allOff();  
+                            delay(200); 
+                            Serial.print("  Move CCW to ");    
+                            Serial.println(RotorTargetAZ);                         
+                            if (RotorTargetAZ < RotorAZ_StartPos)
+                                RotorTargetAZ += 360;
+                            stall_detect_timer = millis();  // reset timer  
+                            RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
+                            compute_rotor_move(); 
+                        }
                         if (cmd1 == 241) {  // Move rotor CW
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
@@ -229,7 +248,23 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             stall_detect_timer = millis();  // reset timer  
                             RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
                             compute_rotor_move();
-                        }                        
+                        }  
+                        if (cmd1 == 231) {  // Move rotor CW up to manual limit
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);
+                            MoveRotor = CW; // valid options are CW, CCW or STOP
+                            MovetoPreset = OFF;
+                            RotorTargetAZ = manual_limit_CW; 
+                            allOff();  
+                            delay(200);
+                            Serial.print("  Move CW to ");   
+                            Serial.println(RotorTargetAZ);                      
+                            if (RotorTargetAZ < RotorAZ_StartPos)
+                                RotorTargetAZ += 360; 
+                            stall_detect_timer = millis();  // reset timer  
+                            RotorAZ_raw_last = RotorAZ_raw;  // update new position                           
+                            compute_rotor_move();
+                        }                      
                         if (cmd1 == 242) {  // STOP rotor
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);
@@ -320,12 +355,20 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             STALL_TIMEOUT = cmd2 * 1000;  // convert sec to ms
                             set_EE_Vars(); // Store high and low bytes into EEPROM
                         } 
-                        if (cmd1 == 250) {   // Set hte Rotor Stopband - allows a small window for deciding when to stop rotation
+                        if (cmd1 == 250) {   // Set the Rotor Stopband - allows a small window for deciding when to stop rotation
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);                            
                             Serial.print("  Set Rotor_StopBand = ");
                             Serial.println(cmd2);
                             Rotor_StopBand = cmd2;
+                            set_EE_Vars(); // Store byte into EEPROM                             
+                        } 
+                        if (cmd1 == 239) {   // Set the Rotor Offset
+                            Serial.print("RTR1-Cmd1=");
+                            Serial.print(cmd1);                            
+                            Serial.print("  Set RotorAZ_Offset = ");
+                            Serial.println(cmd2);
+                            RotorAZ_Offset = cmd2;
                             set_EE_Vars(); // Store byte into EEPROM                             
                         } 
                         if (cmd1 == 139) {   // Reset to default settings on next reboot
@@ -339,6 +382,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             //resetFunc();  // now reset so it can test for the 'G' at startup
                             reboot();
                         } 
+
                         //
                         // New commands here
                         // --------------------- insert ---------------
@@ -740,6 +784,7 @@ void set_EE_Vars(void)
     EEPROM.put(12, STALL_DETECT_DISTANCE); // Store byte into EEPROM                                            
     EEPROM.put(13, STALL_TIMEOUT); // Store high and low bytes into EEPROM                
     EEPROM.put(15, Rotor_StopBand); // Store byte into EEPROM 
+    EEPROM.put(16, RotorAZ_Offset); // Store high and low bytes into EEPROM 
 }
 void get_EE_Vars(void)
 {
@@ -751,4 +796,6 @@ void get_EE_Vars(void)
     EEPROM.get(12, STALL_DETECT_DISTANCE); // Store byte into EEPROM                                            
     EEPROM.get(13, STALL_TIMEOUT); // Store high and low bytes into EEPROM                
     EEPROM.get(15, Rotor_StopBand); // Store byte into EEPROM 
+    EEPROM.get(16, RotorAZ_Offset); // Store high and low bytes into EEPROM 
+    
 }

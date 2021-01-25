@@ -17,16 +17,10 @@ K7MDL
 #include <Arduino.h>
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
-//#include <EEPROM.h>
-//#include <stdio.h>
-//#include <math.h>
-//#include <stdlib.h>
-//#include <string.h>
-//#include <stddef.h> 
 #include "Rotor-Controller-UDP-Server.h"
 #include <avr/wdt.h>
 
-void(* resetFunc) (void) = 0;   // set up software reset function - causes a hang on Teensy 4.1
+//void(* resetFunc) (void) = 0;   // set up software reset function - causes a hang on Teensy 4.1
 // 
 //____________________________________ SETUP _________________________________________________
 //
@@ -70,7 +64,7 @@ void setup()
       WDTO_2S (2 sec)
   */    
   //wdt_enable(WDTO_2S);  // (30 ms)   // does not seem to work on the Teensy 4.1.
-    Serial.println("RTR1-Enabled Watchdog Timer");
+  //  Serial.println("RTR1-Enabled Watchdog Timer");
     
     Serial.println("RTR1-Completed Setup()");
 }
@@ -152,7 +146,11 @@ void rotor_position_AZ(void)
         RotorAZ -= 360;
     if (RotorAZ < 0)
         RotorAZ += 360; 
-    RotorAZ_raw += RotorAZ_StartPos;
+    if (RotorAZ > 360)
+        RotorAZ -= 360;
+    if (RotorAZ < 0)
+        RotorAZ += 360;
+    RotorAZ_raw += RotorAZ_StartPos + RotorAZ_Offset;
     if (DBG==4)
     {
       Serial.print("RTR1-RotorAZ_raw =");

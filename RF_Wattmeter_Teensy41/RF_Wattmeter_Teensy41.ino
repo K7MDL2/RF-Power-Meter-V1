@@ -148,13 +148,21 @@ void setup(void)
   pinMode(BAND_DEC_B_6, OUTPUT);
   pinMode(BAND_DEC_B_7, OUTPUT);
   pinMode(BAND_DEC_C_0, OUTPUT);  // Band Decoder bank C pin (bit) 0
-  pinMode(BAND_DEC_C_1, OUTPUT); 
-  pinMode(BAND_DEC_C_2, OUTPUT);
+  //pinMode(BAND_DEC_C_1, OUTPUT); 
+  //pinMode(BAND_DEC_C_2, OUTPUT);
   pinMode(BAND_DEC_C_3, OUTPUT); 
   pinMode(BAND_DEC_C_4, OUTPUT); 
   //pinMode(BAND_DEC_C_5, OUTPUT); 
   //pinMode(BAND_DEC_C_6, OUTPUT); 
   //pinMode(BAND_DEC_C_7, OUTPUT);
+
+  // External watchdog board reset pins Just using #2 for now
+  pinMode(WD1_PIN, OUTPUT);
+  digitalWrite( WD1_PIN, HIGH);   //high is normal state, pulse low to reset timer
+  pinMode(WD2_PIN, OUTPUT);       // This is connected to reset the timer.  
+  digitalWrite(WD2_PIN, HIGH);
+  // The board output drives a relay, pulses it high for 300ms to power cycle this CPU.   
+  // Need to reset timer before this happens in main loop.
 
   // Initial our serial ports
 #ifdef NEXTION
@@ -550,6 +558,26 @@ void loop()
     else   // skip if waiting for response from a diaplsy query to reduce traffic
         update_Nextion(0);    
 #endif
+
+    // Reset WD Timer
+    if (millis() - wd_timestamp > 8000)
+    {   
+        // Strobe low for 200ms  This part starts it only.
+        wd_timestamp = millis();
+        WD_reset_flag = 1;
+        //Serial.println("Being Reset WD Timer");
+        digitalWrite(WD1_PIN, LOW);
+        digitalWrite(WD2_PIN, LOW);
+    }
+    if ((millis() - wd_timestamp > 200) && WD_reset_flag == 1)   // forms a non-blocking delay of 200ms to ensure a good WD timer reset
+    {        
+        // now release the low pulse allowing WD to count again
+        digitalWrite(WD1_PIN, HIGH);
+        digitalWrite(WD2_PIN, HIGH);
+        //Serial.println("End Reset WD Timer");
+        WD_reset_flag = 0;
+    }
+    
 }
 
 // Return the supply voltage in volts.  For ESP32 (M5Stack) 
@@ -3491,7 +3519,7 @@ uint8_t enet_read(void)
 {
   //  experiment with this -->   udp.listen( true );           // and wait for incoming message
 
-     if (!enet_ready)   // skip if no enet conection
+     if (!enet_ready)   // skip if no enet connection
          return 0;
      
      rx_count = 0;
