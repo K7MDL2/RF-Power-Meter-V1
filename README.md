@@ -3,7 +3,13 @@
 *** Release V2.5 created January 1, 2021 ***
 
  RF Wattmetter and Band Decoder combo on Arduino Teensy 4.1 with Ethernet option or PSoC5LP with Nextion Touchscreen, OLED, and/or headless  display options.
-  
+
+Update 1/24/2021: Needed a rotator controller I could operate remotely via Remote desktop or over the internet so I built one.  Did not need flashy features, sat or moon tracking or a display though a touchscreen will be added later that will be shared with a remoted (via UDP) RF Wattmeter screen. The rotator CPU (A Teensy 4.1) will be a UDP to Serial Gateway for the meter since the meter is located outside my house. Currently operates headless over UDP connection.
+
+For now using the RF Wattmeter Desktop app and the existing button command codes except changed the cmd2 values (2nd value in the Python script command function, usually blank) and changed the IP address and ports to point to the rotator controller.  Will add Yeasu RS232 standard codes later.  You can view the rotor status streaming in the Python command window or the Serial Monitor.  
+
+Supports stall detection, offset, start position, manual CW and CCW limits, stopband, fixed at 360 rotation today, north center (though the offset can shift that).  Fast and Slow with commands to go to right or left limits or to a heading.  10 Presets (0-9).  Automatcially turns correct direction to not pass though dead zone defined by rotor limits.  Slowdown value (default about 10 degrees) causes relay to switch to slow speed when nearing a preset or manual limit.  In the case of my HD-73 20VAC 3-wire rotor, that means inserting a 3A diode with electroliytic cap in parallel to reduce the voltage slowing it way down.  
+ 
 Update 1/7/2021: Fixed bugs in Serial and Enet comms.  Added ADS1115 16-bit 4 channel ADC board for better RF power measuring performance. Putting the first complete Arduino Teensy Wattmeter and Band Decoder build into service in my remote VHF+ transverter/amplifier/antenna switch outdoor boxes this week, it now seems ready to go.
 1. Modifed code to read a Bird Line section output which is roughly in the form of dBV. Got it working mostly but requires too many cal points to warrant the effort.  The AD83xx boards (including the ADL5519 dual detector I use these days output a linear, higher accuracy, temperature compensated voltage output representing a log power measurement.  If close cal with the Bird is not required then it does seem to work.  A significant UI effort would be needed to put that data in for every band.  It cannot be calibrated using this program's 2 point straight line approach (slope and intercept).  See the "Meter Builder" offering for a product that added digital cal on top of the Bird slugs extending the use of a single slug over wider frequencies and power ranges.
 2. Measuring temperature, RF Fwd & Ref, all 3 on the ADS1115 ADC board. The onboard ADC is still usable for more things like voltage, current, Icom CI-V.
@@ -165,6 +171,9 @@ For ease of dev I am using a small USB 4 port hub with onboard UART TTL converte
             Be prepared to add an external 16bit ADC module for more accurate RF power measurements if needed (such as the ADS1115 or ADS1100).
             Works fine for votlage, current and temp measurements.  I wil be using this version to monitor a Bird peak reading wattmeter
             buffered output which is in Watts, so it is a linear output vs. the usual log output from a normal Rf detector.
+            
+    Rotor-Controller-UDP-Server.ino and related files: headless Rotator Controller operating on a Teensy 4.1 over ethernet UDP.  
+            Uses the RF Wattmeter Desktop App for now resusing the same buttons. App to be updated for rotor support later.
     
     RF_Power_meter.ino: Arduino code that runs on the M5Stack with graphics and buttons.
             Has some new ADS1100 files to support external I2C connected ADSS1100 16bit ADC units from M5Stack.  
