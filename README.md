@@ -4,6 +4,8 @@
 
  RF Wattmetter and Band Decoder combo on Arduino Teensy 4.1 with Ethernet option or PSoC5LP with Nextion Touchscreen, OLED, and/or headless  display options.
 
+Update 1/28/2021: Added new WIKI pages for the Arduino Rotator controller.
+
 Update 1/24/2021: Needed a rotator controller I could operate remotely via Remote desktop or over the internet so I built one.  Did not need flashy features, sat or moon tracking or a display though a touchscreen will be added later that will be shared with a remoted (via UDP) RF Wattmeter screen. The rotator CPU (A Teensy 4.1) will be a UDP to Serial Gateway for the meter since the meter is located outside my house. Currently operates headless over UDP connection.
 
 For now using the RF Wattmeter Desktop app and the existing button command codes except changed the cmd2 values (2nd value in the Python script command function, usually blank) and changed the IP address and ports to point to the rotator controller.  Will add Yeasu RS232 standard codes later.  You can view the rotor status streaming in the Python command window or the Serial Monitor.  
