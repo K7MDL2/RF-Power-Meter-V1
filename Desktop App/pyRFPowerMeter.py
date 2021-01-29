@@ -146,12 +146,13 @@ myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to mat
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
-#IPADDR_OF_METER = '192.168.2.189'
-#PORTNUM_OF_METER_LISTEN = 7947
-#PORTNUM_OF_METER_SENDTO = 7946
-IPADDR_OF_METER = '192.168.2.188'
-PORTNUM_OF_METER_LISTEN = 7942
-PORTNUM_OF_METER_SENDTO = 7943
+ROTOR_ENABLE = 1  # 1 is ENABLED, 0 is DISABLED
+IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
+PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
+PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
+IPADDR_OF_METER = '192.168.2.188'   # for RF Wattmeter/Band Decoder
+PORTNUM_OF_METER_LISTEN = 7942      # for RF Wattmeter/Band Decoder
+PORTNUM_OF_METER_SENDTO = 7943      # for RF Wattmeter/Band Decoder
 MY_UDP_IP = '224.255.0.1'       # multicast address and port alternative
 WSJTX_UDP_PORT = 2237
 #MY_UDP_IP = "127.0.0.1"        # default local machine address
@@ -211,9 +212,9 @@ s_data = ""
 cmd = ""
 cmd_data = ""
 meter_data = ["","","","","","","","","",""]
-meter_data_fl  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,] # stores the same info in same psotion when possible as a float
+meter_data_fl  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] # stores the same info in same psotion when possible as a float
 meter_data2 = ["","","","","","","","","",""]
-meter_data_fl2  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,] # stores the same info in same psotion when possible as a float
+meter_data_fl2  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] # stores the same info in same psotion when possible as a float
 cal_flag = 0
 cmd_flag = 0
 FwdVal_Hi = ""
@@ -241,6 +242,13 @@ pywsjtx_git_site = "https://github.com/bmo/py-wsjtx"
 nextion_git_site = "https://github.com/itead/ITEADLIB_Arduino_Nextion"
 update_cfg_win_callback = None
 meter_sock = None
+rotor_action = ["",""]
+rotor_sock = None
+rotor_data = ["","","","","","","","","","",""]
+send_rotor_cmd_flag = False
+rotor_cmd = ""
+rotor_cmd_data = ""
+
 
 def isfloat(x):
     # Check if the received 4 characters can be converted to a float
@@ -249,7 +257,105 @@ def isfloat(x):
         return True
     except ValueError:
         return False
+#
+#__________  UDP Rotator Network handler in its own thread.  ________________________________________________________________
+#               Monitors and Commands Rotator controller
+#   
+class UDP_Rotor(Thread):
+    def __init__(self):
+        #self.setDaemon(True)
+        # Call Thread constructor
+        super().__init__()
+        if ROTOR_ENABLE == 0:
+            print("Rotator Feature not enabled")
+            return
+        self.keep_running_UDP_Rotor = True
+        print(" UDP Rotor Network Thread Startup ^^^^^^^^^^")
 
+    def stop(self):
+        # Call this from another thread to stop the serial handling process
+        self.keep_running_UDP_Rotor = False
+        t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        t.close()
+        print(" UDP Rotor Control Network Thread Stopping ^^^^^^^^^^")
+
+    def run(self):
+        # This will run when you call .start method
+        while self.keep_running_UDP_Rotor:
+            self.UDP_Rotor_Rx()
+            self.UDP_Rotor_Tx()
+
+    def UDP_Rotor_Tx(self):
+        global rotor_cmd
+        global rotor_cmd_data   # UI buttons for rotator commands will set flag true and populate rotor_cmd and rotor_cmd_data
+        global send_rotor_cmd_flag
+        global myRig_meter_ID
+       
+        if (send_rotor_cmd_flag == True and ROTOR_ENABLE == 1):  
+            print("Send UDP Rotor Commands")
+            send_rotor_cmd_flag = False  
+            # Send out to ethernet via UDP also if enabled
+            # initialize a socket, think of it as a cable
+            # SOCK_DGRAM specifies that this is UDP
+            t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                # send the command
+                m = "{},120,{},{},{}" .format(myRig_meter_ID,rotor_cmd,rotor_cmd_data,'\n').encode()
+                t.sendto(m, (IPADDR_OF_ROTOR, PORTNUM_OF_ROTOR_SENDTO))
+                print("TX to Rotator Controller Msg = {}" .format(m).encode) 
+            except:
+                print("TX to Rotator Controller FAILED Error = {}" .format(t).encode()) 
+                #pass
+            # close the socket
+            t.close()  
+           
+    def UDP_Rotor_Rx(self):
+        global rotor_sock
+        global rotor_data
+        global rotor_action
+        buf = {}
+        r_data = None
+        
+        if (ROTOR_ENABLE == 1):          
+            #print(" Listening for UDP Rotator Controller messages")        
+            try:                
+                buf, sender = rotor_sock.recvfrom(1024)
+                #print("Received message before decode: {}" .format(buf))
+                r_data = buf.decode()
+                
+                #try:
+                #    r_data = buf.decode("utf-8")  #encoding='ascii', errors='ignore')
+                #except:
+                #    r_data = buf.decode("ascii", errors='ignore')
+                #if s_data[0][0] == "R":
+                #    print("ROTOR CMD received message echo: {}" .format(r_data))
+                #else:
+                #print("received message: {}" .format(r_data))
+                #pd.get_power_data(pd, str(r_data))   # usew this for now, latewr separate out.
+                if r_data != '':
+                    tempstr =  str(r_data).split('\r')
+                    #print("ROTOR DATA = {}" .format(tempstr))
+                    # break out rotator controller messages
+                    if tempstr[0][0] == 'R' and tempstr[0][1] == 'T' and tempstr[0][2] == 'R' and tempstr[0][3] == '1':                                                            
+                        if (tempstr[0][4] != ':'):                        
+                            rotor_action[0] = str(tempstr[0])    # store this to append to next AZ print for compactness                                            
+                            return
+                        else:
+                            if rotor_action == {}:
+                                rotor_action[0] = ""  # initialize var first time used or it wont print below until a command is given.
+                        #print("Rotor Status {}" .format(tempstr[0]))
+                        rotor_data = str(tempstr[0]).split(" ")
+                        print("{} {}" .format(rotor_data[10], rotor_action[0]))   # print out Az and last action, if any.  These messages will alternate so combine them here.
+                        rotor_action[0] = ""
+                        return
+            except UnicodeDecodeError: # catch error and ignore it
+                print("Unicode decode error caught")  # will get this on CPU resets
+            except socket.timeout:
+                pass
+                #print("Timeout on data received from UDP")
+            except socket.error:
+                #print("No data received from UDP")    
+                pass  
 # 
 #_________  UDP Message Handler in its own thread______________________________________________________________________________
 #   Separate threads for WSJTX and UDP comms to the meter and the serial comms.  
@@ -531,9 +637,9 @@ class Power_Data():
         global CW_KEY_OUT_POLARITY_val
         global PORTA_IS_PTT_Val
         global PORTB_IS_PTT_Val
-        global PORTC_IS_PTT_Val    
+        global PORTC_IS_PTT_Val
 
-        try:
+        try:            
             if s_data != '':
                 tempstr =  str(s_data).split('\r')
                 #print("1  DATA HERE {}" .format(tempstr))
@@ -599,7 +705,7 @@ class Power_Data():
                             #print("{0:}    = {1:}" .format("3 ID Match Data ", meter_data))
                             #print("{0:} FLT= {1:}" .format("3 ID Match Data ", meter_data_fl))
                         else:                            
-                            print(" CMD message as received by the meter = {}" .format(meter_data_tmp))
+                            print(" Msg from meter = {}" .format(meter_data_tmp))
                             for i in len(meter_data):
                                 meter_data[i] = ""
                                 meter_data_fl[i] = 0.0
@@ -652,7 +758,7 @@ class Send_Mtr_Cmds():
             print("meter cmd={} cmd2={}" .format(cmd, cmd_data))
         else:            
             cmd_data = 0        # data value always zero for band change commands
-            band = int(cmd_str)           # non direct band change commands
+            band = int(cmd_str)           # non direct band change commands, usually from sources like WSJT-X where a frequency is provided rather than specific band info.
             if band < 49:
                 cmd = "240"
             elif 49 < band < 70:
@@ -692,6 +798,7 @@ class App(tk.Frame):
         #self.WSJTX_Decode = WSJTX_Decode()
         self.WSJTX_Decode = None
         self.udp_meter = None
+        self.udp_rotor = None
         #self.grid()
         self.pack_propagate(0) # don't shrink
         self.pack(fill=BOTH, expand=1)
@@ -714,6 +821,8 @@ class App(tk.Frame):
             self.wsjtx_decode.stop() 
         if self.udp_meter:
             self.udp_meter.stop() 
+        if self.udp_rotor:
+            self.udp_rotor.stop() 
                     
         self.master.destroy()  # Destroy root window
         self.master.quit()  # Exiting the main loop
@@ -920,6 +1029,15 @@ class App(tk.Frame):
         self.SWR_s = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),pady=0,anchor="e",width = 0)
         self.SWR_s.configure(font=self.btn_font)
         self.SWR_s.place(x=706, y=22, bordermode=OUTSIDE, height=20, width=10)
+
+        # Third row if rotator control is enabled
+        self.AZ_lbl = tk.Label(self, text='Rotator: ', font=('Helvetica', 12, 'bold'),pady=0,anchor="w",width = 5)
+        self.AZ_lbl.configure(font=self.btn_font)
+        self.AZ_lbl.place(x=20, y=44, bordermode=OUTSIDE, height=20, width=60)
+
+        self.AZ = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),anchor="w", width=7)
+        self.AZ.configure(fg='light green', bg="black", pady = 0)          
+        self.AZ.place(x=90, y=44, bordermode=OUTSIDE, height=20, width=400)  
                 
         self.update_label() 
 
@@ -932,6 +1050,7 @@ class App(tk.Frame):
         global meter_data
         global myRig_meter_ID
         global myRig
+        global rotor_data
 
         if own_call == "":     # allow for running without serial port to meter connection, network still running 
             #ID = "NA"       # No ID available from any source
@@ -998,6 +1117,10 @@ class App(tk.Frame):
             else:
                 self.SWR_a.configure(text='{0:4.1f}  ' .format(swr), font=('Helvetica', 12, 'bold'), bg="light green", fg="black", width=4) 
 
+        self.AZ.configure(text='{} deg    {}' .format(rotor_data[10], rotor_action[0]), anchor="w")
+        #self.AZ_action.configure(text='{}W' .format(rotor_action), width=6)
+
+
         if cmd_flag == 1:  # Coupler cal is in progress.             
             self.scale.configure(font=self.btn_font, bg="red",)    
         if cmd_flag == 0:  # Coupler cal is finished.
@@ -1024,7 +1147,7 @@ class App(tk.Frame):
         print("Go to Next Band ")
         # Write command to change Band
         #rx.send_meter_cmd("254","", True)
-        rx.send_meter_cmd("254","8", True)
+        rx.send_meter_cmd("254","", True)
 
     def Toggle_UDP_data_out(self): 
         rx = Send_Mtr_Cmds()
@@ -1066,6 +1189,7 @@ class App(tk.Frame):
         rx = Send_Mtr_Cmds()
         print("Jump to 1296MHz Band ")
         # Write command to jump to band 5
+        #rx.send_meter_cmd("246","", True)
         rx.send_meter_cmd("246","", True)
         
     def band_902(self):
@@ -1085,24 +1209,82 @@ class App(tk.Frame):
         print("Jump to 222MHz Band ")
         # Write command to jump to band 2
         rx.send_meter_cmd("243","", True)
+        self.rotor_Preset()
 
     def band_144(self):
         rx = Send_Mtr_Cmds()
         print("Jump to 144MHz Band ")
         # Write command to jump to band 1
         rx.send_meter_cmd("242","", True)
+        self.rotor_STOP()
     
     def band_50(self):
         rx = Send_Mtr_Cmds()
         print("Jump to 50MHz Band ")
         # Write command to jump to band 0
-        rx.send_meter_cmd("241","160", True)
-        
+        rx.send_meter_cmd("241","", True)
+        self.rotor_CW()
+    
     def band_HF(self):
         rx = Send_Mtr_Cmds()
-        print("Jump to HF Band")
-        # Write command to speed up data rate output from meter
-        rx.send_meter_cmd("240","300", True)
+        print("Jump to HF Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("240","", True)
+        self.rotor_CCW()
+
+    def rotor_CCW(self):
+        print("Move rotor CCW up to limits")
+        global send_rotor_cmd_flag
+        global rotor_cmd
+        global rotor_cmd_data
+        send_rotor_cmd_flag = True
+        rotor_cmd = "230"
+        rotor_cmd_data = ""
+
+    def rotor_CW(self):
+        print("Move rotor CCW up to limits")
+        global send_rotor_cmd_flag
+        global rotor_cmd
+        global rotor_cmd_data
+        send_rotor_cmd_flag = True
+        rotor_cmd = "231"
+        rotor_cmd_data = ""
+
+    def rotor_CCW_GOTO(self):
+        print("Move rotor CCW up to heading")
+        global send_rotor_cmd_flag
+        global rotor_cmd
+        global rotor_cmd_data 
+        send_rotor_cmd_flag = True       
+        rotor_cmd = "240"
+        rotor_cmd_data = "40"
+    
+    def rotor_CW_GOTO(self):
+        print("Move rotor CCW up to heading")
+        global send_rotor_cmd_flag
+        global rotor_cmd
+        global rotor_cmd_data 
+        send_rotor_cmd_flag = True               
+        rotor_cmd = "241"
+        rotor_cmd_data = "165"
+        
+    def rotor_Preset(self):
+        print("Move rotor to Preset (0-9)")
+        global send_rotor_cmd_flag
+        global rotor_cmd
+        global rotor_cmd_data  
+        send_rotor_cmd_flag = True              
+        rotor_cmd = "254"
+        rotor_cmd_data = "3"
+    
+    def rotor_STOP(self):        
+        print("STOP rotor")
+        global send_rotor_cmd_flag
+        global rotor_cmd
+        global rotor_cmd_data  
+        send_rotor_cmd_flag = True              
+        rotor_cmd = "242"
+        rotor_cmd_data = ""
 
     def comm(self):         # toggle Serial port (only) if on or off, do noting if neither (started up with out a serial port for example)
         global comms
@@ -1143,10 +1325,22 @@ class App(tk.Frame):
             print("Serial thread not started")
             #pass    
         # Start the WSJTX thread in any case.  
-        print(" WSJTX thread started in comms function ")
+        print(" WSJT-X thread started in comms function ")
         self.wsjtx_decode = WSJTX_Decode()      # Start the WSJTx UDP Thread - runs always for now.
         self.wsjtx_decode.start()      # start the WSJTX_Decode thread now 
+        if (ROTOR_ENABLE == 1):
+            self.start_UDP_rotor()      # start up Rotator controller thread.
+    
+    def start_UDP_rotor(self):
+        global rotor_sock
 
+        print(" main loop starting up UDP Rotor!")
+        self.udp_rotor = UDP_Rotor()            
+        rotor_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
+        rotor_sock.bind(("", PORTNUM_OF_ROTOR_LISTEN))
+        rotor_sock.settimeout(1.0)
+        rotor_sock.setblocking(0)
+        self.udp_rotor.start()
 
     def NewFile(self):
         print("New File!")
@@ -1185,7 +1379,10 @@ class App(tk.Frame):
             print("Stopping WSJT-X Thread")
         if self.udp_meter:
             self.udp_meter.stop()
-            print("Stopping UDP Network Thread")
+            print("Stopping UDP Meter Network Thread")
+        if self.udp_rotor:
+            self.udp_rotor.stop()
+            print("Stopping UDP Rotator Network Thread")
 
     def start_cfg(self):
         cfg = Cfg_Mtr()
@@ -1903,10 +2100,16 @@ def main():
     screen_height = root.winfo_screenheight()
     print('Screen Width and Height is ', screen_width, screen_height)
     # calculate position x and y coordinates
-    w = 708   # width of our app window
-    h = 44   # height of our app window
-    x = screen_width - (w+10)
-    y = 2
+    if (ROTOR_ENABLE == 0):
+        w = 708   # width of our app window
+        h = 44   # height of our app window
+        x = screen_width - (w+10)
+        y = 2
+    else:   # add rotator buttons and AZ and Preset display fields
+        w = 708   # width of our app window
+        h = 64   # height of our app window
+        x = screen_width - (w+10)
+        y = 2
     print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
     root.geometry('%dx%d+%d+%d' % (w, h, x, y))
     root.update_idletasks()
