@@ -156,9 +156,8 @@ IPADDR_OF_METER = '192.168.2.188'   # for RF Wattmeter/Band Decoder
 PORTNUM_OF_METER_LISTEN = 7942      # for RF Wattmeter/Band Decoder
 PORTNUM_OF_METER_SENDTO = 7943      # for RF Wattmeter/Band Decoder
 MY_UDP_IP = '224.255.0.1'       # multicast address and port alternative
-WSJTX_UDP_PORT = 2237
 #MY_UDP_IP = "127.0.0.1"        # default local machine address
-#WSJTX_UDP_PORT = 2237            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
+WSJTX_UDP_PORT = 2237            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
 # I am using 2334 with JTAlert re-broadcasting
 
 #  This program can optionally use WSJT-X UDP reporting broadcasts to automatically track your radio's frequency and send a command
