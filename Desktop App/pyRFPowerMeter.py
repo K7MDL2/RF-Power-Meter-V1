@@ -27,9 +27,9 @@ import simple_server
 import tkinter.messagebox
 import socket
 
-PowerMeterVersionNum = "2.5"
-version_string = "RF Wattmeter Remote\nby K7MDL\nV2.5 January 2021"
-# pyRFPowerMeter  Version 2.5  January 14, 2021
+PowerMeterVersionNum = "2.6"
+version_string = "RF Wattmeter Remote\nby K7MDL\nV2.6 January 2021"
+# pyRFPowerMeter  January 30, 2021
 # Author: M. Lewis K7MDL
 #
 #   Companion Desktop app to montor and control the Arduino or PSoC5 version of the RF Wattmeter.
@@ -40,18 +40,12 @@ version_string = "RF Wattmeter Remote\nby K7MDL\nV2.5 January 2021"
 #   K7MDL web site  - PSoC5 version: https://k7mdl2.wixsite.com/k7mdl/rf-wattmeter-on-psoc5lp
 #                   - Arduino Version: https://k7mdl2.wixsite.com/k7mdl/arduino-rf-remote-wattmeter
 #
-#   Since the PSoC5 has more capable hardware, higher performance, better IDE with full debugging,
-#       uses standard C language, similar size dev modules and costs the same I am leading new
-#       development on the PSoC platform first, then occasionally merge appropriate features back.
+#   Works with either the Arduino or PSoC5 versions of RF Wattmeter/Band Decoder/Rotator Controller.  One version may have newer features then teh other but generally this program will
+#       be backward compatible anbd new commands will be ignored if not supported.    
 #
-#   Displays Supported  (can use #ifdef in .h file to exclude/include these): 
-#       None (headless)
-#       Nextion 3.5"
-#       0.96" OLED (SSD1306 compatible)
-
 #   There are some PSoC5 programmable hardware features (digital Mux/deMux and voltage controlled GPIO 
 #       port) used to switch the Nextion display (if used) between the CPU and a USB serial line
-#       to allow remote upload to the Nextion.  The latest hardware build I used a 4 port USB hub
+#       to allow remote upload to the Nextion.  On some hardware builds I used a 4 port USB hub
 #       with onboard USB USART TTL converter which is at 3.3V since it was meant for a Raspberry
 #       Pi Zero.  
 #
@@ -61,13 +55,19 @@ version_string = "RF Wattmeter Remote\nby K7MDL\nV2.5 January 2021"
 #       KitProg programming/debugging board for main CPU (only needed for initial programming or firmware updates later)
 #
 #   Ethernet usage:
-#       This app now supports UDP communication with the RF Meter/band decoder in addition to the USB Serial.  Configure the static
-#       IP and Ports for your network in the #defines below.  This was implemented in its own thread. WSJTX and Serial are the other 2.  
+#       This app now supports UDP communication with the RF Meter/band decoder in addition to the USB Serial (only one used at a time).
+#       Configure the static IP and Ports for your network in the #defines below.  This was implemented in its own thread. WSJTX and Serial are the other 2.  
 #       The serial thread is stopped and started with the GUI ON/OFF button.  It will turn off on detection of serial port issues.
-#       Press the button to restore coms once fixed.  Ihe NoSerial is chosen, the serial thread is disabled from startup. 
-#       At startup "NoSerial" will be at the end of the USB comm ports list, choose this to use UDP.  
+#       Press the button to restore coms once fixed.  If UDP is chosen at statup instead of a COM port, the serial thread is disabled from startup. 
+#       At startup "UDP" will be at the start of the USB comm ports list, choose this to use UDP for meter and decoder control.  
+
+#       This program also supports the K7MDL remote rotator controller over UDP in its own thread.  
+#       Use ROTATOR_ENABLE=1 flag defined below to enable this feature to display in the UI and allow the rotor control UDP thread to start.
+#       There is a rotator configuration window to set up rotor start point, offset, manual limits (CW and CCW) and up to 10 presets.  
+#       The rotator part is very new and still under construction on the Python side.
 #
 #   KitProg usage (in place of the main board):
+#       This program controls an embedded KitProg programmer board version (PSoC5 with fewer IO pins) same as the full size PSoC5LP board. 
 #       The programming board may be snapped off the Main CY8CKIT-059 dev module and used 
 #       standalone. It has a special bootloader installed that can load a user app. A Bootloader component
 #       included in the TopDesign drawing must be enabled and a new target CPU platform selected
@@ -77,17 +77,17 @@ version_string = "RF Wattmeter Remote\nby K7MDL\nV2.5 January 2021"
 #       down, plug the KitProg back into the USB cable then let go of the switch.  You can now download.
 #       At completion of download, power cycle the Kitprog and your app will run normally thereafter.
 #
-#   All capabilities are controlled by serial port commands (an API of sorts) which this App leverages.  Not all commands are used anymore as better
+#   All capabilities are controlled by serial port or UDP commands (an API of sorts) which this App leverages.  Not all commands are used anymore as better
 #       commands such as in the calibraton area are preferred. Some commands are yet to be implemented in the GUI.
 #    
-#   This program reuses a version of the Nextion Arduino library on GitHub ported to C by another Github user.
+#   This program reuses a version of the Nextion Arduino library on GitHub partially ported to C by another Github user then further modified.
 #       https://github.com/itead/ITEADLIB_Arduino_Nextion
 #       
 #       Some modifications were needed in the UART area and some likely compiler bugs were found and worked
 #       around.  Not all commands are supported by library calls so sprintf + sendcommand() functions are used
-#       to send any command.  SOmetimes a result is expected and the library functions will collect those.  Not
+#       to send any command.  Sometimes a result is expected and the library functions will collect those.  Not
 #       doing so results in some delay or confusion if you are looking for a specific return message (like a get
-#       value command stacked behind a status message)
+#       value command stacked behind a status message). 
 #      
 #   Uses the awesome WSJT-X python decoding package py-WSJTX 
 #       https://github.com/bmo/py-wsjtx
@@ -104,9 +104,11 @@ version_string = "RF Wattmeter Remote\nby K7MDL\nV2.5 January 2021"
 
 #  *********************************************************************************************************
 #   Usage:  pyRFPowerMeter 
-#       prompts you for a COM port name such as "COM1" where your K7MDL Arduino RF power meter is attached
+#       prompts you for a COM port name such as "COM1" or "UDP" where your K7MDL Arduino RF power meter is attached
 #   Usage:  pyRFPowerMeter COM6
 #       Specify the port name on the command line and it will start up without user interaction
+#   Usage:  pyRFPowerMeter COM6 HIDE
+#       Specify the port name on the command line and hide the frame's title bar to save desktop space
 #  *********************************************************************************************************
 
 # This app is the companion application to the PSOC5LP and Arduino based RF power meter poject by K7MDL

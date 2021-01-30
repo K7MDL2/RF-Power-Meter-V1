@@ -1,44 +1,32 @@
 /*
-UDP-CPU-1:
+ Rotor-Controller-UDP-Client:
+ This sketch sends UDP message commands to turn a rotator and receives position 
+ information from the server.
 
-1. This program is a Nextion serial gateway seerver.  
-The RF remote Wattmeter is the Client side with the host CPU redirecting serial commands over the ethernet with UDP.  
-This server will convert the messages back to serial for a lcoal display.
-Uses a static IP assigment for the client and server.
+January 20201
+K7MDL
 
  This code is in the public domain.
  */
 
-// This is a test program to send and receive data with the the K7MDL RF Wattmeter and Band Decoder
-// Jan 1, 2021
-#include <Arduino.h>
 #include <NativeEthernet.h>
 #include <NativeEthernetUdp.h>
 
-// Our address and listening port number
-IPAddress ip(192, 168, 2, 186);
-unsigned int localPort = 7944;      // local port to listen on
-
-// Band Decoder/Wattmeter Address and it's listening port number
-IPAddress ip_decoder(192, 168, 2, 188);
-uint16_t decoder_port = 7945;
-
-#define Nex_Serial Serial1
+// Enter a MAC address and IP address for your controller below.
+// The IP address will be dependent on your local network:
+//byte mac[] = {
+//  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEC
+//};
+IPAddress ip(192, 168, 2, 187);
+unsigned int localPort = 8888;      // local port to listen on
 
 // buffers for receiving and sending data
-char packetBuffer[512];  // buffer to hold incoming packet,
-char ReplyBuffer[] = "100,120,239,1\r\n";        // Turn on and off the data output stream from the Wattmeter/Decoder.
-char ReplyBuffer2[] =  "100,120,239,0\r\n";
+char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
+char ReplyBuffer[] = "Client acknowledged";        // a string to send back
+
 // An EthernetUDP instance to let us send and receive packets over UDP
 EthernetUDP Udp;
 
-// Enter a MAC address and IP address for your controller below.   Commented out to use the teensyMAC function to get the MAC addr.
-// The IP address will be dependent on your local network:
-//.byte mac[] = {
-//  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
-//};
-
-// Get the Mac Addr in the Teensy.  Can still manually set if you want.
 void teensyMAC(uint8_t *mac) {
 
   static char teensyMac[23];
@@ -111,14 +99,15 @@ void setup() {
 
   uint8_t mac[6];
   teensyMAC(mac);
+  
   // start the Ethernet
   Ethernet.begin(mac, ip);
 
   // Open serial communications and wait for port to open:
-  Serial1.begin(115200);
-  //while (!Nex_Serial) {
-  //  ; // wait for serial port to connect. Needed for native USB port only
-  //}
+  Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
 
   // Check for Ethernet hardware present
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
@@ -132,54 +121,36 @@ void setup() {
   }
 
   // start UDP
-  Udp.begin(localPort+2);
+  Udp.begin(localPort);
   Serial.println("Ethernet UDP Started, Waiting for Rx Packets from Decoder/Wattmeter");
 }
 
-void loop() 
-{
-    uint8_t i;
-    //uint8_t tx_count;
-    //unsigned long time_stamp = 0, time_stamp2 = 0;
-    uint8_t temp[50] = {0};
-    
-    //if (millis() - time_stamp > 5000)
-    //{
-    // Read Nextion serial port RX line and mirror it out via UDP
-    //tx_count = Nex_Serial.available();
-    //for (i=0; i< tx_count; i++)
-    //{
-        Nex_Serial.setTimeout(0.1);
-        Nex_Serial.readBytes((char *)temp, sizeof(temp));     
-        Udp.beginPacket(ip_decoder, decoder_port);
-        Udp.write((char *)temp);   // send out data received from the Nextion serial port
-        Udp.endPacket();
-        //time_stamp = millis();
-    //}
-   
-    // Receive commands from the Host over UDP and send them to the the Nextion via the serial port.
-    //if there's data available, read a packet
-    int packetSize = Udp.parsePacket();
-    if (packetSize) 
-    {
-      Serial.print("#1 Received packet of size ");
-      Serial.println(packetSize);
-      Serial.print("From ");
-      IPAddress remote = Udp.remoteIP();
-      for (int i=0; i < 4; i++) {
-        Serial.print(remote[i], DEC);
-        if (i < 3) {
-          Serial.print(".");
-        }
+void loop() {
+  // if there's data available, read a packet
+  int packetSize = Udp.parsePacket();
+  if (packetSize) {
+    Serial.print("Received packet of size from server ");
+    Serial.println(packetSize);
+    Serial.print("From ");
+    IPAddress remote = Udp.remoteIP();
+    for (int i=0; i < 4; i++) {
+      Serial.print(remote[i], DEC);
+      if (i < 3) {
+        Serial.print(".");
       }
-      Serial.print(", port ");
-      Serial.println(Udp.remotePort());
-      
-      // read the packet into packetBufffer
-      Udp.read(packetBuffer, 512);
-      Serial.println("Contents:");
-      Serial.println(packetBuffer);
-      Nex_Serial.print(packetBuffer); // send to Nextion on Hardware Serial port #1
     }
-    delay(1);
+    Serial.print(", port ");
+    Serial.println(Udp.remotePort());
+
+    // read the packet into packetBufffer
+    Udp.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+    Serial.println("Contents:");
+    Serial.println(packetBuffer);
+
+    // send a reply to the IP address and port that sent us the packet we received
+    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    Udp.write(ReplyBuffer);
+    Udp.endPacket();
+  }
+  delay(2000);
 }
