@@ -146,7 +146,7 @@ myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to mat
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
-ROTOR_ENABLE = 1  # 1 is ENABLED, 0 is DISABLED
+ROTOR_ENABLE = 0  # 1 is ENABLED, 0 is DISABLED
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
 PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
@@ -1033,95 +1033,96 @@ class App(tk.Frame):
         #--------------------------------------------------------------------------------------------------
         # Third row if rotator control is enabled
         #
-        self.AZ_lbl = tk.Label(self, text='Rotator: ', font=('Helvetica', 12, 'bold'),pady=0,anchor="w",width = 5)
-        self.AZ_lbl.configure(font=self.btn_font)
-        self.AZ_lbl.place(x=10, y=44, bordermode=OUTSIDE, height=20, width=60)
+        if ROTOR_ENABLE == 1:
+            self.AZ_lbl = tk.Label(self, text='Rotator: ', font=('Helvetica', 12, 'bold'),pady=0,anchor="w",width = 5)
+            self.AZ_lbl.configure(font=self.btn_font)
+            self.AZ_lbl.place(x=10, y=44, bordermode=OUTSIDE, height=20, width=60)
 
-        self.AZ = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),anchor="w", width=7)
-        self.AZ.configure(fg='light green', bg="black", pady = 0)          
-        self.AZ.place(x=65, y=44, bordermode=OUTSIDE, height=20, width=352)  
-        
-        b_x = 422
-        b_width = 38
-        self.rotorCCW = tk.Button(self)
-        self.rotorCCW["text"] = "CCW"
-        self.rotorCCW["command"] = self.rotor_CCW  # Jump to Band X
-        self.rotorCCW.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotorCCW.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+            self.AZ = tk.Label(self, text=' ', font=('Helvetica', 12, 'bold'),anchor="w", width=7)
+            self.AZ.configure(fg='light green', bg="black", pady = 0)          
+            self.AZ.place(x=65, y=44, bordermode=OUTSIDE, height=20, width=352)  
+            
+            b_x = 422
+            b_width = 38
+            self.rotorCCW = tk.Button(self)
+            self.rotorCCW["text"] = "CCW"
+            self.rotorCCW["command"] = self.rotor_CCW  # Jump to Band X
+            self.rotorCCW.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotorCCW.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
 
-        b_x += b_width
-        self.rotorCW = tk.Button(self)
-        self.rotorCW["text"] = "CW"
-        self.rotorCW["command"] = self.rotor_CW  # Jump to Band X
-        self.rotorCW.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotorCW.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
-   
-        b_x += b_width
-        b_width = 40  
-        self.rotor_stop = tk.Button(self)
-        self.rotor_stop["text"] = "STOP"
-        self.rotor_stop["command"] = self.rotor_STOP  # Jump to Band X
-        self.rotor_stop.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_stop.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+            b_x += b_width
+            self.rotorCW = tk.Button(self)
+            self.rotorCW["text"] = "CW"
+            self.rotorCW["command"] = self.rotor_CW  # Jump to Band X
+            self.rotorCW.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotorCW.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+    
+            b_x += b_width
+            b_width = 40  
+            self.rotor_stop = tk.Button(self)
+            self.rotor_stop["text"] = "STOP"
+            self.rotor_stop["command"] = self.rotor_STOP  # Jump to Band X
+            self.rotor_stop.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_stop.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+            
+            b_x += b_width
+            b_width = 20
+            self.rotor_Preset_1 = tk.Button(self)
+            self.rotor_Preset_1["text"] = "1"
+            self.rotor_Preset_1["command"] = lambda: self.rotor_Preset("1")  # Jump to Band X
+            self.rotor_Preset_1.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_1.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
         
-        b_x += b_width
-        b_width = 20
-        self.rotor_Preset_1 = tk.Button(self)
-        self.rotor_Preset_1["text"] = "1"
-        self.rotor_Preset_1["command"] = lambda: self.rotor_Preset("1")  # Jump to Band X
-        self.rotor_Preset_1.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_1.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
-      
-        b_x += b_width
-        self.rotor_Preset_2 = tk.Button(self)
-        self.rotor_Preset_2["text"] = "2"
-        self.rotor_Preset_2["command"] = lambda: self.rotor_Preset("2")  # Jump to Band X
-        self.rotor_Preset_2.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_2.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+            b_x += b_width
+            self.rotor_Preset_2 = tk.Button(self)
+            self.rotor_Preset_2["text"] = "2"
+            self.rotor_Preset_2["command"] = lambda: self.rotor_Preset("2")  # Jump to Band X
+            self.rotor_Preset_2.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_2.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
 
-        b_x += b_width       
-        self.rotor_Preset_3 = tk.Button(self)
-        self.rotor_Preset_3["text"] = "3"
-        self.rotor_Preset_3["command"] = lambda: self.rotor_Preset("3")  # Jump to Band X
-        self.rotor_Preset_3.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_3.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
-      
-        b_x += b_width
-        self.rotor_Preset_4 = tk.Button(self)
-        self.rotor_Preset_4["text"] = "4"
-        self.rotor_Preset_4["command"] = lambda: self.rotor_Preset("4")  # Jump to Band X
-        self.rotor_Preset_4.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_4.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
-      
-        b_x += b_width
-        self.rotor_Preset_5 = tk.Button(self)
-        self.rotor_Preset_5["text"] = "5"
-        self.rotor_Preset_5["command"] = lambda: self.rotor_Preset("5")  # Jump to Band X
-        self.rotor_Preset_5.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_5.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
-      
-        b_x += b_width
-        self.rotor_Preset_6 = tk.Button(self)
-        self.rotor_Preset_6["text"] = "6"
-        self.rotor_Preset_6["command"] = lambda: self.rotor_Preset("6")  # Jump to Band X
-        self.rotor_Preset_6.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_6.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
-      
-        b_x += b_width
-        self.rotor_Preset_7 = tk.Button(self)
-        self.rotor_Preset_7["text"] = "7"
-        self.rotor_Preset_7["command"] = lambda: self.rotor_Preset("7")  # Jump to Band X
-        self.rotor_Preset_7.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_7.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
-      
-        b_x += b_width
-        self.rotor_Preset_8 = tk.Button(self)
-        self.rotor_Preset_8["text"] = "8"
-        self.rotor_Preset_8["command"] = lambda: self.rotor_Preset("8")  # Jump to Band X
-        self.rotor_Preset_8.configure(fg='black',font=self.btn_font, padx=1, state='normal')
-        self.rotor_Preset_8.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+            b_x += b_width       
+            self.rotor_Preset_3 = tk.Button(self)
+            self.rotor_Preset_3["text"] = "3"
+            self.rotor_Preset_3["command"] = lambda: self.rotor_Preset("3")  # Jump to Band X
+            self.rotor_Preset_3.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_3.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
         
-        self.rotor_STOP()
+            b_x += b_width
+            self.rotor_Preset_4 = tk.Button(self)
+            self.rotor_Preset_4["text"] = "4"
+            self.rotor_Preset_4["command"] = lambda: self.rotor_Preset("4")  # Jump to Band X
+            self.rotor_Preset_4.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_4.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+        
+            b_x += b_width
+            self.rotor_Preset_5 = tk.Button(self)
+            self.rotor_Preset_5["text"] = "5"
+            self.rotor_Preset_5["command"] = lambda: self.rotor_Preset("5")  # Jump to Band X
+            self.rotor_Preset_5.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_5.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+        
+            b_x += b_width
+            self.rotor_Preset_6 = tk.Button(self)
+            self.rotor_Preset_6["text"] = "6"
+            self.rotor_Preset_6["command"] = lambda: self.rotor_Preset("6")  # Jump to Band X
+            self.rotor_Preset_6.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_6.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+        
+            b_x += b_width
+            self.rotor_Preset_7 = tk.Button(self)
+            self.rotor_Preset_7["text"] = "7"
+            self.rotor_Preset_7["command"] = lambda: self.rotor_Preset("7")  # Jump to Band X
+            self.rotor_Preset_7.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_7.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+        
+            b_x += b_width
+            self.rotor_Preset_8 = tk.Button(self)
+            self.rotor_Preset_8["text"] = "8"
+            self.rotor_Preset_8["command"] = lambda: self.rotor_Preset("8")  # Jump to Band X
+            self.rotor_Preset_8.configure(fg='black',font=self.btn_font, padx=1, state='normal')
+            self.rotor_Preset_8.place(x=b_x, y=44, bordermode=OUTSIDE, height=20, width=b_width) 
+            
+            self.rotor_STOP()
       
         self.update_label() 
 
@@ -1201,8 +1202,9 @@ class App(tk.Frame):
             else:
                 self.SWR_a.configure(text='{0:4.1f}  ' .format(swr), font=('Helvetica', 12, 'bold'), bg="light green", fg="black", width=4) 
 
-        self.AZ.configure(text='{} deg    {}' .format(rotor_data[10], rotor_action[0]), anchor="w")
-        #self.AZ_action.configure(text='{}W' .format(rotor_action), width=6)
+        if ROTOR_ENABLE == 1:
+            self.AZ.configure(text='{} deg    {}' .format(rotor_data[10], rotor_action[0]), anchor="w")
+            #self.AZ_action.configure(text='{}W' .format(rotor_action), width=6)
 
 
         if cmd_flag == 1:  # Coupler cal is in progress.             
@@ -1468,6 +1470,51 @@ class App(tk.Frame):
         cfg = Cfg_Mtr()
         print(" ---->  Started Config Window")
 
+    def start_cfg_rtr(self):
+        rtr = Cfg_Rtr()
+        print(" ---->  Started Rotator Config Window")   
+#
+#
+#-------------------------------------- Rotator Configuration Window ---------------------------------------------
+#
+class Cfg_Rtr(tk.Frame):      
+#    def __init__(self):
+        # Call superclass constructor
+#        super().__init__()   
+    def __init__(self, master=None): 
+        # Call superclass constructor
+        super().__init__(master) 
+        self.Cfg_Rtr_Window()
+        self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
+
+    def exit_protocol(self):
+        # Will be called when the main window is closed
+        #self.after_cancel(update_cfg_win_callback)  
+        self.master.destroy()  # Destroy root window
+        self.master.quit()  # Exiting the main loop
+
+    def Cfg_Rtr_Window(self):   
+        #global xxx
+               
+        print("Config Screen Goes Here")
+        rtr_cfg = tk.Tk()      
+        #   Later improve to save config file and remember the last position 
+        screen_width = rtr_cfg.winfo_screenwidth()
+        screen_height = rtr_cfg.winfo_screenheight()                
+        w = 1000   # width of our app window
+        h = 940   # height of our app window
+        x = screen_width/3
+        y = screen_height/30
+        print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
+        rtr_cfg.title("Remote Rotator Configuration Editor")
+        rtr_cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self.Rtr_Cfg_Band_label = tk.Label(rtr_cfg, text="Current AZ Rotor position is {}" .format(rotor_data[0]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        self.Rtr_Cfg_Band_label.place(x=310, y=0)
+
+#
+#
+#---------------------------  Wattmeter and Band Decoder Configuration Window ----------------------------------------
+#
 class Cfg_Mtr(tk.Frame):      
     global update_cfg_win_callback
 #    def __init__(self):
@@ -2180,7 +2227,7 @@ def main():
     screen_height = root.winfo_screenheight()
     print('Screen Width and Height is ', screen_width, screen_height)
     # calculate position x and y coordinates
-    if (ROTOR_ENABLE == 0):
+    if (ROTOR_ENABLE != 1):
         w = 708   # width of our app window
         h = 44   # height of our app window
         x = screen_width - (w+10)
@@ -2207,7 +2254,8 @@ def main():
     filemenu.add_command(label="Exit", command=app.quit)
     configmenu = Menu(menu)
     menu.add_cascade(label="Configuration", menu=configmenu)
-    configmenu.add_command(label="Edit Config...", command=app.start_cfg)   
+    configmenu.add_command(label="Edit Meter Config...", command=app.start_cfg)   
+    configmenu.add_command(label="Edit Rotor Config...", command=app.start_cfg_rtr)   
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)
     helpmenu.add_command(label="About...", command=app.About)   
