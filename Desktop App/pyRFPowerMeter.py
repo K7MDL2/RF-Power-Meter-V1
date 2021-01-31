@@ -9,7 +9,21 @@ import serial.tools.list_ports as cports
 import sys
 import tkinter as tk
 import tkinter.font as tkFont
-from tkinter import *
+from tkinter import FALSE
+from tkinter import TRUE
+from tkinter import Listbox
+from tkinter import SINGLE
+from tkinter import END
+from tkinter import Scrollbar
+from tkinter import VERTICAL
+from tkinter import BOTH
+from tkinter import OUTSIDE
+from tkinter import Menu
+from tkinter import StringVar
+from tkinter import IntVar
+from tkinter import LEFT
+from tkinter import RIGHT
+#from tkinter import *
 from tkinter.filedialog import askopenfilename
 import sys, threading
 thread_names = {t.ident: t.name for t in threading.enumerate()}
@@ -18,7 +32,6 @@ thread_names = {t.ident: t.name for t in threading.enumerate()}
 #   print("Thread %s:" % thread_names.get(thread_id, thread_id))
 #   traceback.print_stack(frame)
 #    print()
-
 
 print('__file__={0:<35} | __name__={1:<20} | __package__={2:<20}'.format(__file__,__name__,str(__package__)))
 
@@ -55,7 +68,7 @@ version_string = "RF Wattmeter Remote\nby K7MDL\nV2.6 January 2021"
 #       KitProg programming/debugging board for main CPU (only needed for initial programming or firmware updates later)
 #
 #   Ethernet usage:
-#       This app now supports UDP communication with the RF Meter/band decoder in addition to the USB Serial (only one used at a time).
+#       This app now supports UDP communication with the RF Meter/band decoder as an alternative the USB Serial (only one used at a time).
 #       Configure the static IP and Ports for your network in the #defines below.  This was implemented in its own thread. WSJTX and Serial are the other 2.  
 #       The serial thread is stopped and started with the GUI ON/OFF button.  It will turn off on detection of serial port issues.
 #       Press the button to restore coms once fixed.  If UDP is chosen at statup instead of a COM port, the serial thread is disabled from startup. 
@@ -130,8 +143,8 @@ myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Ti
 myRig = "K3 Camano"       # Rig name and location - about 10 characters max
 myRig_meter_ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
                            # --> Always 3 digits, 100 to 119 only allowed.  
-#myWSJTX_ID = "WSJT-X"     # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
-myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to match your WSJT-X instance name. 
+myWSJTX_ID = "WSJT-X"     # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
+#myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to match your WSJT-X instance name. 
 # Can name your WSJT-X instance on startup with command line -r <rigname> in a desktop shortcut
 
 # examples to inspire ....
@@ -321,6 +334,7 @@ class UDP_Rotor(Thread):
             #print(" Listening for UDP Rotator Controller messages")        
             try:                
                 buf, sender = rotor_sock.recvfrom(1024)
+                if sender > 1000: print(sender)    # just gets rid of unused var error, does nothing for us here.
                 #print("Received message before decode: {}" .format(buf))
                 r_data = buf.decode()
                 
@@ -421,6 +435,7 @@ class UDP_Meter(Thread):
             #print(" listening for UDP messages")        
             try:                
                 buf, sender = meter_sock.recvfrom(1024)
+                if sender > 1000: print(sender)    # just gets rid of unused var error, does nothing for us here.
                 #print("Received message before decode: {}" .format(buf))
                 s_data = buf.decode()
                 
@@ -1468,11 +1483,11 @@ class App(tk.Frame):
             print("Stopping UDP Rotator Network Thread")
 
     def start_cfg(self):
-        cfg = Cfg_Mtr()
+        Cfg_Mtr()
         print(" ---->  Started Config Window")
 
     def start_cfg_rtr(self):
-        rtr = Cfg_Rtr()
+        Cfg_Rtr()
         print(" ---->  Started Rotator Config Window")   
 #
 #
@@ -1623,9 +1638,9 @@ class Cfg_Mtr(tk.Frame):
         print("Applying Translation Mode {} to Band Decode Input Port".format(self.BDec_In.get()))
         m_cmd.send_meter_cmd("65",self.BDec_In.get(), True)    
         if self.BDec_In.get() == 2:   # If custom mode then get the entered pattern and store it
-            print("Applying Custom Pattern to Band Decode Input Port using {}".format(self.CustomIn.get()))
+            print("Applying Custom Pattern to Band Decode Input Port using {}".format(self.CustomInp.get()))
             time.sleep(0.1)
-            m_cmd.send_meter_cmd("69",self.CustomIn.get(), True)  
+            m_cmd.send_meter_cmd("69",self.CustomInp.get(), True)  
         time.sleep(0.1)
         self.GetDecoderValues()  
         time.sleep(0.1)           
@@ -1945,7 +1960,7 @@ class Cfg_Mtr(tk.Frame):
         self.CalV_Text.place(x=600, y=425, height=60)
 
         #  Band Decoder Configuration
-        self.CustomIn = StringVar(cfg)
+        self.CustomInp = StringVar(cfg)
         # Preset this value by reading results of Message 60 query when this window opened        
         self.CustomA = StringVar(cfg)        
         self.CustomB = StringVar(cfg)        
@@ -1963,7 +1978,7 @@ class Cfg_Mtr(tk.Frame):
         self.PORTC_IS_PTT_var = IntVar(cfg)
 
         self.Update_cfg_Decoder()
-        self.CustomIn.set(InputPort_pattern)  # default entry
+        self.CustomInp.set(InputPort_pattern)  # default entry
         self.CustomA.set(PortA_pattern)  # default entry
         self.CustomB.set(PortB_pattern)  # default entry
         self.CustomC.set(PortC_pattern)  # default entry
@@ -1993,9 +2008,9 @@ class Cfg_Mtr(tk.Frame):
         self.B_Dec_In_Radio.place(x=335, y=570, height=40)
         self.B_Dec_In_Radio = tk.Radiobutton(cfg, text="Custom", variable=self.BDec_In, value=2, font=('Helvetica', 10))
         self.B_Dec_In_Radio.place(x=670, y=570, height=40)
-        self.B_Dec_In_Entry = tk.Entry(cfg, textvariable=self.CustomIn, font=('Helvetica', 10))
+        self.B_Dec_In_Entry = tk.Entry(cfg, textvariable=self.CustomInp, font=('Helvetica', 10))
         self.B_Dec_In_Entry.place(x=750, y=580, height=20, width=60)         
-        self.B_Dec_In_Entry.bind('<Return>', self.get_CustomIn)                
+        self.B_Dec_In_Entry.bind('<Return>', self.get_CustomInp)                
         self.B_Dec_In_btn = tk.Button(cfg, text='Apply', command=self.Set_B_Dec_In_Mode, font=('Helvetica', 10, 'bold'))
         self.B_Dec_In_btn.place(x=840, y=575, height=30, width=100)
 
@@ -2105,12 +2120,13 @@ class Cfg_Mtr(tk.Frame):
         if meter_data[2] != self.Old_Band:
             self.Update_cfg_Decoder()
         self.Old_Band = meter_data[2]
-        update_cfg_win_callback = self.Cfg_Band_label.after(500, self.update_cfg_win)   
+        #update_cfg_win_callback = self.Cfg_Band_label.after(500, self.update_cfg_win)   
+        self.Cfg_Band_label.after(500, self.update_cfg_win)
 
     def Update_cfg_Decoder(self):  
         self.GetDecoderValues()
         time.sleep(0.1)
-        self.CustomIn.set(InputPort_pattern)
+        self.CustomInp.set(InputPort_pattern)
         self.CustomA.set(PortA_pattern)
         self.CustomB.set(PortB_pattern)
         self.CustomC.set(PortC_pattern)
@@ -2174,16 +2190,16 @@ class Cfg_Mtr(tk.Frame):
         self.Curr0.set(temp_val)             
         print(self.Curr0.get())
 
-    def get_CustomIn(self, event):
-        temp_val = self.CustomIn_Entry.get()
+    def get_CustomInp(self, event):
+        temp_val = self.B_Dec_In_Entry.get()
         if temp_val == "":
             temp_val = 1
-        self.CustomIn.set(temp_val)             
-        print(self.CustomIn.get())
+        self.CustomInp.set(temp_val)             
+        print(self.CustomInp.get())
         self.Update_cfg_Decoder()
 
     def get_CustomA(self, event):
-        temp_val = self.CustomA_Entry.get()
+        temp_val = self.B_Dec_A_Entry.get()
         if temp_val == "":
             temp_val = 1
         self.CustomA.set(temp_val)             
@@ -2191,7 +2207,7 @@ class Cfg_Mtr(tk.Frame):
         self.Update_cfg_Decoder()        
 
     def get_CustomB(self, event):
-        temp_val = self.CustomB_Entry.get()
+        temp_val = self.B_Dec_B_Entry.get()
         if temp_val == "":
             temp_val = 1
         self.CustomB.set(temp_val)             
@@ -2199,7 +2215,7 @@ class Cfg_Mtr(tk.Frame):
         self.Update_cfg_Decoder()        
 
     def get_CustomC(self, event):
-        temp_val = self.CustomC_Entry.get()
+        temp_val = self.B_Dec_C_Entry.get()
         if temp_val == "":
             temp_val = 1
         self.CustomC.set(temp_val)             
@@ -2235,7 +2251,7 @@ def main():
         y = 2
     else:   # add rotator buttons and AZ and Preset display fields
         w = 708   # width of our app window
-        h = 64   # height of our app window
+        h = 66   # height of our app window
         x = screen_width - (w+10)
         y = 2
     print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
@@ -2281,7 +2297,7 @@ if __name__ == '__main__':
         #  List available ports for info
         print("Scanning for USB serial device matching cmd line provided port name {} (if any)" .format(port_name))    
         initial_serial_devices = set()
-        result = {"state":"stable","port_id":[]}
+        #result = {"state":"stable","port_id":[]}
         try:    
             ports = cports.comports()
             for port in ports:
@@ -2363,8 +2379,9 @@ if __name__ == '__main__':
         i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
             if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our CPU Target
-                i = i + 1
-                ports.append(port)           
+                i += n
+                if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
+                ports.append(port)
                 #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         for p in ports:
             listbox.insert(END, p)           
@@ -2406,7 +2423,9 @@ if __name__ == '__main__':
         i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
             if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our Arduino
-                i = i + 1
+                #i = i + 1
+                i += n
+                if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
                 ports.append(port)           
                 sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         
