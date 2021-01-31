@@ -148,7 +148,7 @@ myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to mat
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
-ROTOR_ENABLE = 0  # 1 is ENABLED, 0 is DISABLED
+ROTOR_ENABLE = 1  # 1 is ENABLED, any other value or commented out is DISABLED
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
 PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
