@@ -2,7 +2,7 @@
     "board": "arduino:avr:mega",
     "configuration": "cpu=atmega2560",
     "sketch": "RF_Wattmeter_Teensy41\\RF_Wattmeter_Teensy41.ino",
-    "port": "COM5",
+    "port": "COM14",
     "programmer": "AVRISP mkII",
     "output": "..\\build"
 }

@@ -310,7 +310,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                         if (cmd1 == 245) {    // Calibrate Rotor analog voltage full CW
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);                            
-                            Serial.print("  Mannually Set Rotor Full CW ADC Counts = ");
+                            Serial.print(" Manually Set Rotor Full CW ADC Counts = "); 
                             Serial.println(cmd2);
                             map_pos_high_Counts = cmd2;
                             set_EE_Vars();
@@ -347,7 +347,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             STALL_DETECT_DISTANCE = cmd2;
                             set_EE_Vars(); // Store byte into EEPROM                                            
                         } 
-                        if (cmd1 == 249) {      // Set the stall detection timeout period
+                        if (cmd1 == 250) {      // Set the stall detection timeout period
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);                            
                             Serial.print("  Set STALL_TIMEOUT = ");
@@ -355,7 +355,7 @@ void get_remote_cmd()   // parser from wattmeter and Desktop app.  Modify to use
                             STALL_TIMEOUT = cmd2 * 1000;  // convert sec to ms
                             set_EE_Vars(); // Store high and low bytes into EEPROM
                         } 
-                        if (cmd1 == 250) {   // Set the Rotor Stopband - allows a small window for deciding when to stop rotation
+                        if (cmd1 == 251) {   // Set the Rotor Stopband - allows a small window for deciding when to stop rotation
                             Serial.print("RTR1-Cmd1=");
                             Serial.print(cmd1);                            
                             Serial.print("  Set Rotor_StopBand = ");

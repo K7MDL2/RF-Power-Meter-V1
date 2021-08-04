@@ -475,13 +475,13 @@ void loop()
     }
 #endif
     
-    if (Band_Decoder())       // Process any radio band decoder changes 
-    {
+    if (Band_Decoder() && PTT_IN_state != TX)       // Process any radio band decoder changes. 
+    {                                                    // if in transmit, skip.  Don't want RFI or band change operating relays hot.    
         Button_B = YES;
         NewBand = Band_Dec_In_Byte;
     }
     
-    if (Button_B == YES) {      // Select Cal Band
+    if (Button_B == YES && PTT_IN_state != TX) {      // Select Cal Band
         //++CouplerSetNum;   // increment for manual button pushes
         if (NewBand < 0)   // constrain newBand            
         {
@@ -560,12 +560,13 @@ void loop()
 #endif
 
     // Reset WD Timer
-    if (millis() - wd_timestamp > 8000)
-    {   
+    if (millis() - wd_timestamp > 8000 && WD_reset_flag != 2)
+    // if flag == 2 skip wd timer reset and force a WD timeout and power relay cycle, usually from remote command cmd=192.
+    {     
         // Strobe low for 200ms  This part starts it only.
         wd_timestamp = millis();
         WD_reset_flag = 1;
-        //Serial.println("Being Reset WD Timer");
+        //Serial.println("Reset WD Timer");
         digitalWrite(WD1_PIN, LOW);
         digitalWrite(WD2_PIN, LOW);
     }
@@ -577,7 +578,6 @@ void loop()
         //Serial.println("End Reset WD Timer");
         WD_reset_flag = 0;
     }
-    
 }
 
 // Return the supply voltage in volts.  For ESP32 (M5Stack) 
@@ -2055,6 +2055,9 @@ void get_remote_cmd()
                             //DBG_Serial.println(">Call Serial Data Output Toggle");
                             toggle_ser_data_output(cmd2);
                         }
+                        if (cmd1 == 192 && cmd2 == 1) {     // Trigger watchdog timeout to reset on command.                                                      
+                            WD_reset_flag = 2;                                       
+                        }
                         if (cmd1 == 193) {    // Set up for potential EEPROM Reset if followed by 5 second press on Button C
                             Reset_Flag = 1;
                             print_Cmd_Progress(1);   // Use when there is a start and stop with delay the remote needs to know about
@@ -3118,6 +3121,10 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
     uint8_t i;
     uint8_t trans_in;
 
+    // if in transmit, skip.  Don't want RFI or band change operting relays hot.
+    if (PTT_IN_state == TX)
+        return 0;
+    
     trans_in = EEPROM.read(TRANS_INPUT);
 
     Band_Decoder_Get_Input();   // Read the state of all input pins and store into variable Band_Dec_In_Byte  

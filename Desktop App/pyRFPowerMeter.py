@@ -1227,7 +1227,8 @@ class App(tk.Frame):
         rx = Send_Mtr_Cmds()
         print("Get the meter's calibation table")
         # Write command to change meter scale and change meter face to Watts
-        rx.send_meter_cmd("252", "", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
+        ##rx.send_meter_cmd("252", "", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
+        rx.send_meter_cmd("192", "1", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
        
     def change_band(self):
         rx = Send_Mtr_Cmds()
