@@ -334,7 +334,7 @@ class UDP_Rotor(Thread):
             #print(" Listening for UDP Rotator Controller messages")        
             try:                
                 buf, sender = rotor_sock.recvfrom(1024)
-                if sender > 1000: print(sender)    # just gets rid of unused var error, does nothing for us here.
+                #if sender > 1000: print(sender)    # just gets rid of unused var error, does nothing for us here.
                 #print("Received message before decode: {}" .format(buf))
                 r_data = buf.decode()
                 
@@ -435,7 +435,7 @@ class UDP_Meter(Thread):
             #print(" listening for UDP messages")        
             try:                
                 buf, sender = meter_sock.recvfrom(1024)
-                if sender > 1000: print(sender)    # just gets rid of unused var error, does nothing for us here.
+                #if sender > 1000: print(sender)    # just gets rid of unused var error, does nothing for us here.
                 #print("Received message before decode: {}" .format(buf))
                 s_data = buf.decode()
                 
