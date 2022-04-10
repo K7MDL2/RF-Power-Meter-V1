@@ -15,8 +15,8 @@
 /******************************************************************************
   Select Features for compile time
 ******************************************************************************/
-//#define SSD1306_OLED   // local OLED display option
-//#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
+#define SSD1306_OLED   // local OLED display option
+#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
 #define NEXTION           // OK to run OLED at same time 
 #define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
@@ -145,16 +145,17 @@ uint32_t Timer_X00ms_Last_OLED;
 #define EEADDR CAL_TBL_ARR_OFFSET // Start location to write data table structure in EEPROM.  Byte level data values will start at 2.  EEPROM status is byte 0
 //#define EEPROM_SIZE  4284   // 4284 for Teensy 4.1    //1024 for ATMega328P.  ESP32 is in Flash so can be any reasonable size.  Using sizeof eeprom function in code.
 
-#define ADC_VREF (3.29)   // For Teensy4.1 which is a 3.3V chip  
+#define ADC_VREF (3.30)   // For Teensy4.1 which is a 3.3V chip  
 
 // Define the Analog input pins   -- !!!! These are 3.3VDC max on Teensy 4.X PUs!!!!
 // These may not be used if using external ADC such as the ADS1115 4 channel board.  can use both if needed, mixed.
-#define ADC_FWD ADS1115_COMP_1_GND     //A4        // These are the Analog Mux input assignments for Teensy 4.1
-#define ADC_REF ADS1115_COMP_2_GND     //A5
-#define ADC_TEMP ADS1115_COMP_3_GND     //A6       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is not the RF amp heat sink temp!
-#define ADC_CURR A7
-#define ADC_14V A8
-#define ADC_HV A9
+#define ADC_FWD   ADS1115_COMP_3_GND     // Forward Power
+#define ADC_REF   ADS1115_COMP_2_GND     // Reflected Power
+#define ADC_TEMP  ADS1115_COMP_1_GND     // Temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is not the RF amp heat sink temp!
+#define ADC_SPARE ADS1115_COMP_0_GND     // Spare
+#define ADC_CURR  A7
+#define ADC_14V   A8
+#define ADC_HV    A9
 
 // Band Decoder Input Pins - Assign these according to your needs includng wiring convenience.  
 // Each pin is mapped into bytes so there is no need to have them adjacent.  Easier when they are for wiring purposes.  See GitHUb Wiki pages for wiring example chart.

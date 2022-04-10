@@ -120,7 +120,7 @@ void setup(void)
   pinMode(BAND_DEC_IN_2, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_3, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_4, INPUT_PULLUP);
-  pinMode(BAND_DEC_IN_5, INPUT_PULLUP);   //To use this need to trade with another pin.
+  pinMode(BAND_DEC_IN_5, INPUT_PULLUP);
   
   pinMode(BAND_DEC_PTT_IN, INPUT_PULLUP);   // Interrupt handler setup for PTT input
   PTT_IN_state = 0;   // 0 is RX mode, 1 is TX mode
@@ -312,13 +312,13 @@ void setup(void)
    */
   //adc.setAlertPinToConversionReady(); //uncomment if you want to change the default
   #ifdef ADS1115_SINGLE_MODE
-      RefVal = readChannel(ADS1115_COMP_1_GND);        
-      RFWM_Serial.print("ADS1115 Running in Single Mode, ADC Ch1 Voltage = ");
+      RefVal = readChannel(ADS1115_COMP_2_GND);        
+      RFWM_Serial.print("ADS1115 Running in Single Mode, ADC Ch2 Voltage = ");
   #else   // continuous mode locks up without 20ms+ delay
-      adc.setCompareChannels(ADS1115_COMP_1_GND); //comment line/change parameter to change channel           
+      adc.setCompareChannels(ADS1115_COMP_2_GND); //comment line/change parameter to change channel           
       delay(20);
       RefVal = adc.getResult_V();    // for ADS1115 module  
-      RFWM_Serial.print("ADS1115 Running in Continuous Mode, ADC Ch1 Voltage = ");      
+      RFWM_Serial.print("ADS1115 Running in Continuous Mode, ADC Ch2 Voltage = ");      
   #endif
 
   RFWM_Serial.println(RefVal); 
@@ -666,7 +666,7 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
                 delay(20);
                 RefVal = adc.getResult_V();    // for ADS1115 module        
             #endif
-            //RefVal = constrain(FwdVal, 0.000, 3300.0);
+            //RefVal = constrain(RefVal, 0.000, 3300.0);
         #else    // internal ADC           
            uint32_t ad_counts=0;    
            ad_counts = analogRead(ADC_REF);              
