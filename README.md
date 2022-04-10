@@ -1,5 +1,8 @@
 ## RF-Power-Meter
 
+4/9/2022 - I have created a PCB using opto-couplers and board edge connectors designed to go into a metal case for better RFI resistance (500W at 144MHz to a 9el yagi just 20 ft away).  The old internal proto board wiring acted as antennas on one of these units I have installed outside the house with several VHF high power amps located near the VHF antennas. On 2M when the antenna was alignbed with the box and > 100W, a CPU lockup resulted in PTT being stuck on.  A wachdog card added helped to recover, very important since I operate remote. On the 3/31/2022 version PCBs (8 made) the only internal wires are the USB Host port which is unused so not installed, and the ethernet 6 conductor ribbon cable and a 3.3VDC wire jumper (missed a trace). On the 4/9/2022 version PCB these wires are now routed on the board. 
+
+
 *** Release V2.5 created January 1, 2021 ***
 
  a. RF Wattmetter and Band Decoder combo on Arduino Teensy 4.1 with Ethernet option or PSoC5LP with Nextion Touchscreen, OLED, and/or headless  display options.
