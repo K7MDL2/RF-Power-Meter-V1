@@ -10,6 +10,7 @@
    5. Both Port A and B are 8 ports each, Port C is 3, Input has 6.  1x PTT Input, 2x PTT outputs. 
    6. Input uses a floating ground (Input_Return) that should be ties to the band decoder source ground.  
    7. Each input should supply about 1-3ma to activate the optocoupler. Change the resistors as required.
+   8. If using the Nextion display, the serial port baudrate must be set to match the display firmware, the Nextin library (NexHardware.cpp) and what is set in the code. I am using 115200.
  
 
 
