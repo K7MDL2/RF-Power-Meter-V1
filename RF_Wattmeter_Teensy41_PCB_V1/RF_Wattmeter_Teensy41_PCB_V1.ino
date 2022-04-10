@@ -10,8 +10,8 @@
 #include "Watchdog_t4.h"  // https://github.com/tonton81/WDT_T4 for internal watchdog
 /*
  *
- * RF Power Meter by K7MDL 
- *  Updated 4/9/2022   - RF Wattmetter and Band Decoder on Arduino Teensy 4.1 with Ethernet option
+ * RF Wattmetter and Band Decoder on Arduino Teensy 4.1 with Ethernet option 
+ * by K7MDL  https://github.com/K7MDL2/RF-Power-Meter-V1
  *  
  * 4/9/2022
  *  1. Added internal watchdog timer in hopes of removing the external WD card.
@@ -167,7 +167,7 @@ void setup(void)
   //pinMode(BAND_DEC_C_6, OUTPUT); 
   //pinMode(BAND_DEC_C_7, OUTPUT);
 
-#ifndef EXT_WD
+#ifdef EXT_WD
   // Internal Watchdog (to replace the external card)
     WDT_timings_t config;
     config.trigger = 5; /* in seconds, 0->128 */
@@ -586,7 +586,7 @@ void loop()
         update_Nextion(0);    
 #endif
 
-  #ifdef EXT_WD
+  #ifndef EXT_WD
     // Reset WD Timer
     if (millis() - wd_timestamp > 8000 && WD_reset_flag != 2)
     // if flag == 2 skip wd timer reset and force a WD timeout and power relay cycle, usually from remote command cmd=192.
