@@ -1,6 +1,7 @@
 ## RF-Power-Meter
 
-4/11/2022 - Testing continues with PCB improvements with rev 0.04.  
+### 4/11/2022 - Testing continues with PCB improvements with rev 0.04
+
     1. Fixed up some more footprints. 
     2. While testing the 12V input found it and 2 other traces were shorted.  The vertical trace going to Pin 1 of J13 crosses 2 inout horizontal traces.  The vertical trace is 3.3V and is not used anyway, cut it to free up the horizontal traces.
     3. DB15, DB9 and RCA PTT jacks too close to use connector shells so spaced them out more.  
@@ -12,17 +13,18 @@
     9. Have not test the USB Host connector but not using that in this project.  
     10. The ethernet 6 pin header near the enet connector is 1mm pitch, should have been 2mm. Fixed on newer PCB layouts. For this board will try soldering the ribbon cable wires in direct. Made connector adapters to plug this PCB in place of the old prototype box to place this in service to accelerate outdoor testing starting tomorrow.
 
-4/9/2022 - I have created a PCB using opto-couplers and board edge connectors designed to go into a metal case for better RFI resistance (500W at 144MHz to a 9el yagi just 20 ft away).  The old internal proto board wiring acted as antennas on one of these units I have installed outside the house with several VHF high power amps located near the VHF antennas. On 2M when the antenna was alignbed with the box and > 100W, a CPU lockup resulted in PTT being stuck on.  A wachdog card added helped to recover, very important since I operate remote. On the 3/31/2022 version PCBs (8 made) the only internal wires are the USB Host port which is unused so not installed, and the ethernet 6 conductor ribbon cable and a 3.3VDC wire jumper (missed a trace). On the 4/9/2022 version PCB these wires are now routed on the board. Software to support the PCB related chages updated.  Has some new internal Watchdog stuff I am trying that may not work yet.
-
 4/9/2022
-   1. Added internal watchdog timer in hopes of removing the external WD card.
-   2. Reassigned some pins to support a new PCB (V1) designed to hopefully be highly RFI resistant.  
-   3. Added a Combo Ethernet/USB2 jack to the PCB and routed lines from the Teensy to it.
-   4. PCB is using opto-couplers so some signals are inverted.
-   5. Both Port A and B are 8 ports each, Port C is 3, Input has 6.  1x PTT Input, 2x PTT outputs. 
-   6. Input uses a floating ground (Input_Return) that should be ties to the band decoder source ground.  
-   7. Each input should supply about 1-3ma to activate the optocoupler. Change the resistors as required.
-   8. If using the Nextion display, the serial port baudrate must be set to match the display firmware, the Nextin library (NexHardware.cpp) and what is set in the code. I am using 115200.
+
+Created a PCB using opto-couplers and board edge connectors designed to go into a metal case for better RFI resistance (500W at 144MHz to a 9el yagi just 20 ft away).  The old internal proto board wiring acted as antennas on one of these units I have installed outside the house with several VHF high power amps located near the VHF antennas. On 2M when the antenna was alignbed with the box and > 100W, a CPU lockup resulted in PTT being stuck on. A wachdog card added helped to recover, very important since I operate remote. On the 3/31/2022 version PCBs (8 made) the only internal wires are the USB Host port which is unused so not installed, and the ethernet 6 conductor ribbon cable and a 3.3VDC wire jumper (missed a trace). On the 4/9/2022 version PCB these wires are now routed on the board. Software to support the PCB related changes updated.  Has some new internal Watchdog stuff I am trying that may not work yet.
+
+    1. Added internal watchdog timer in hopes of removing the external WD card.
+    2. Reassigned some pins to support a new PCB (V1) designed to hopefully be highly RFI resistant.  
+    3. Added a Combo Ethernet/USB2 jack to the PCB and routed lines from the Teensy to it.
+    4. PCB is using opto-couplers so some signals are inverted.
+    5. Both Port A and B are 8 ports each, Port C is 3, Input has 6.  1x PTT Input, 2x PTT outputs. 
+    6. Input uses a floating ground (Input_Return) that should be ties to the band decoder source ground.  
+    7. Each input should supply about 1-3ma to activate the optocoupler. Change the resistors as required.
+    8. If using the Nextion display, the serial port baudrate must be set to match the display firmware, the Nextin library (NexHardware.cpp) and what is set in the code. I am using 115200.
  
 
 
