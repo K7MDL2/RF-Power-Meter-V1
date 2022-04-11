@@ -15,9 +15,9 @@
 /******************************************************************************
   Select Features for compile time
 ******************************************************************************/
-//#define SSD1306_OLED   // local OLED display option - only uncomment if actually connected
+#define SSD1306_OLED   // local OLED display option - only uncomment if actually connected
 #define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
-#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
+//#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
 #define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
@@ -100,7 +100,7 @@
     #define SCREEN_HEIGHT 64 // OLED display height, in pixels    
     // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins OR SDA1, SCL1 pins with "Wire1" class)
     #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)    
-    Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+    Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire1, OLED_RESET);   // Using Wire 1 for OLED
 #endif
 
 //#define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
@@ -153,9 +153,10 @@ uint32_t Timer_X00ms_Last_OLED;
 #define ADC_REF   ADS1115_COMP_2_GND     // Reflected Power
 #define ADC_TEMP  ADS1115_COMP_1_GND     // Temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is not the RF amp heat sink temp!
 #define ADC_SPARE ADS1115_COMP_0_GND     // Spare
-#define ADC_CURR  A7
-#define ADC_14V   A8
-#define ADC_HV    A9
+#define ADC_SPARE_A6  A6
+#define ADC_CURR      A7
+#define ADC_14V       A8
+#define ADC_HV        A9
 
 // Band Decoder Input Pins - Assign these according to your needs includng wiring convenience.  
 // Each pin is mapped into bytes so there is no need to have them adjacent.  Easier when they are for wiring purposes.  See GitHUb Wiki pages for wiring example chart.
@@ -166,7 +167,7 @@ uint32_t Timer_X00ms_Last_OLED;
 #define BAND_DEC_IN_3   5
 #define BAND_DEC_IN_4   6    // not using so set pin to somehting impossible
 #define BAND_DEC_IN_5   7    // only needed if not using BCD input otherwise need to trade pins with another port
-#define BAND_DEC_PTT_IN  24       //  PTT input from radio.  Will pass through to PTT out, possibly with translations.
+#define BAND_DEC_PTT_IN  32       //  PTT input from radio.  Will pass through to PTT out, possibly with translations.
 
 // Band Decoder Banks A and B and C
 #define BAND_DEC_A_0    33      // Only using 5 pins for BCD transverter control so bits 5, 6, and 7 are disabled in this example.
@@ -526,16 +527,16 @@ struct Band_Cal {
     uint8_t band_B_output_pattern;  // pattern per band for band decode output Port B pins
     uint8_t band_C_output_pattern;  // pattern per band for band decode output Port C pins
 } Band_Cal_Table_Def[NUM_SETS] = {   // set up defaults for EEPROM
-     {"HF",     72.0, -0.02145, 0.48840, 73.6, -0.02145, 0.48840, 0x00, 0x00, 1, 0},
-     {"50MHz",  72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408, 0x01, 0x01, 2, 1},
-     {"144MHz", 63.4, -0.02149, 0.48256, 63.4, -0.02202, 0.50459, 0x02, 0x02, 3, 2},
-     {"222MHz", 60.5, -0.02160, 0.48026, 60.5, -0.02192, 0.50488, 0x03, 0x03, 4, 3},
-     {"432MHz", 59.6, -0.02154, 0.45122, 59.6, -0.02171, 0.48347, 0x04, 0x04, 5, 4},
-     {"902MHz", 59.2, -0.02149, 0.43525, 59.2, -0.02291, 0.45729, 0x05, 0x05, 6, 5},
+     {"HF",     72.0, -0.02145, 0.48840, 73.6, -0.02145, 0.48840, 0x00, 0x00, 0x01, 0x00},
+     {"50MHz",  72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408, 0x01, 0x0F, 0x01, 0x00},
+     {"144MHz", 63.4, -0.01802, 0.55814, 63.4, -0.00772, 1.22091, 0x02, 0x0D, 0x02, 0x00},
+     {"222MHz", 60.5, -0.02221, 0.63030, 60.5, -0.02130, 0.87564, 0x03, 0x0C, 0x84, 0x00},
+     {"432MHz", 59.6, -0.01729, 0.57677, 59.6, -0.02282, 0.78104, 0x04, 0x0B, 0x48, 0x00},
+     {"902MHz", 59.2, -0.02269, 0.45607, 59.2, -0.01422, 0.89591, 0x05, 0x0A, 0xD0, 0x00},
 #ifdef SWR_ANALOG    
-    {"1296MHz", 61.5, -0.02224, 0.40569, 51.5, -0.02607, 0.38766, 0x06, 0x06, 7, 6},  // for KitProg
+    {"1296MHz", 61.5, -0.02224, 0.40569, 51.5, -0.02607, 0.38766, 0x06, 0x09, 0x07, 0x00},  // for KitProg
 #elif !SWR_ANALOG    
-    {"1296MHz", 72.6, -0.02144, 0.43581, 72.6, -0.02174, 0.45506, 0x06, 0x06, 7, 6},  // for normal board
+    {"1296MHz", 72.6, -0.00621, 0.59162, 72.6, -0.02174, 0.45506, 0x06, 0x09, 0x20, 0x00},  // for normal board
 #endif    
      {"2.3GHz", 60.1, -0.02514, 0.644, 60.1, -0.02514, 0.644, 0x07, 0x07, 8, 7},
      {"3.4GHz", 60.2, -0.02514, 0.644, 60.2, -0.02514, 0.644, 0x08, 0x08, 9, 8},

@@ -110,11 +110,12 @@ void setup(void)
   #ifndef ADS1115_ADC
   pinMode(ADC_FWD,INPUT);
   pinMode(ADC_REF,INPUT);
-  pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP wil lpin them to Vcc and prevent floating around.
+  pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP will pin them to Vcc and prevent floating around.
   #endif
   pinMode(ADC_CURR,INPUT_PULLUP);
-  pinMode(ADC_14V,INPUT_PULLUP);
+  pinMode(ADC_14V,INPUT);
   pinMode(ADC_HV,INPUT_PULLUP);
+  pinMode(ADC_SPARE_A6,INPUT_PULLUP);
   pinMode(BAND_DEC_IN_0, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_1, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_2, INPUT_PULLUP);
@@ -550,7 +551,6 @@ void loop()
 
     // If PTT input changed, the flag is set and a timestamp made.  
     
-    
     PTT_IN_pin = digitalRead(BAND_DEC_PTT_IN);    // We do not know if 1 or 0 is TX yet, determined in PTT_IN_handler()
     PTT_IN_pin = ~PTT_IN_pin & 0x01;  // flip if using an inverting buffer
     if (PTT_IN_pin != PTT_IN_pin_last)
@@ -610,7 +610,7 @@ void loop()
       // wdt.feed(); /* uncomment to feed the watchdog */
     }
   #endif
-}
+} // ------ End of Main Loop() --------------------
 
 // Return the supply voltage in volts.  For ESP32 (M5Stack) 
 float read_vcc()
@@ -3288,9 +3288,9 @@ void Band_Decoder_Get_Input()
         bitWrite(Band_Dec_In_Byte_temp, 1, digitalRead(BAND_DEC_IN_1));
         bitWrite(Band_Dec_In_Byte_temp, 2, digitalRead(BAND_DEC_IN_2));
         bitWrite(Band_Dec_In_Byte_temp, 3, digitalRead(BAND_DEC_IN_3));
-        // bitWrite(Band_Dec_In_Byte_temp, 4, digitalRead(BAND_DEC_IN_4));    // Not used in this configuration, uncomment if you use this.
-        // bitWrite(Band_Dec_In_Byte_temp, 5, digitalRead(BAND_DEC_IN_5));   // Not used, PTT IN using this pin.
-        Band_Dec_In_Byte_temp = ~Band_Dec_In_Byte_temp & 0x0F;
+        bitWrite(Band_Dec_In_Byte_temp, 4, digitalRead(BAND_DEC_IN_4));  
+        bitWrite(Band_Dec_In_Byte_temp, 5, digitalRead(BAND_DEC_IN_5));   
+        Band_Dec_In_Byte_temp = ~Band_Dec_In_Byte_temp & 0x3F;
         //DBG_Serial.print("> Band_Dec_In_Byte_temp = 0x");   // for debug
         //DBG_Serial.println(Band_Dec_In_Byte_temp, HEX);
         
@@ -3362,8 +3362,8 @@ void Band_Decode_A_Output(uint8_t pattern)
     digitalWrite(BAND_DEC_A_3, bitRead(pattern, 3));
     digitalWrite(BAND_DEC_A_4, bitRead(pattern, 4));
     digitalWrite(BAND_DEC_A_5, bitRead(pattern, 5));
-    //digitalWrite(BAND_DEC_A_6, bitRead(pattern, 6));
-    //digitalWrite(BAND_DEC_A_7, bitRead(pattern, 7));
+    digitalWrite(BAND_DEC_A_6, bitRead(pattern, 6));
+    digitalWrite(BAND_DEC_A_7, bitRead(pattern, 7));
 }
 
   // we have a byte that needs to translate from a number to a bit
@@ -3485,8 +3485,8 @@ void Band_Decode_C_Output(uint8_t pattern)
     digitalWrite(BAND_DEC_C_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_C_1, bitRead(pattern, 1));
     digitalWrite(BAND_DEC_C_2, bitRead(pattern, 2));
-    digitalWrite(BAND_DEC_C_3, bitRead(pattern, 3));
-    digitalWrite(BAND_DEC_C_4, bitRead(pattern, 4));
+    //digitalWrite(BAND_DEC_C_3, bitRead(pattern, 3));
+    //digitalWrite(BAND_DEC_C_4, bitRead(pattern, 4));
     //digitalWrite(BAND_DEC_C_5, bitRead(pattern, 5));
     //digitalWrite(BAND_DEC_C_6, bitRead(pattern, 6));
     //digitalWrite(BAND_DEC_C_7, bitRead(pattern, 7)); 
