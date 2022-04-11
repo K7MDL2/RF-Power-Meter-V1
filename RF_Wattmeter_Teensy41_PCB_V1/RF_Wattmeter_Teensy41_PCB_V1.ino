@@ -103,6 +103,7 @@ void(* resetFunc) (void) = 0; //declare reset function @ address 0
 // #define SerialUSB1 SerialUSB1  // assign as needed for your CPU type. 
                                   // For Teesny set ports to Dual or Triple and Use Serial USB1 and Serial USB2 for 2 and 3rd ports
 WDT_T4<WDT1> wdt;   // internal watchdog functionality.
+#define EXT_WD
 
 void setup(void) 
 { 
@@ -173,7 +174,7 @@ void setup(void)
     WDT_timings_t config;
     config.trigger = 5; /* in seconds, 0->128 */
     config.timeout = 10; /* in seconds, 0->128 */
-    config.callback = myCallback;
+    //config.callback = myCallback;
     wdt.begin(config);
     pinMode(WD1_PIN, OUTPUT);
 #else
@@ -607,8 +608,7 @@ void loop()
         WD_reset_flag = 0;
     }
   #else
-      // wdt.feed(); /* uncomment to feed the watchdog */
-    }
+      wdt.feed(); /* uncomment to feed the watchdog */
   #endif
 } // ------ End of Main Loop() --------------------
 
