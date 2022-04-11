@@ -3,15 +3,17 @@
 ### 4/11/2022 - Testing continues with PCB improvements with rev 0.04
 
     1. Fixed up some more footprints. 
-    2. While testing the 12V input found it and 2 other traces were shorted.  The vertical trace going to Pin 1 of J13 crosses 2 inout horizontal traces.  The vertical trace is 3.3V and is not used anyway, cut it to free up the horizontal traces.
-    3. DB15, DB9 and RCA PTT jacks too close to use connector shells so spaced them out more.  
+    2. While testing the 12V input found it was shored with 2 other traces. The vertical trace going to Pin 1 of J13 crosses 2 horizontal traces. The vertical trace is 3.3V and is not used, so cut it in 3 places to free up the 2 horizontal traces.
+    3. DB15, DB9 and RCA PTT jacks are too close to use connector shells so spaced them out more.
     4. Added 12V (with FB and caps) to pin 15 on each DB15 for external relay power. 
     5. Added 2 pin header in line with switched 12V so an external watchdog card (Switch Doc Labs) can interrupt power to reboot the system.  Put a jumper on the pins if not using. There are 2 WD strobe signals on a connector (WD1 and WD2). 
-    6. Still need to test the internal watchdog capability so that the external card can be eliminated.  
-    7. Tested all the input and output lines, PTT jack, all work. 
+    6. Tested the new internal watchdog capability so the external card can be eliminated. Set to 10 seconds then does a CPU reset.
+    7. Tested all the input and output lines, PTT jack, all work.
     8. Calibrated the RF Sensors, temp, all working, installed resistors for onboard 12V measurement.  Current and HV are set to INPUT_PULLUP while nothing is connected to them.  
     9. Have not test the USB Host connector but not using that in this project.  
-    10. The ethernet 6 pin header near the enet connector is 1mm pitch, should have been 2mm. Fixed on newer PCB layouts. For this board will try soldering the ribbon cable wires in direct. Made connector adapters to plug this PCB in place of the old prototype box to place this in service to accelerate outdoor testing starting tomorrow.
+    10. The ethernet 6 pin header near the enet connector is 1mm pitch, should have been 2mm. Fixed on newer PCB layouts. For this board I soldered the 6 ribbon cable wire ends into the PCB direct. 
+    11. Made connector adapters to plug this PCB in place of the old prototype box to place this in service to accelerate outdoor testing starting tomorrow.
+    12. Ethernet/USB2 combo jack is working fine.  This was a test flight for use on Teensy SDR motherboards where the USB2 jack is a Teensy USB2 Host.
 
 4/9/2022
 
