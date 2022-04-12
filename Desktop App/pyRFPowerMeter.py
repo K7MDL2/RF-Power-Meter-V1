@@ -360,7 +360,7 @@ class UDP_Rotor(Thread):
                                 rotor_action[0] = ""  # initialize var first time used or it wont print below until a command is given.
                         #print("Rotor Status {}" .format(tempstr[0]))
                         rotor_data = str(tempstr[0]).split(" ")
-                        print("{} {}" .format(rotor_data[10], rotor_action[0]))   # print out Az and last action, if any.  These messages will alternate so combine them here.
+                        #print("{} {}" .format(rotor_data[10], rotor_action[0]))   # print out Az and last action, if any.  These messages will alternate so combine them here.
                         rotor_action[0] = ""
                         return
             except UnicodeDecodeError: # catch error and ignore it
@@ -873,7 +873,7 @@ class App(tk.Frame):
             self.QUIT.configure(text = format("OFF"), fg='grey', bg="light grey")
 
         self.band_f = tk.Button(self)
-        self.band_f["text"] = "Band"
+        self.band_f["text"] = "Reset-"
         self.band_f["command"] = self.change_band  # Change the band (cycle through them)
         self.band_f.configure(font=self.btn_font)
         self.band_f.place(x=50, y=0, bordermode=OUTSIDE, height=20, width=40) 
@@ -1243,14 +1243,16 @@ class App(tk.Frame):
         print("Get the meter's calibation table")
         # Write command to change meter scale and change meter face to Watts
         rx.send_meter_cmd("252", "", True)          # Direct Cm is True to send the 2 bytes out direct.  WSJTX calls with False set.
-        ##rx.send_meter_cmd("192", "1", True)          # 192 is Disable WD to cause reset in 50 seconds
+        #rx.send_meter_cmd("247", "1", True)          # 192 is Disable WD to cause reset in 50 seconds
        
     def change_band(self):
         rx = Send_Mtr_Cmds()
-        print("Go to Next Band ")
+        #print("Go to Next Band ")
+        print("Reset via Watchdog Timeout 45sec")
         # Write command to change Band
         #rx.send_meter_cmd("254","", True)
-        rx.send_meter_cmd("254","", True)
+        # Temp command to stop watchdog timer and cause a power cycle
+        rx.send_meter_cmd("192","1", True)
 
     def Toggle_UDP_data_out(self): 
         rx = Send_Mtr_Cmds()
