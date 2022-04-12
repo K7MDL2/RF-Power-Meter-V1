@@ -169,24 +169,6 @@ void setup(void)
   //pinMode(BAND_DEC_C_6, OUTPUT); 
   //pinMode(BAND_DEC_C_7, OUTPUT);
 
-#ifdef EXT_WD
-  // Internal Watchdog (to replace the external card)
-    WDT_timings_t config;
-    config.trigger = 5; /* in seconds, 0->128 */
-    config.timeout = 10; /* in seconds, 0->128 */
-    //config.callback = myCallback;
-    wdt.begin(config);
-    pinMode(WD1_PIN, OUTPUT);
-#else
-  // External watchdog board reset pins Just using #2 for now
-  pinMode(WD1_PIN, OUTPUT);
-  digitalWrite( WD1_PIN, HIGH);   //high is normal state, pulse low to reset timer
-  pinMode(WD2_PIN, OUTPUT);       // This is connected to reset the timer.  
-  digitalWrite(WD2_PIN, HIGH);
-  // The board output drives a relay, pulses it high for 300ms to power cycle this CPU.   
-  // Need to reset timer before this happens in main loop.
-#endif
-
   // Initial our serial ports
 #ifdef NEXTION
   pinMode(SERIAL1_RX_PIN, INPUT);   // initializing for Nextion or other usage
@@ -359,6 +341,24 @@ void setup(void)
       }
       DBG_Serial.println(">Ethernet System Startup");
   }
+#endif
+
+#ifdef EXT_WD
+  // Internal Watchdog (to replace the external card)
+    WDT_timings_t config;
+    config.trigger = 10; /* in seconds, 0->128 */
+    config.timeout = 20; /* in seconds, 0->128 */
+    //config.callback = myCallback;
+    wdt.begin(config);
+    pinMode(WD1_PIN, OUTPUT);
+#else
+  // External watchdog board reset pins Just using #2 for now
+  pinMode(WD1_PIN, OUTPUT);
+  digitalWrite( WD1_PIN, HIGH);   //high is normal state, pulse low to reset timer
+  pinMode(WD2_PIN, OUTPUT);       // This is connected to reset the timer.  
+  digitalWrite(WD2_PIN, HIGH);
+  // The board output drives a relay, pulses it high for 300ms to power cycle this CPU.   
+  // Need to reset timer before this happens in main loop.
 #endif
   
   write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized

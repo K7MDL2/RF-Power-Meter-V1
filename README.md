@@ -1,5 +1,14 @@
 ## RF-Power-Meter
 
+### 4/11/2022 - Testing completed, working in the field sucessfully with 500W at 144Mhz 20 ft away.
+
+    1. Board (without a case yet) installed in place of the old one.  Configuration applied for differences with inversion on the input and outputs.  These are stored in EEPROM and configured via the Desktop app.
+    2. The old CPU and ADL5519 detector was installed and the calibration is mostly preserved.
+    3. Operated in a VHF contest tonight for an hour or 2 and had some long chats on 144Mhz and 222Mhz SSB at 500W and there was no problem. This was the goal.
+    4. Some more PCB tweaks made for a future PCB order including adding low current 12V to pin 15 of each DB15 output connector to power some small relays.  Rev 0.04 is the latest PCB layout posted in the PCB files folder here.
+    5. The design and testing is complete, will now finish the metal case end panels to wrap this up.
+    6. The internal watchdog is working well.  When the ethernet cable was left unplugged there is a bit longer startup delay which caused the timer to reboot the CPU repeatedly. Lengthened the WD timeout to 20 seconds to solve that, then later moved the WD startup code to happen after the enet startup.  Not going to use the old external watchdog card though there are connections for one still.
+
 ### 4/11/2022 - Testing continues with PCB improvements with rev 0.04
 
     1. Fixed up some more footprints. 
