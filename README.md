@@ -8,6 +8,7 @@
     4. Some more PCB tweaks made for a future PCB order including adding low current 12V to pin 15 of each DB15 output connector to power some small relays.  Rev 0.04 is the latest PCB layout posted in the PCB files folder here.
     5. The design and testing is complete, will now finish the metal case end panels to wrap this up.
     6. The internal watchdog is working well.  When the ethernet cable was left unplugged there is a bit longer startup delay which caused the timer to reboot the CPU repeatedly. Lengthened the WD timeout to 20 seconds to solve that, then later moved the WD startup code to happen after the enet startup.  Not going to use the old external watchdog card though there are connections for one still.
+    7. Files for this update are at https://github.com/K7MDL2/RF-Power-Meter-V1/tree/master/RF_Wattmeter_Teensy41_PCB_V1
 
 ### 4/11/2022 - Testing continues with PCB improvements with rev 0.04
 
