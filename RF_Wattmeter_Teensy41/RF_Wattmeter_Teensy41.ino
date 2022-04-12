@@ -136,7 +136,7 @@ void setup(void)
   pinMode(BAND_DEC_A_2, OUTPUT);
   pinMode(BAND_DEC_A_3, OUTPUT);
   pinMode(BAND_DEC_A_4, OUTPUT);
-  //pinMode(BAND_DEC_A_5, OUTPUT);
+  pinMode(BAND_DEC_A_5, OUTPUT);
   //pinMode(BAND_DEC_A_6, OUTPUT);
   //pinMode(BAND_DEC_A_7, OUTPUT);
   pinMode(BAND_DEC_B_0, OUTPUT);   // Band Decoder bank B pin (bit) 0
@@ -178,8 +178,13 @@ void setup(void)
 #endif
 
 #ifdef ADS1115_ADC
+  #ifdef USE_WIRE1
     Wire1.begin();   // Note Wire1. is used instead of Wire. to use teh Teensy alternate I2C bus port pins.
     Wire1.setClock(400000);
+  #else
+    Wire.begin();   // Teensy I2C bus port pins.
+    Wire.setClock(400000);
+  #endif
     if(!adc.init()){
         RFWM_Serial.println("ADS1115 not connected!");
     }

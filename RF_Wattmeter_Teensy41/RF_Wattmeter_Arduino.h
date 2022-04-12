@@ -37,7 +37,7 @@
 // On the Teensy 4.X these are USB Serial so no pin assignments needed.  Teensy 4.x can have up to 3 Serial USB ports, 8 hardware serial ports.
 // Serial is main.  SerialUSB1 and SerialUSB2 are the others.
 #define RFWM_Serial Serial   // RF Wattmeter data output.  Also accepts control commands and debug output in Serial Monitor.
-#define OTRSP_Serial SerialUSB2    // OTRSP Serial protocol from programs like N1MM+ for transveter or antenna control
+#define OTRSP_Serial SerialUSB2    // OTRSP Serial protocol from programs like N1MM+ for transverter or antenna control
 //#define BAND_DEC_Serial SerialUSB2   // when and if serial band decoder methods used
 #define DBG_Serial SerialUSB1  // place to send debug messages to
 //#define CIV_Serial SerialUSB2 // for Icom CI-V decoding
@@ -80,7 +80,7 @@
 #endif
 
 #ifdef ADS1115_ADC
-    #define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
+    //#define Wire Wire1 // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
     #include<ADS1115_WE.h> 
     #include <Wire.h>
     #define I2C_ADDRESS 0x48
@@ -89,7 +89,7 @@
 
 #ifdef SSD1306_OLED
     #include <Wire.h>
-    #define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
+    //#define Wire Wire1   // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
     //#include "ssd1306.h"
     //#define DISPLAY_ADDRESS 0x3C //  for OLED i2C - 011110+SA0+RW - 0x3C or 0x3D NOTE1
     // If you are using a 128x64 OLED screen, the address will be 0x3C or 0x3D, if one does not work try with the other one.
@@ -147,11 +147,11 @@ uint32_t Timer_X00ms_Last_OLED;
 
 #define ADC_VREF (3.29)   // For Teensy4.1 which is a 3.3V chip  
 
-// Define the Analog input pins   -- !!!! Thesde are 3.3VDC max on Teensy 4.X PUs!!!!
-// These may not be used if using exernal ADC suchg as the ADS1115 4 channel board.  can use both if needed, mixed.
+// Define the Analog input pins   -- !!!! These are 3.3VDC max on Teensy 4.X PUs!!!!
+// These may not be used if using external ADC such as the ADS1115 4 channel board.  can use both if needed, mixed.
 #define ADC_FWD ADS1115_COMP_1_GND     //A4        // These are the Analog Mux input assignments for Teensy 4.1
 #define ADC_REF ADS1115_COMP_2_GND     //A5
-#define ADC_TEMP ADS1115_COMP_3_GND     //A6       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is nto the RF amp heat sink temp!
+#define ADC_TEMP ADS1115_COMP_3_GND     //A6       // temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is not the RF amp heat sink temp!
 #define ADC_CURR A7
 #define ADC_14V A8
 #define ADC_HV A9
