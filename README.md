@@ -1,5 +1,14 @@
 ## RF-Power-Meter
 
+### 4/15/2022 - Testing completed, code updated to match the board changes
+
+    1. Board is now installed in metal in place of the old one prototype box.  Code modified in several places to account for removal of hardware inversion of previous box.  Config updated to match.  This also appears to have fixed the power up problem where all relays would be turned on until the main program rad the config and took control.  With Enet on, this is several seconds.  Need to retest with enet on.  Bootup is very fast without enet.
+    2. Invalid band inputs now block PTT.   When the radio was powered off, the PTT line changed causing the Transverter to be left in TX state, not good.
+    3. Invalid Bands are defined as any Band Input with 0x00, 0x30, 0xFF, 0x3F.  In my case of a K3 with only 4 wires conencted, the upper 2 float high hence the 0x3 part.  The 0xFF case shoudl never happen since it is masked to 6 bits.
+    4. When enet is enabled and there is no connection, the code retries the conenction in 10 minutes.  It seems to then keep trying instead of trying just once and wait.  This causes major slowdown in processing as it sits in a wait loop for enet startup to stabilize (which it won't).
+    5. Overall it seems like it is pretty much done once the enet retry is fixed up better.
+    6. For remote testing I am using a USB2.0 extender, taking over the ethenet cable.  I can test in place, works quite well. Rated for 60M distance.
+
 ### 4/11/2022 - Testing completed, working in the field sucessfully with 500W at 144Mhz 20 ft away.
 
     1. Board (without a case yet) installed in place of the old one.  Configuration applied for differences with inversion on the input and outputs.  These are stored in EEPROM and configured via the Desktop app.

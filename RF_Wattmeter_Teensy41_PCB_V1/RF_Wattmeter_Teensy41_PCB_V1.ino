@@ -127,6 +127,11 @@ void setup(void)
   pinMode(BAND_DEC_PTT_IN, INPUT_PULLUP);   // Interrupt handler setup for PTT input
   PTT_IN_state = 0;   // 0 is RX mode, 1 is TX mode
   PTT_IN_state_last = 0;
+
+// For the PCB version all opto-couplers are connected such that grounding the input turns ON the
+//    output transistor connecting the output to ground. For ouputs controlling relays this is normal (active LOW control).
+// In the off and power up state this usually works best since the powered off state and CPU startup states will
+//    not cuse the output transistors to turn on causing unwanted external relays activation before full program control
   
   // Set up our output pins, starting with initializing the CW and PTT control pins
   #ifdef TEENSY4_CW_PTT
@@ -139,35 +144,63 @@ void setup(void)
       pinMode(PTT_OUT, OUTPUT);
       PTT_OUT_state = 0;
       PTT_OUT_state_last = 200;
-      //digitalWrite(PTT_OUT, HIGH);    // need to initializze these according to polarity config
+      digitalWrite(PTT_OUT, HIGH);    // need to initialize these according to polarity config but set to a OFF state here for optocouplers.
       pinMode(PTT_OUT2, OUTPUT);
-      //digitalWrite(PTT_OUT2, HIGH);    // need to initializze these according to polarity config
+      digitalWrite(PTT_OUT2, HIGH);    // need to initialize these according to polarity config but set to a OFF state here for optocouplers.
  
   // now our other IO pins
   pinMode(BAND_DEC_A_0, OUTPUT);   // Band Decoder bank A pin (bit) 0
+  digitalWrite(BAND_DEC_A_0, HIGH);
   pinMode(BAND_DEC_A_1, OUTPUT);   // Band Decoder bank A pin (bit) 1
+  digitalWrite(BAND_DEC_A_1, HIGH);
   pinMode(BAND_DEC_A_2, OUTPUT);
+  digitalWrite(BAND_DEC_A_2, HIGH);
   pinMode(BAND_DEC_A_3, OUTPUT);
+  digitalWrite(BAND_DEC_A_3, HIGH);
   pinMode(BAND_DEC_A_4, OUTPUT);
+  digitalWrite(BAND_DEC_A_4, HIGH);
   pinMode(BAND_DEC_A_5, OUTPUT);
+  digitalWrite(BAND_DEC_A_5, HIGH);
   pinMode(BAND_DEC_A_6, OUTPUT);
+  digitalWrite(BAND_DEC_A_6, HIGH);
   pinMode(BAND_DEC_A_7, OUTPUT);
+  digitalWrite(BAND_DEC_A_7, HIGH);
+
   pinMode(BAND_DEC_B_0, OUTPUT);   // Band Decoder bank B pin (bit) 0
+  digitalWrite(BAND_DEC_B_0, HIGH);
   pinMode(BAND_DEC_B_1, OUTPUT);
+  digitalWrite(BAND_DEC_B_1, HIGH);
   pinMode(BAND_DEC_B_2, OUTPUT);
+  digitalWrite(BAND_DEC_B_2, HIGH);
   pinMode(BAND_DEC_B_3, OUTPUT);
+  digitalWrite(BAND_DEC_B_3, HIGH);
   pinMode(BAND_DEC_B_4, OUTPUT);
+  digitalWrite(BAND_DEC_B_4, HIGH);
   pinMode(BAND_DEC_B_5, OUTPUT);
+  digitalWrite(BAND_DEC_B_5, HIGH);
   pinMode(BAND_DEC_B_6, OUTPUT);
+  digitalWrite(BAND_DEC_B_6, HIGH);
   pinMode(BAND_DEC_B_7, OUTPUT);
+  digitalWrite(BAND_DEC_B_7, HIGH);
+  
   pinMode(BAND_DEC_C_0, OUTPUT);  // Band Decoder bank C pin (bit) 0
+  digitalWrite(BAND_DEC_C_0, HIGH);
   pinMode(BAND_DEC_C_1, OUTPUT); 
+  digitalWrite(BAND_DEC_C_1, HIGH);
   pinMode(BAND_DEC_C_2, OUTPUT);
+  digitalWrite(BAND_DEC_C_2, HIGH);
+  
+  // Remaining not used on the PCB version, at least not for "port C" usage.
   //pinMode(BAND_DEC_C_3, OUTPUT); 
+  //digitalWrite(BAND_DEC_C_3, HIGH);
   //pinMode(BAND_DEC_C_4, OUTPUT); 
+  //digitalWrite(BAND_DEC_C_4, HIGH);
   //pinMode(BAND_DEC_C_5, OUTPUT); 
+  //digitalWrite(BAND_DEC_C_5, HIGH);
   //pinMode(BAND_DEC_C_6, OUTPUT); 
+  //digitalWrite(BAND_DEC_C_6, HIGH);
   //pinMode(BAND_DEC_C_7, OUTPUT);
+  //digitalWrite(BAND_DEC_C_7, HIGH);
 
   // Initial our serial ports
 #ifdef NEXTION
@@ -346,8 +379,8 @@ void setup(void)
 #ifdef EXT_WD
   // Internal Watchdog (to replace the external card)
     WDT_timings_t config;
-    config.trigger = 10; /* in seconds, 0->128 */
-    config.timeout = 20; /* in seconds, 0->128 */
+    config.trigger = 5; /* in seconds, 0->128 */
+    config.timeout = 10; /* in seconds, 0->128 */
     //config.callback = myCallback;
     wdt.begin(config);
     pinMode(WD1_PIN, OUTPUT);
@@ -551,9 +584,9 @@ void loop()
     }   
 
     // If PTT input changed, the flag is set and a timestamp made.  
-    
     PTT_IN_pin = digitalRead(BAND_DEC_PTT_IN);    // We do not know if 1 or 0 is TX yet, determined in PTT_IN_handler()
-    PTT_IN_pin = ~PTT_IN_pin & 0x01;  // flip if using an inverting buffer
+    //DBG_Serial.print(">\n>PTT input IO pin hardware state = ");DBG_Serial.println(PTT_IN_pin);
+    //PTT_IN_pin = ~PTT_IN_pin & 0x01;  // flip if using an inverting buffer
     if (PTT_IN_pin != PTT_IN_pin_last)
     {   // reset the timer until it stops changing.
         PTT_IN_debounce_timestamp = millis();   // record time of change.  Looking for no change for for maybe 15ms
@@ -562,8 +595,9 @@ void loop()
     }
     else   // state has stayed the same since last look
     {
-        if (((PTT_IN_debounce_timestamp - millis()) > 3) && PTT_IN_changed == 0)
+        if (((millis() - PTT_IN_debounce_timestamp) > 3) && PTT_IN_changed == 0)
         {   // change the state of the T/R status
+            DBG_Serial.print(">\n>PTT input IO pin hardware state = ");DBG_Serial.println(PTT_IN_pin);
             PTT_IN_changed = 1;   // reset changed flag
             PTT_IN_handler(PTT_IN_pin);  // Set RX or TX state corrected for configured polarity
             PTT_OUT_handler();   // Set PTT Output state corrected for polarity and set PTT ouput pins
@@ -609,6 +643,7 @@ void loop()
     }
   #else
       wdt.feed(); /* uncomment to feed the watchdog */
+      //DBG_Serial.println("Reset WD Timer");
   #endif
 } // ------ End of Main Loop() --------------------
 
@@ -852,26 +887,24 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
     uint8_t polarity ;
 
     polarity = EEPROM.read(PTT_IN_POLARITY);
-
-    DBG_Serial.print(">pin_state = ");
-    DBG_Serial.print(pin_state);
-    DBG_Serial.print("   Input PTT Active ");    
+    DBG_Serial.print(">Input PTT Polarity is ");
     if (polarity)
         DBG_Serial.println("HIGH");
     else
         DBG_Serial.println("LOW");
+    DBG_Serial.println(">If Polarity = Hardware IO pin state then we are in TX Mode");
 
     if (pin_state == LOW)
     {
         if (polarity == LOW)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         {
             PTT_IN_state = TX;   // Set to TX
-            DBG_Serial.println(">TX, Tx is Active LOW"); 
+            DBG_Serial.println(">PTT Input = TX"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            DBG_Serial.println(">RX, Tx is Active HIGH"); 
+            DBG_Serial.println(">PTT Input = RX"); 
         }
     }
     else
@@ -879,52 +912,74 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
         if (polarity == HIGH)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         { 
             PTT_IN_state = TX;   // Set to TX
-            DBG_Serial.println(">TX, Tx is Active HIGH"); 
+            DBG_Serial.println(">PTT Input = TX"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            DBG_Serial.println(">RX, Tx is Active LOW"); 
+            DBG_Serial.println(">PTT Input = RX"); 
         }
     }    
-    if (PTT_IN_state == RX)
-        DBG_Serial.println(">PTT OFF (RX Mode)");
-    else
-        DBG_Serial.println(">PTT ON (TX Mode)");    
+    //if (PTT_IN_state == RX)
+    //    DBG_Serial.println(">PTT OFF (RX Mode)");
+    //else
+    //    DBG_Serial.println(">PTT ON (TX Mode)");    
     PTT_IN_state_last = PTT_IN_state;
 }
 
 void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT_IN_state.  Set PTT Output to follow (observing it's own Polarity setting)
 {
+    // Set block_PTT flag if we have invalid or specific patterns that are invalid
+    // One case is radio powered on and off toggles the band decoder input lines to all 0's
+    //   and all 1's until the actual band is initialized in the radio.  This could leave a Xvtr keyed up.
+    Band_Decoder_Get_Input();
+    if (Band_Dec_In_Byte == 0x3F || Band_Dec_In_Byte == 0x30 || Band_Dec_In_Byte == 0x00 || Band_Dec_In_Byte == 0xFF)
+    {
+      block_PTT = 1;
+      DBG_Serial.print("PTT Blocked by Invalid Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
+      return 0;
+    }
     if (PTT_IN_state == TX)   // We are in TX Mode
     {
-        if (EEPROM.read(PTT_OUT_POLARITY) == HIGH) // Change this to LOW if NOT using an inverting driver
+        // Block PTT for invalid bands.  This is intended to cover the observation that when the K3 is turned off then back on, 
+        //    combined with the opto-coupler interface box at the K3 end effects, we see all 0's sent on the input 
+        //    followed by all 1's and PTT line flips to high (TX due to inversion of K3 opto box).
+        //    When the K3 is turned back on, the PTT flips from 1 to 0 (back to RX), Input all 0's, then the 
+        //    input updates to the actual band pattern.  
+        // The bad side effect of PTT on when power is off it kesy teh PTT relay (amps are off hopefully so nop harm) 
+        //    but the Xvtr is always on and it is sent to TX.  If any RF flows it would send RF into the output
+        //    of a LNA.  Plus the Xvtr would be stuck in TX until the K3 s back on some day.  Not good.
+        // The long term answer is to remov the inversion of the PTT line at the K3 box.  
+        // Hook up the DigOut1 signal at that time and use bit 4 (DigOut) to disable the Xvtr.
+        // The Xvtr can also be disabled by lowering setting either B3 and B4 bits to opposite of normal causing an invalid band input
+        
+        if (EEPROM.read(PTT_OUT_POLARITY) == LOW) // Change this to LOW if NOT using an inverting driver
         {            
             digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 0 to PTT2 OUT pin )(sequencer for Amps first)
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT, LOW);     // TX is on, TX is ACTIVE LOW so send out a 0 to PTT OUT pin(now Xvtr)
             PTT_OUT_state = LOW;            // this is used when calling Port (A,B,C) update functions in case they follow PTT
-
-
+            DBG_Serial.println(">In TX Mode: PTT Output Polarity is LOW");
         }
         else
-        {
-            
+        {        
             digitalWrite(PTT_OUT2, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (sequencer for Amps first)
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT, HIGH);    // TX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Now Xvtr)
             PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT            
+            DBG_Serial.println(">In TX Mode: PTT Output Polarity is HIGH");
         }
+        DBG_Serial.print(">In TX Mode: PTT Output ON - IO Pin is ");  DBG_Serial.println(PTT_OUT_state); 
     }
     else   // We are in RX mode
     {
-        if (EEPROM.read(PTT_OUT_POLARITY) == HIGH) // Change this to LOW if NOT using an inverting driver
+        if (EEPROM.read(PTT_OUT_POLARITY) == LOW) // Change this to LOW if NOT using an inverting driver
         {
             digitalWrite(PTT_OUT, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Sequence Xvtr release first)
             PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT2, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Now amps)
-            
+            DBG_Serial.println(">In RX Mode: PTT Output Polarity is LOW");
         }
         else
         {
@@ -932,7 +987,9 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
             PTT_OUT_state = LOW;            // this is used when calling Port (A,B,C) update functions in case they follow PTT_OUT_state
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (now Amps)
+            DBG_Serial.println(">In RX Mode: PTT Output Polarity is HIGH");
         }
+        DBG_Serial.print(">PTT Output OFF - IO Pin is ");  DBG_Serial.println(PTT_OUT_state); 
     }
         
     // If any of the output ports (ABC, others) are configured to follow PTT then we need to update those ports now.
@@ -3153,7 +3210,7 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
     uint8_t i;
     uint8_t trans_in;
 
-    // if in transmit, skip.  Don't want RFI or band change operting relays hot.
+    // if in transmit, skip.  Don't want RFI or band change operating relays hot.
     if (PTT_IN_state == TX)
         return 0;
     
@@ -3163,10 +3220,23 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
 
     if (Band_Dec_In_Byte != decoder_input_last)
     {      
-        DBG_Serial.print(">Band_Dec_In_Byte = 0x");
-        DBG_Serial.println(Band_Dec_In_Byte, HEX);
+        DBG_Serial.print(">\n>Band_Dec_In_Byte = 0x"); DBG_Serial.print(Band_Dec_In_Byte, HEX);
+        DBG_Serial.print("  b"); DBG_Serial.print(Band_Dec_In_Byte, BIN);
+        DBG_Serial.print("  d"); DBG_Serial.println(Band_Dec_In_Byte, DEC);
         decoder_input_last = Band_Dec_In_Byte;
+
+        // Set block_PTT flag if we have invalid or specific patterns that are invalid
+        // One case is radio powered on and off toggles the band decoder input lines to all 0's
+        //   and all 1's until the actual band is initialized in the radio.  This could leave a Xvtr keyed up.
+        if (Band_Dec_In_Byte == 0x3F || Band_Dec_In_Byte == 0x30 || Band_Dec_In_Byte == 0x00 || Band_Dec_In_Byte == 0xFF)
+        {
+          block_PTT = 1;
+          DBG_Serial.print("PTT Blocked by Invalid Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
+          //return 0;
+        }
         
+        block_PTT = 0;  // enable for all else.  If no match found it wil get reset to 1.
+          
         // Read the translation scheme flag in the band record (.translate) and convert to various formats
         if (trans_in == 1)   
         {    
@@ -3208,6 +3278,7 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
         }       
         DBG_Serial.print("> ERROR: No Matching Band Found, Input Received = 0x");
         DBG_Serial.println(Band_Dec_In_Byte, HEX);
+        block_PTT = 1;  // invalid band so prevent TX
     }
     return 0;   // no change detected
 }
@@ -3290,7 +3361,8 @@ void Band_Decoder_Get_Input()
         bitWrite(Band_Dec_In_Byte_temp, 3, digitalRead(BAND_DEC_IN_3));
         bitWrite(Band_Dec_In_Byte_temp, 4, digitalRead(BAND_DEC_IN_4));  
         bitWrite(Band_Dec_In_Byte_temp, 5, digitalRead(BAND_DEC_IN_5));   
-        Band_Dec_In_Byte_temp = ~Band_Dec_In_Byte_temp & 0x3F;
+        //Band_Dec_In_Byte_temp = ~Band_Dec_In_Byte_temp & 0x3F;   // Uncomment if lines are inverted.  They are not for the PCB.
+        Band_Dec_In_Byte_temp = Band_Dec_In_Byte_temp & 0x3F;   // Use this line for no inverted inputs.  Mask to the 5 actual bits.
         //DBG_Serial.print("> Band_Dec_In_Byte_temp = 0x");   // for debug
         //DBG_Serial.println(Band_Dec_In_Byte_temp, HEX);
         
@@ -3353,8 +3425,9 @@ void Band_Decode_A_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }
-    DBG_Serial.print(">Port_A pattern = 0x");   
-    DBG_Serial.println(pattern, BIN);
+    DBG_Serial.print(">Port_A pattern = 0x"); DBG_Serial.print(pattern, HEX); 
+    DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN); 
+    DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);
     PortA_state = pattern;
     digitalWrite(BAND_DEC_A_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_A_1, bitRead(pattern, 1));
@@ -3422,8 +3495,9 @@ void Band_Decode_B_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }     
-    DBG_Serial.print(">Port B pattern = 0b");
-    DBG_Serial.println(pattern, BIN);
+    DBG_Serial.print(">Port_B pattern = 0x"); DBG_Serial.print(pattern, HEX); 
+    DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN);
+    DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);
     PortB_state = pattern;
     digitalWrite(BAND_DEC_B_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_B_1, bitRead(pattern, 1));
@@ -3479,8 +3553,9 @@ void Band_Decode_C_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }   
-    DBG_Serial.print(">Port C pattern = 0b");
-    DBG_Serial.println(pattern, BIN);
+    DBG_Serial.print(">Port_C pattern = 0x"); DBG_Serial.print(pattern, HEX);
+    DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN);
+    DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);DBG_Serial.println("");
     PortC_state = pattern;
     digitalWrite(BAND_DEC_C_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_C_1, bitRead(pattern, 1));

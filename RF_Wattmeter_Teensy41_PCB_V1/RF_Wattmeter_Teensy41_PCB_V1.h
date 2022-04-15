@@ -22,7 +22,7 @@
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
-#define ENET              // Include support for ethernet
+//#define ENET              // Include support for ethernet
 // Icom Analog (ACC) and C-IV Serial 
 //#define ICOM_ACC             // voltage 0-8V on pin4 ACC(2) connector - need calibrate table
 //#define ICOM_CIV             // read frequency from CIV
@@ -366,6 +366,7 @@ uint8_t enet_ready = 0;
 unsigned long enet_start_fail_time = 0;
 unsigned long wd_timestamp = 0;
 uint8_t WD_reset_flag = 0;
+uint8_t block_PTT = 0;
 
 //---------------------------------------------------------
 // Icom Analog (ACC) and C-IV Serial 
