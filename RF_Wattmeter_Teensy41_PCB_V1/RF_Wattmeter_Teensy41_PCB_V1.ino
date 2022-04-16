@@ -541,7 +541,10 @@ void loop()
     {
         if (!enet_ready)
             if ((millis() - enet_start_fail_time) >  600000)  // check every 10 minutes (600K ms) and attempt a restart.
-                enet_start();
+                {
+                  enet_start();
+                  enet_start_fail_time = millis();  // reset timer for another 10 minutes
+                }
         enet_read();
         if (rx_count!=0)
           get_remote_cmd();       // scan buffer for command strings
