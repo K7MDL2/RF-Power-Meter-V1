@@ -10,8 +10,20 @@
 #include "Watchdog_t4.h"  // https://github.com/tonton81/WDT_T4 for internal watchdog
 /*
  *
- * RF Wattmetter and Band Decoder on Arduino Teensy 4.1 with Ethernet option 
+ * RF Wattmetter and Band Decoder on Arduino Teensy 4.1 with Ethernet option - PCB V1 version
  * by K7MDL  https://github.com/K7MDL2/RF-Power-Meter-V1
+ * 
+ * This version is tailored to work with the V1 PCB by K7MDL developed April 2022.
+ * 
+ * 4/15/2022
+ *  1. Fixed problem with outputs all turning on during startup, including PTT.
+ *  2. Removed state inversions added for old proto hardware, helped fix the config and all-on relays issue.
+ *  3. Fixed problem of PTT turning on when the radio providing the band decode is powered on or off. Now PTT
+ *     checks band decode for a valid band and if the input is all 0's or all l's PTT output changing to TX is prevented.
+ *  4. Known Issue: If there is no enet cable attached and enet is enabled, after the first 10 minute retry, it keeps retrying every few seconds rnther than every 10 miunutes.   
+ *  5. Housed the PCB in a metal box. Tested at 500W on 144 and 432 and other bands and no RFI issues.  The temperature reading, 
+ *     often a sign of RFI when the value reported changes 10F-20F during TX, now barely moves 1 degree.  Plan to remove the 
+ *     many snap-on ferrites from external cables and retest for RFI resistance.
  *  
  * 4/9/2022
  *  1. Added internal watchdog timer in hopes of removing the external WD card.
@@ -936,9 +948,19 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
     if (Band_Dec_In_Byte == 0x3F || Band_Dec_In_Byte == 0x30 || Band_Dec_In_Byte == 0x00 || Band_Dec_In_Byte == 0xFF)
     {
       block_PTT = 1;
-      DBG_Serial.print("PTT Blocked by Invalid Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
-      return 0;
+      DBG_Serial.print("PTT Blocked - TX not permitted on Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
+      // In most cases the opto-coupler outputs will be turned on to pull a load to ground to activate it, such as a relay.
+      // With that assumption will force all outpout portst to OFF state when an invalid band is received.
+      // Was using a unused band as a workaround but that wasted 1 or 2 bands (HF and 6M in my test config).
+      // The most common reasons for an invalid band are radio power on and off, and during the initial conifguration period.
+      Band_Decode_A_Output(255);   // set all opto outputs OFF on PCB.
+      Band_Decode_B_Output(255);
+      Band_Decode_C_Output(255);
+      DBG_Serial.print("All outputs forced to OFF");
+      return;
     }
+    block_PTT = 0;
+    DBG_Serial.println(">All outputs returned to normal");
     if (PTT_IN_state == TX)   // We are in TX Mode
     {
         // Block PTT for invalid bands.  This is intended to cover the observation that when the K3 is turned off then back on, 
@@ -946,10 +968,11 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
         //    followed by all 1's and PTT line flips to high (TX due to inversion of K3 opto box).
         //    When the K3 is turned back on, the PTT flips from 1 to 0 (back to RX), Input all 0's, then the 
         //    input updates to the actual band pattern.  
-        // The bad side effect of PTT on when power is off it kesy teh PTT relay (amps are off hopefully so nop harm) 
-        //    but the Xvtr is always on and it is sent to TX.  If any RF flows it would send RF into the output
-        //    of a LNA.  Plus the Xvtr would be stuck in TX until the K3 s back on some day.  Not good.
-        // The long term answer is to remov the inversion of the PTT line at the K3 box.  
+        // The bad side effect of PTT on when power is off it keys the PTT relay (amps are off hopefully so no harm) 
+        //    but the Xvtr is always on and it is sent to TX mode.  If any RF flows it would send RF into the output
+        //    of a LNA.  Plus the Xvtr would be stuck in TX until the K3 is back on some day.  Not good.
+        // The long term answer is to remove the inversion of the PTT line at the K3 box. The PTT blocking logic added
+        //    wil handle it though for now.
         // Hook up the DigOut1 signal at that time and use bit 4 (DigOut) to disable the Xvtr.
         // The Xvtr can also be disabled by lowering setting either B3 and B4 bits to opposite of normal causing an invalid band input
         
@@ -3225,18 +3248,7 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
         DBG_Serial.print("  d"); DBG_Serial.println(Band_Dec_In_Byte, DEC);
         decoder_input_last = Band_Dec_In_Byte;
 
-        // Set block_PTT flag if we have invalid or specific patterns that are invalid
-        // One case is radio powered on and off toggles the band decoder input lines to all 0's
-        //   and all 1's until the actual band is initialized in the radio.  This could leave a Xvtr keyed up.
-        if (Band_Dec_In_Byte == 0x3F || Band_Dec_In_Byte == 0x30 || Band_Dec_In_Byte == 0x00 || Band_Dec_In_Byte == 0xFF)
-        {
-          block_PTT = 1;
-          DBG_Serial.print("PTT Blocked by Invalid Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
-          //return 0;
-        }
-        
-        block_PTT = 0;  // enable for all else.  If no match found it wil get reset to 1.
-          
+        block_PTT = 0;  // reset for normal bands
         // Read the translation scheme flag in the band record (.translate) and convert to various formats
         if (trans_in == 1)   
         {    
@@ -3254,7 +3266,7 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
         }
         else if (trans_in == 2)
         {
-            // Use a custom pattern to look for anything ting you want to represent a band choice.
+            // Use a custom pattern to look for anything you want to represent a band choice.
             // Advantage of this is you can use the lower 3 bits for band and the upper for antenna if needed.
             for (i = 0; i < NUM_SETS; i++)
             {
@@ -3276,9 +3288,18 @@ uint8_t Band_Decoder(void)   // return 1 for new band detected, 0 for none.
             DBG_Serial.println(Band_Dec_In_Byte, HEX);
             return 1;
         }       
-        DBG_Serial.print("> ERROR: No Matching Band Found, Input Received = 0x");
+        DBG_Serial.print("> ERROR: No Matching Band or Invalid Band Found, Input Received = 0x");
         DBG_Serial.println(Band_Dec_In_Byte, HEX);
         block_PTT = 1;  // invalid band so prevent TX
+        DBG_Serial.print("PTT Blocked by Invalid Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
+        // In most cases the opto-coupler outputs will be turned on to pull a load to ground to activate it, such as a relay.
+        // With that assumption will force all outpout portst to OFF state when an invalid band is received.
+        // Was using a unused band as a workaround but that wasted 1 or 2 bands (HF and 6M in my test config).
+        // The most common reasons for an invalid band are radio power on and off, and during the initial conifguration period.
+        Band_Decode_A_Output(255);   // set all opto outputs OFF on PCB.
+        Band_Decode_B_Output(255);
+        Band_Decode_C_Output(255);
+        DBG_Serial.println("> All outputs forced to OFF\n");
     }
     return 0;   // no change detected
 }
@@ -3387,9 +3408,12 @@ void Band_Decoder_Get_Input()
 void Band_Decode_A_Output(uint8_t pattern)
 {
     uint8_t trans_a;
-
+    
     trans_a = EEPROM.read(TRANS_A);
-    if ( trans_a == 0)  // bit 0 and 1 is for Group A translation (or not).
+    
+    if (block_PTT)
+        pattern = 255;
+    else if ( trans_a == 0)  // bit 0 and 1 is for Group A translation (or not).
         {}  // do nothing, pass straight through. Normally will be last OTRSP AuxNum1 value
     else if (trans_a == 1)  
         pattern = bit(pattern)>>1;    // Translate to 1 of 8 pins at a time only such as for amp or transverter selection
@@ -3458,7 +3482,10 @@ void Band_Decode_B_Output(uint8_t pattern)
     uint8_t trans_b;
     
     trans_b = EEPROM.read(TRANS_B);
-    if (trans_b == 0)  // bit 0 and 1 is for Group B translation (or not).
+
+    if (block_PTT)
+        pattern = 255;
+    else if (trans_b == 0)  // bit 0 and 1 is for Group B translation (or not).
         {}  // do nothing, pass straight through
     else if (trans_b == 1)  
         pattern = bit(pattern)>>1;    // Translate to 1 pin at a time only such as for amp or transverter selection (1-of-8)
@@ -3516,7 +3543,10 @@ void Band_Decode_C_Output(uint8_t pattern)
     uint8_t trans_c;
 
     trans_c = EEPROM.read(TRANS_C);
-    if (trans_c == 0)  // bit 0 and 1 is for Group C translation (or not).
+
+    if (block_PTT)
+        pattern = 255;
+    else if (trans_c == 0)  // bit 0 and 1 is for Group C translation (or not).
         {}  // do nothing, pass straight through
     else if (trans_c == 1)  
         pattern = bit(pattern)>>1;    // Translate to 1 of 8 pins at a time only such as for amp or transverter selection
