@@ -15,13 +15,20 @@
  * 
  * This version is tailored to work with the V1 PCB by K7MDL developed April 2022.
  * 
+ * 4/16/2022 
+ * 1. If there is was no enet cable attached and enet was enabled, after the first 10 minute retry, it kept 
+ *    retrying every few seconds rather than every 10 minutes.   Fixed.
+ * 2. Optimized PTT blocking more, freed up 6M band that was used as a workaround for all 1s case.  
+ * 3. If all 1's or all 0's received, or any invalid band decode input, Port A, B and C are forced to 255.
+ * 4. Added message 173 to the data streaming out to track PTT state.
+ * 5. Changed data output timer from 600ms to 50ms to better capture fast moving power levels.  Increased ADC reads to 25ms.
+ * 
  * 4/15/2022
  *  1. Fixed problem with outputs all turning on during startup, including PTT.
  *  2. Removed state inversions added for old proto hardware, helped fix the config and all-on relays issue.
  *  3. Fixed problem of PTT turning on when the radio providing the band decode is powered on or off. Now PTT
  *     checks band decode for a valid band and if the input is all 0's or all l's PTT output changing to TX is prevented.
- *  4. Known Issue: If there is no enet cable attached and enet is enabled, after the first 10 minute retry, it keeps retrying every few seconds rnther than every 10 miunutes.   
- *  5. Housed the PCB in a metal box. Tested at 500W on 144 and 432 and other bands and no RFI issues.  The temperature reading, 
+ *  4. Housed the PCB in a metal box. Tested at 500W on 144 and 432 and other bands and no RFI issues.  The temperature reading, 
  *     often a sign of RFI when the value reported changes 10F-20F during TX, now barely moves 1 degree.  Plan to remove the 
  *     many snap-on ferrites from external cables and retest for RFI resistance.
  *  
@@ -115,7 +122,7 @@ void(* resetFunc) (void) = 0; //declare reset function @ address 0
 // #define SerialUSB1 SerialUSB1  // assign as needed for your CPU type. 
                                   // For Teesny set ports to Dual or Triple and Use Serial USB1 and Serial USB2 for 2 and 3rd ports
 WDT_T4<WDT1> wdt;   // internal watchdog functionality.
-#define EXT_WD
+//#define EXT_WD
 
 void setup(void) 
 { 
@@ -389,21 +396,21 @@ void setup(void)
 #endif
 
 #ifdef EXT_WD
-  // Internal Watchdog (to replace the external card)
+    // External watchdog board reset pins Just using #2 for now
+    pinMode(WD1_PIN, OUTPUT);
+    digitalWrite( WD1_PIN, HIGH);   //high is normal state, pulse low to reset timer
+    pinMode(WD2_PIN, OUTPUT);       // This is connected to reset the timer.  
+    digitalWrite(WD2_PIN, HIGH);
+    // The board output drives a relay, pulses it high for 300ms to power cycle this CPU.   
+    // Need to reset timer before this happens in main loop.
+#else
+    // Internal Watchdog (to replace the external card)
     WDT_timings_t config;
     config.trigger = 5; /* in seconds, 0->128 */
     config.timeout = 10; /* in seconds, 0->128 */
     //config.callback = myCallback;
     wdt.begin(config);
     pinMode(WD1_PIN, OUTPUT);
-#else
-  // External watchdog board reset pins Just using #2 for now
-  pinMode(WD1_PIN, OUTPUT);
-  digitalWrite( WD1_PIN, HIGH);   //high is normal state, pulse low to reset timer
-  pinMode(WD2_PIN, OUTPUT);       // This is connected to reset the timer.  
-  digitalWrite(WD2_PIN, HIGH);
-  // The board output drives a relay, pulses it high for 300ms to power cycle this CPU.   
-  // Need to reset timer before this happens in main loop.
 #endif
   
   write_Cal_Table_from_Default();  // Copy default values into memory in case EEPROM not yet initialized
@@ -636,8 +643,8 @@ void loop()
         update_Nextion(0);    
 #endif
 
-  #ifndef EXT_WD
-    // Reset WD Timer
+  #ifdef EXT_WD
+    // Reset External WD Timer
     if (millis() - wd_timestamp > 8000 && WD_reset_flag != 2)
     // if flag == 2 skip wd timer reset and force a WD timeout and power relay cycle, usually from remote command cmd=192.
     {     
@@ -656,7 +663,7 @@ void loop()
         //Serial.println("End Reset WD Timer");
         WD_reset_flag = 0;
     }
-  #else
+  #else  // reset internal WD Timer
       wdt.feed(); /* uncomment to feed the watchdog */
       //DBG_Serial.println("Reset WD Timer");
   #endif
@@ -692,10 +699,10 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
     float tmp, retry=0;
     uint16_t i;
 
-    // Throttle the time the CPU spends here.   Offset the timing os teh data acquired is just before it is sent out
+    // Throttle the time the CPU spends here.   Offset the timing of the data acquired is just before it is sent out
     Timer_X00ms_InterruptCnt = millis(); 
-    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 100)   // will use our own timestamp.
-        return;   // skip out until greater than 100ms since our last visit here
+    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 25)   // will use our own timestamp.
+        return;   // skip out until greater than 25ms since our last visit here
     Timer_X00ms_Last_AD = Timer_X00ms_InterruptCnt;  // time stamp our visit here.  Do not want to come back too soon.  
 
 __reread:   // jump label to reread values in case of odd result or hi SWR
@@ -1927,7 +1934,7 @@ uint16_t serial_usb_read(void)
 void sendSerialData()
 {
     Timer_X00ms_InterruptCnt = millis();
-    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last > 600)
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last > 50)
     {          
         Timer_X00ms_Last_USB = Timer_X00ms_InterruptCnt;       
         sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
@@ -1938,6 +1945,13 @@ void sendSerialData()
             enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
         #endif    
         sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
+        if (ser_data_out)
+            RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
+        #ifdef ENET            
+        if (enet_data_out)
+            enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
+        #endif
+        sprintf((char *) tx_buffer,"%d,%s,%s,%d\r\n%c", METERID, "173", "PTT", PTT_IN_state, '\0');       
         if (ser_data_out)
             RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
         #ifdef ENET            
