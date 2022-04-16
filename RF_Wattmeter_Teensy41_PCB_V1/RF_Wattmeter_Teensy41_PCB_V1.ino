@@ -664,7 +664,9 @@ void loop()
         WD_reset_flag = 0;
     }
   #else  // reset internal WD Timer
-      wdt.feed(); /* uncomment to feed the watchdog */
+      // if flag == 2 skip wd timer reset and force a WD timeout, usually from remote command cmd=192.
+      if (WD_reset_flag != 2)
+        wdt.feed(); /* uncomment to feed the watchdog */
       //DBG_Serial.println("Reset WD Timer");
   #endif
 } // ------ End of Main Loop() --------------------
