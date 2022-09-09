@@ -50,16 +50,20 @@
     //byte mac[] = {
     //  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEC
     //};
-    IPAddress ip(192, 168, 2, 188);    // Our static IP address.  OUdl use DHCP but preferring static address.
+
+    // WATTMETER IP ADDRESS
+    IPAddress ip(192, 168, 2, 188);    // Our static IP address.  Could use DHCP but preferring static address.
     unsigned int localPort = 7943;     // local port to LISTEN for the remote display/Desktop app
     unsigned int localPort_Nex = 7945;     // local port to LISTEN for the remote display/Desktop app
     
     // buffers for receiving and sending data
     char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
     char ReplyBuffer[] = "Random Reply";        // a string to send back
-   
+
+   // HOST IP ADDRESS (WHERE the DESKTOP APP is RUN FROM - HARD CODED HERE!)
    //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-   IPAddress remote_ip(192, 168, 2, 199);  // destination  IP (desktop app or remote display Arduino
+   //IPAddress remote_ip(192, 168, 2, 199);  // destination  IP (desktop app or remote display Arduino
+   IPAddress remote_ip(192, 168, 2, 65);  // destination  IP (desktop app or remote display Arduino
    unsigned int remoteport = 7942;    // the destination port to SENDTO (a remote display or Desktop app)
    unsigned int remoteport_Nex = 7944;    // the destination port to SENDTO (a remote display or Desktop app)
    
