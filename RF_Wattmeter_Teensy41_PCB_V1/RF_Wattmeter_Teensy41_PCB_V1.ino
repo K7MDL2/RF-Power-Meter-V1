@@ -2403,7 +2403,7 @@ void get_remote_cmd()
                             if (temp_target > 0)
                                 temp_cal_factor = temp_target/temp_read();
                             else
-                                temp_cal_factor = 1;  // a value of 0 is signal to reset to no correction factor
+                                temp_cal_factor = 1.0;  // a value of 0 is signal to reset to no correction factor
                         }  
                         if (cmd1 == 79) 
                         {    // Get target hi power level from user in Watts, convert to dBm then measure and save ADC                            
@@ -2673,40 +2673,50 @@ void read_Arduino_EEPROM()
         op_mode = eepromArray[OP_MODE_OFFSET];                                  // byte 2 of 0-15
         CouplerSetNum = eepromArray[COUPLERSETNUM_OFFSET];                      // byte 3
         ser_data_out = eepromArray[SER_DATA_OUT_OFFSET];                        // byte 4
+        
         memcpy(setpoint_buf,&eepromArray[HV_MAX_OFFSET],SETPOINT_LEN);          // byte 5-8  
         setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string
         set_hv_max = atof(setpoint_buf);                                        // convert ascii to float
+        
         memcpy(setpoint_buf,&eepromArray[V14_MAX_OFFSET],SETPOINT_LEN);         // byte 9-12       
-        setpoint_buf[SETPOINT_LEN] = '\0';
+        setpoint_buf[SETPOINT_LEN] = '\0';        
         set_v14_max = atof(setpoint_buf);                                       // convert ascii to float              
+        
         set_temp_max = eepromArray[TEMP_MAX_OFFSET];                            // byte 13 of 0-15
         METERID = eepromArray[METERID_OFFSET];                                  // byte 14 of 15
         //xxx = eepromArray[SPARE0_OFFSET];                                     // byte 15 of 15 
 
         // start row 1
         memcpy(Callsign,&eepromArray[CALLSIGN_OFFSET],CALLSIGN_LEN);            // byte 0-6 -  first 7 bytes of row 1
+        
         memcpy(setpoint_buf,&eepromArray[CURR_MAX_OFFSET],SETPOINT_LEN);        // byte 7-10 of 0-15
-        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
+        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string
         set_curr_max = atof(setpoint_buf);                                      // convert ascii to float 
+        
         memcpy(setpoint_buf,&eepromArray[HV_CAL_OFFSET],SETPOINT_LEN);          // byte 1B to 1E of 0-15
-        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
+        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string        
         hv_cal_factor = atof(setpoint_buf)/100;                                     // convert ascii to float 
                 
         // start row 2
-        memcpy(setpoint_buf,&eepromArray[V14_CAL_OFFSET],SETPOINT_LEN);         // byte 7-10 of 0-15
-        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
+        memcpy(setpoint_buf,&eepromArray[V14_CAL_OFFSET],SETPOINT_LEN);         // byte 0-3 of 0-15
+        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string
         v14_cal_factor = atof(setpoint_buf)/100;                                    // convert ascii to float 
-        memcpy(setpoint_buf,&eepromArray[CURR_CAL_OFFSET],SETPOINT_LEN);        // byte 1B to 1E of 0-15
-        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
+        
+        memcpy(setpoint_buf,&eepromArray[CURR_CAL_OFFSET],SETPOINT_LEN);        // byte 4-7 of 0-15
+        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string
         curr_cal_factor = atof(setpoint_buf)/100;                                   // convert ascii to float         
-        memcpy(setpoint_buf,&eepromArray[TEMP_CAL_OFFSET],SETPOINT_LEN);        // byte 1B to 1E of 0-15
-        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
-        temp_cal_factor = atof(setpoint_buf)/10000;                                   // convert ascii to float 
-        memcpy(setpoint_buf,&eepromArray[CURR_0_OFFSET],SETPOINT_LEN);        // byte 1B to 1E of 0-15
-        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminaite string
+        
+        memcpy(setpoint_buf,&eepromArray[TEMP_CAL_OFFSET],SETPOINT_LEN);        // byte 8 to 0B of 0-15
+        DBG_Serial.println();
+        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string
+        temp_cal_factor = atof(setpoint_buf)/1000;                                   // convert ascii to float 
+        
+        memcpy(setpoint_buf,&eepromArray[CURR_0_OFFSET],SETPOINT_LEN);        // byte 0C to 0F of 0-15
+        setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string
         curr_zero_offset = atof(setpoint_buf);  
+        
         // Start row 3
-        // The above vaiables are stored in EEPROM and copied to RAM.  
+        // The above variables are stored in EEPROM and copied to RAM.  
         // Other variables are read and written directly from EEPROM only so do not appear here.
         //Translate options using first 5 bytes of row 3 - read and write directly to EEPROM, no variable used.
         // They are initialized in write_Cal_Table_from_Default() function.
@@ -2820,20 +2830,20 @@ void write_Arduino_EEPROM()
     // Prep and write Row 2 (0x0020 to 2F)
     if (v14_cal_factor == 0) 
         v14_cal_factor = 1.0;
-    sprintf(setpoint_buf, "%01.2f", v14_cal_factor*100);                           // convert float to 4 byte ascii
+    sprintf(setpoint_buf, "%02.2f", v14_cal_factor*100);                           // convert float to 4 byte ascii
     memcpy(&c1_array[V14_CAL_OFFSET-0x0020],setpoint_buf, SETPOINT_LEN);
     
     if (curr_cal_factor == 0) 
         curr_cal_factor = 1.0;
-    sprintf(setpoint_buf, "%01.2f", curr_cal_factor*100);                           // convert float to 4 byte ascii
+    sprintf(setpoint_buf, "%02.2f", curr_cal_factor*100);                           // convert float to 4 byte ascii
     memcpy(&c1_array[CURR_CAL_OFFSET-0x0020],setpoint_buf, SETPOINT_LEN); 
          
     if (temp_cal_factor == 0) 
         temp_cal_factor = 1.0;
-    sprintf(setpoint_buf, "%01.2f", temp_cal_factor*10000);                           // convert float to 4 byte ascii
+    sprintf(setpoint_buf, "%02.2f", temp_cal_factor*1000);                           // convert float to 4 byte ascii
     memcpy(&c1_array[TEMP_CAL_OFFSET-0x0020],setpoint_buf, SETPOINT_LEN);      
       
-    sprintf(setpoint_buf, "%01.2f", curr_zero_offset);   
+    sprintf(setpoint_buf, "%02.2f", curr_zero_offset);   
     memcpy(&c1_array[CURR_0_OFFSET-0x0020],setpoint_buf, SETPOINT_LEN); 
     
     // Now copy row 2 to EEPROM
