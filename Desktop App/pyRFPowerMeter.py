@@ -682,6 +682,8 @@ class Power_Data():
                         elif meter_data_tmp[1] == "162":   # Cmd progress message end
                             cmd_flag = 0                            
                             print(" -------------cmd flag = 0 -------------")
+                        elif meter_data_tmp[1] == "173":   # real time PTT status
+                            pass  # in fuure can print oor use to update real timne PTT status in GUI    
                         elif meter_data_tmp[1] == "172":   # Get Band Decoder Translation Mode Values resulting from Message to CPU #60
                             Dis_OTRPS_Ch_flag = meter_data_tmp[2]   # Get OTRSP band change enable state
                             Inp_Val = meter_data_tmp[3]             # Band Decoder Input Port Translation Value

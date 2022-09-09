@@ -14,7 +14,11 @@
             ],
             "defines": [
                 "USBCON"
-            ]
+            ],
+            "intelliSenseMode": "windows-msvc-x64",
+            "cStandard": "c17",
+            "cppStandard": "c++17"
         }
-    ]
+    ],
+    "version": 4
 }
