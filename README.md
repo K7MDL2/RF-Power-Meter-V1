@@ -2,7 +2,7 @@
 
 ### 9/8/2022 - Testing completed, code updated to match the board changes
 
-    1. Fixeda EEPROM read bug for temp scaling factor.   Canged Host IP adrress for testing.  Some minor comment additions and formatting.  Muted the debug message for #173, PTT realtime status.   Eventually put it to use to update the GUI with real time TX/RX state.
+    1. Fixed EEPROM read bug for temp scaling factor.   Changed Host IP adrress for testing.  Some minor comment additions and formatting.  Muted the debug message for #173, PTT realtime status.   Eventually put it to use to update the GUI with real time TX/RX state.
     
 ### 4/15/2022 - Testing completed, code updated to match the board changes
 
