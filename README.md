@@ -1,5 +1,9 @@
 ## RF-Power-Meter
 
+### 9/8/2022 - Testing completed, code updated to match the board changes
+
+    1. Fixed EEPROM read bug for temp scaling factor.   Changed Host IP adrress for testing.  Some minor comment additions and formatting.  Muted the debug message for #173, PTT realtime status.   Eventually put it to use to update the GUI with real time TX/RX state.
+    
 ### 4/15/2022 - Testing completed, code updated to match the board changes
 
     1. Board is now installed in metal in place of the old prototype box.  Code modified in several places to account for removal of hardware inversion in previous box.  Config updated to match. This also appears to have fixed the power up problem where all relays would be turned on until the main program read the config and took control. With Enet on, this is several seconds. Need to retest with enet on. Bootup is very fast without enet.
