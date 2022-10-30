@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    "__pycache__": "explorerExcludedFiles",
+    "__init__.py": "explorerExcludedFiles",
+    "*.pyc": "explorerExcludedFiles",
+    "RF_Wattmeter_Teensy41\\nextion_patched\\ITEADLIB_Arduino_Nextion_patched\\doc": "explorerExcludedFiles",
+    "RF_Wattmeter_Teensy41\\nextion_patched\\ITEADLIB_Arduino_Nextion_patched\\html": "explorerExcludedFiles",
+    "RF_Wattmeter_Teensy41\\nextion_patched\\ITEADLIB_Arduino_Nextion_patched\\latex": "explorerExcludedFiles"
+  }
+}
