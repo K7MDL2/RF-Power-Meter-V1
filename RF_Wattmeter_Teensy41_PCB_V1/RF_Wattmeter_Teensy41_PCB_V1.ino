@@ -15,6 +15,14 @@
  * 
  * This version is tailored to work with the V1 PCB by K7MDL developed April 2022.
  * 
+ * 10/29/2022
+ * 1. Added last 2 bytes of IP adress to EEPROM.
+ *  a. first 2 are fixed by define - ie 192.168.x.y
+ *  b. x subnet is in EEPROM as ip_adr1.  Same value used in my_ip_adr and dst_ip_adr
+ *  c. y client ip is EEPROM as my_ip_adr0 and dewt_ip_adr0.  Unique value used in my_ip_adr and dst_ip_adr
+ *  example        ip(192, 168, ip_adr1, my_ip_adr0);
+ *          remote_ip(192, 168, ip_adr1, deswet_ip_adr0);
+ * 
  * 4/16/2022 
  * 1. If there is was no enet cable attached and enet was enabled, after the first 10 minute retry, it kept 
  *    retrying every few seconds rather than every 10 minutes.   Fixed.
@@ -2722,6 +2730,10 @@ void read_Arduino_EEPROM()
         // They are initialized in write_Cal_Table_from_Default() function.
         enet_data_out = EEPROM.read(ENET_DATA_OUT_OFFSET);    // this one we want a regular variable to read
     
+        ip_adr1 =  EEPROM.read(IP_ADR1);            // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+        my_ip_adr0 = EEPROM.read(MY_IP_ADR0);      // byte 3E - My ip address - static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+        dest_ip_adr0 = EEPROM.read(DEST_IP_ADR0);   // byte 3F - Destination IP Address - static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+
   // Now get the band table struct data   
    for (i=0; i<NUM_SETS; i++) 
    {
@@ -2865,6 +2877,10 @@ void write_Arduino_EEPROM()
     // They are read and written direct to EEPROM so nothing to do here for these values, same for some other EEPROM only vars
     EEPROM.update(ENET_DATA_OUT_OFFSET, enet_data_out);    // this one we want a regular variable or
 
+    EEPROM.update(IP_ADR1, ip_adr1);            // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+    EEPROM.update(MY_IP_ADR0, my_ip_adr0);      // byte 3E - My ip address -  static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+    EEPROM.update(DEST_IP_ADR0, dest_ip_adr0);   // byte 3F - Destination IP Address - static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+
    // Now write the Cal Table array 
    for (i=0; i< NUM_SETS; i++) {
       if (i < EEPROM.length()) {
@@ -3007,7 +3023,7 @@ void reset_EEPROM()
         // erase byte 0 to force init process for testing.  Can also use to "factory" reset data
         EEPROM.update(0, '0');
         write_Cal_Table_from_Default();
-        // Initialize the mode of tranlation for each port    
+        // Initialize the mode of translation for each port    
         EEPROM.update(TRANS_INPUT,0); // used to change bands from radio
         EEPROM.update(TRANS_A, 0);    // Used for pass through to 5 band transverter
         EEPROM.update(TRANS_B, 0);    // Used to select antennas or amps
@@ -3022,6 +3038,10 @@ void reset_EEPROM()
         EEPROM.update(ENET_ENABLE, 1);   // if enet code is not compiled this is jsut ignored.  Enet is enabled by default otherwise
         EEPROM.update(ENET_DATA_OUT_OFFSET, 1);  // if enet is enabled this will toggle the power and voltage data stream output.  Does nto stop comand responses or debug/info messages
         EEPROM.update(SER_DATA_OUT_OFFSET, 1);  // same as for enet but for serial port power and voltage info only
+        EEPROM.update(IP_ADR1, DEF_SUBNET_IP_ADR1);            // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+        EEPROM.update(MY_IP_ADR0, DEF_MY_IP_ADR0);      // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+        EEPROM.update(DEST_IP_ADR0, DEF_DEST_IP_ADR0);  = EEPROM.read;   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+
         //EEPROM_Init(EE_SAVE_YES);
         printf("Erased Byte 0");
         EEPROM_Init_Read();     // load the values into m
@@ -3721,59 +3741,65 @@ uint8_t enet_read(void)
 
 uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
 {   
-   if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
-   {
-       DBG_Serial.print("ENET Write: ");
-       DBG_Serial.println((char *) tx_buffer);
-       Udp.beginPacket(remote_ip, remoteport);
-       Udp.write((char *) tx_buffer);
-       Udp.endPacket();
-       return 1;
-   }
-   return 0;
+    IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
+
+    if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+    {
+        DBG_Serial.print("ENET Write: ");
+        DBG_Serial.println((char *) tx_buffer);
+        Udp.beginPacket(remote_ip, remoteport);
+        Udp.write((char *) tx_buffer);
+        Udp.endPacket();
+        return 1;
+    }
+    return 0;
 } 
 
 void enet_start(void)
 {
-  uint8_t mac[6];
-  teensyMAC(mac);   
-  delay(1000);
-  // start the Ethernet  
-  // If using DHCP (leave off the ip arg) works but more difficult to configure the desktop and remote touchscreen clients
-  Ethernet.begin(mac, ip);
-  // Check for Ethernet hardware present
-  enet_ready = 0;
-  if (Ethernet.hardwareStatus() == EthernetNoHardware) 
-  {
-    Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
-    //while (true) {
-    //  delay(1); // do nothing, no point running without Ethernet hardware
-    //}
-    enet_ready = 0;  // shut down usage of enet
-  }
-  else
-  {
+    uint8_t mac[6];
+
+    // Ensure EEPROM is read first
+    IPAddress ip(192, 168, ip_adr1, my_ip_adr0); // use EEPROM stored values
+
+    teensyMAC(mac);   
     delay(1000);
-    Serial.print("Ethernet Address = ");
-    Serial.println(Ethernet.localIP());
-    delay(5000);
-    if (Ethernet.linkStatus() == LinkOFF) 
+    // start the Ethernet  
+    // If using DHCP (leave off the ip arg) works but more difficult to configure the desktop and remote touchscreen clients
+    Ethernet.begin(mac, ip);
+    // Check for Ethernet hardware present
+    enet_ready = 0;
+    if (Ethernet.hardwareStatus() == EthernetNoHardware) 
     {
-      Serial.println("Ethernet cable is not connected.");
-      enet_ready = 0;
+        Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+        //while (true) {
+        //  delay(1); // do nothing, no point running without Ethernet hardware
+        //}
+        enet_ready = 0;  // shut down usage of enet
     }
     else
-    {  
-      enet_ready = 1;
-      delay(100);
-      Serial.println("Ethernet cable connected.");
-      // start UDP
-      Udp.begin(localPort);
-      #ifdef Nex_UDP
-        //Udp_Nex.begin(localPort+2);
-      #endif
+    {
+        delay(1000);
+        Serial.print("Ethernet Address = ");
+        Serial.println(Ethernet.localIP());
+        delay(5000);
+        if (Ethernet.linkStatus() == LinkOFF) 
+        {
+        Serial.println("Ethernet cable is not connected.");
+        enet_ready = 0;
+        }
+        else
+        {  
+        enet_ready = 1;
+        delay(100);
+        Serial.println("Ethernet cable connected.");
+        // start UDP
+        Udp.begin(localPort);
+        #ifdef Nex_UDP
+            //Udp_Nex.begin(localPort+2);
+        #endif
+        }
     }
-  }
 }
 /*  Mod required for NativeEthernet.cpp file in Ethernet.begin class.  
  *   At end of the function is a statement that hangs if no ethernet cable is connected.  
@@ -4122,16 +4148,18 @@ unsigned int Nex_Redirect_from_UDP(char * rx_string, uint8_t len)
 
 uint8_t Nex_enet_write(uint8_t *tx_buffer)
 {  
-   if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
-   {
-       DBG_Serial.print("Data to Remote Nextion Display via UDP: ");
-       DBG_Serial.println((char *) tx_buffer);
-       Udp_Nex.beginPacket(remote_ip, remoteport_Nex);
-       Udp_Nex.write((char *) tx_buffer);
-       Udp_Nex.endPacket();
-       return 1;
-   }
-   return 0;
+    IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
+
+    if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+    {
+        DBG_Serial.print("Data to Remote Nextion Display via UDP: ");
+        DBG_Serial.println((char *) tx_buffer);
+        Udp_Nex.beginPacket(remote_ip, remoteport_Nex);
+        Udp_Nex.write((char *) tx_buffer);
+        Udp_Nex.endPacket();
+        return 1;
+    }
+    return 0;
 }
 #endif
 /* [] END OF FILE */
