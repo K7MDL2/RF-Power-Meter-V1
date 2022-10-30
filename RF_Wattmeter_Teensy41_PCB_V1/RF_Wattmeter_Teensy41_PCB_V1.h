@@ -53,9 +53,9 @@
 
     // WATTMETER IP ADDRESS
     // some defaults to get started with to be stored in EEPROM.  Can be updated by remote commands
-    #define DEF_SUBNET_IP_ADR1      2;   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
-    #define DEF_MY_IP_ADR0        188;   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
-    #define DEF_DEST_IP_ADR0       65;   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+    #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+    #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+    #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
 
     uint8_t ip_adr1 = DEF_SUBNET_IP_ADR1;   // set up defaults
     uint8_t my_ip_adr0 = DEF_MY_IP_ADR0;    
