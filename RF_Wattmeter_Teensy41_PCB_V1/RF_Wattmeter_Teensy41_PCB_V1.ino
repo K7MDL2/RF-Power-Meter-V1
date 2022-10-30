@@ -21,7 +21,16 @@
  *  b. x subnet is in EEPROM as ip_adr1.  Same value used in my_ip_adr and dst_ip_adr
  *  c. y client ip is EEPROM as my_ip_adr0 and dewt_ip_adr0.  Unique value used in my_ip_adr and dst_ip_adr
  *  example        ip(192, 168, ip_adr1, my_ip_adr0);
- *          remote_ip(192, 168, ip_adr1, deswet_ip_adr0);
+ *          remote_ip(192, 168, ip_adr1, dest_ip_adr0);
+ *          
+ *   Look for these defaults to get started in the .h file:
+ *   #define DEF_NET_IP_ADR1       192   // Form of (192, 168, 2, 188) which is 192.168.2.188;
+ *   #define DEF_NET_IP_ADR2       168
+ *   #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+ *   #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+ *   #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, IP_ADR1, DEST_IP_ADR0)
+ * 
+ *  TO DO:  Add remote commands to update the new EEPROM IP values during operation
  * 
  * 4/16/2022 
  * 1. If there is was no enet cable attached and enet was enabled, after the first 10 minute retry, it kept 
@@ -3040,7 +3049,7 @@ void reset_EEPROM()
         EEPROM.update(SER_DATA_OUT_OFFSET, 1);  // same as for enet but for serial port power and voltage info only
         EEPROM.update(IP_ADR1, DEF_SUBNET_IP_ADR1);            // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
         EEPROM.update(MY_IP_ADR0, DEF_MY_IP_ADR0);      // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
-        EEPROM.update(DEST_IP_ADR0, DEF_DEST_IP_ADR0);  = EEPROM.read;   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+        EEPROM.update(DEST_IP_ADR0, DEF_DEST_IP_ADR0);  // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
 
         //EEPROM_Init(EE_SAVE_YES);
         printf("Erased Byte 0");

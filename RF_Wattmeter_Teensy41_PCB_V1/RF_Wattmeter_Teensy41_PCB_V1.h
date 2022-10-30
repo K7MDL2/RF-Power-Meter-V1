@@ -53,16 +53,18 @@
 
     // WATTMETER IP ADDRESS
     // some defaults to get started with to be stored in EEPROM.  Can be updated by remote commands
-    #define DEF_SUBNET_IP_ADR1      2;   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
-    #define DEF_MY_IP_ADR0        188;   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
-    #define DEF_DEST_IP_ADR0       65;   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+    #define DEF_NET_IP_ADR1       192
+    #define DEF_NET_IP_ADR2       168
+    #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+    #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+    #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0) (old value 199)
 
-    uint8_t ip_adr1 = DEF_SUBNET_IP_ADR1;   // set up defaults
-    uint8_t my_ip_adr0 = DEF_MY_IP_ADR0;    
-    uint8_t dest_ip_adr0 = DEF_DEST_IP_ADR0;
+    uint8_t ip_adr1       = DEF_SUBNET_IP_ADR1;   // set up defaults
+    uint8_t my_ip_adr0    = DEF_MY_IP_ADR0;    
+    uint8_t dest_ip_adr0  = DEF_DEST_IP_ADR0;
     
-    //IPAddress ip(192, 168, ip_adr1, my_ip_adr0); // use EEPROM stored values
-    //IPAddress ip(192, 168, 2, 188);    // Our static IP address.  Could use DHCP but preferring static address.
+    //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
+    //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0);    // Our static IP address.  Could use DHCP but preferring static address.
     unsigned int localPort = 7943;     // local port to LISTEN for the remote display/Desktop app
     unsigned int localPort_Nex = 7945;     // local port to LISTEN for the remote display/Desktop app
     
@@ -72,9 +74,8 @@
 
    // HOST IP ADDRESS (WHERE the DESKTOP APP is RUN FROM - HARD CODED HERE!)
    //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-   //IPAddress ip(192, 168, ip_adr1, my_ip_adr0); // use EEPROM stored values
-   //IPAddress remote_ip(192, 168, 2, 199);  // destination  IP (desktop app or remote display Arduino
-   //IPAddress remote_ip(192, 168, 2, 65);  // destination  IP (desktop app or remote display Arduino
+   //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
+   //IPAddress remote_ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_DEST_IP_ADR0);  // destination  IP (desktop app or remote display Arduino
    unsigned int remoteport = 7942;    // the destination port to SENDTO (a remote display or Desktop app)
    unsigned int remoteport_Nex = 7944;    // the destination port to SENDTO (a remote display or Desktop app)
    
