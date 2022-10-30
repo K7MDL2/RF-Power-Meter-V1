@@ -50,16 +50,31 @@
     //byte mac[] = {
     //  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xEC
     //};
-    IPAddress ip(192, 168, 2, 188);    // Our static IP address.  OUdl use DHCP but preferring static address.
+
+    // WATTMETER IP ADDRESS
+    // some defaults to get started with to be stored in EEPROM.  Can be updated by remote commands
+    #define DEF_SUBNET_IP_ADR1      2;   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+    #define DEF_MY_IP_ADR0        188;   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+    #define DEF_DEST_IP_ADR0       65;   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+
+    uint8_t ip_adr1 = DEF_SUBNET_IP_ADR1;   // set up defaults
+    uint8_t my_ip_adr0 = DEF_MY_IP_ADR0;    
+    uint8_t dest_ip_adr0 = DEF_DEST_IP_ADR0;
+    
+    //IPAddress ip(192, 168, ip_adr1, my_ip_adr0); // use EEPROM stored values
+    //IPAddress ip(192, 168, 2, 188);    // Our static IP address.  Could use DHCP but preferring static address.
     unsigned int localPort = 7943;     // local port to LISTEN for the remote display/Desktop app
     unsigned int localPort_Nex = 7945;     // local port to LISTEN for the remote display/Desktop app
     
     // buffers for receiving and sending data
     char packetBuffer[UDP_TX_PACKET_MAX_SIZE];  // buffer to hold incoming packet,
     char ReplyBuffer[] = "Random Reply";        // a string to send back
-   
+
+   // HOST IP ADDRESS (WHERE the DESKTOP APP is RUN FROM - HARD CODED HERE!)
    //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-   IPAddress remote_ip(192, 168, 2, 199);  // destination  IP (desktop app or remote display Arduino
+   //IPAddress ip(192, 168, ip_adr1, my_ip_adr0); // use EEPROM stored values
+   //IPAddress remote_ip(192, 168, 2, 199);  // destination  IP (desktop app or remote display Arduino
+   //IPAddress remote_ip(192, 168, 2, 65);  // destination  IP (desktop app or remote display Arduino
    unsigned int remoteport = 7942;    // the destination port to SENDTO (a remote display or Desktop app)
    unsigned int remoteport_Nex = 7944;    // the destination port to SENDTO (a remote display or Desktop app)
    
@@ -266,6 +281,9 @@ uint8_t SEQ_Delay = 25;         // milliseconds delay for sequencing transveter 
 #define PORTC_IS_PTT            (0x003A)  // byte 3A
 #define ENET_ENABLE             (0x003B)  // byte 3B
 #define ENET_DATA_OUT_OFFSET    (0x003C)  // byte 3C
+#define IP_ADR1                 (0x003D)  // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IPADR0)
+#define MY_IP_ADR0              (0x003E)  // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IPADR0)
+#define DEST_IP_ADR0            (0x003F)  // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IPADR0)
 
 // start row 4 data
 #define CAL_TBL_ARR_OFFSET      (0x0040)  /* start row 2 and beyond  */

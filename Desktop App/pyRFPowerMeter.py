@@ -262,6 +262,7 @@ rotor_data = ["","","","","","","","","","",""]
 send_rotor_cmd_flag = False
 rotor_cmd = ""
 rotor_cmd_data = ""
+TX_Status = "0"  # 0 is RX, 1 is TX state, updated by message 173 from meer for realtime state
 
 
 def isfloat(x):
@@ -654,6 +655,8 @@ class Power_Data():
         global PORTA_IS_PTT_Val
         global PORTB_IS_PTT_Val
         global PORTC_IS_PTT_Val
+        global TX_Status
+        global TX_Status_Last
 
         try:            
             if s_data != '':
@@ -682,6 +685,13 @@ class Power_Data():
                         elif meter_data_tmp[1] == "162":   # Cmd progress message end
                             cmd_flag = 0                            
                             print(" -------------cmd flag = 0 -------------")
+                        elif meter_data_tmp[1] == "173":   # real time PTT status
+                            if TX_Status != meter_data_tmp[3]:
+                                TX_Status = meter_data_tmp[3]       # only process changes
+                                if TX_Status == "1":
+                                    print(" -------------Changed to TX State  {}" .format(TX_Status))
+                                else:
+                                    print(" -------------Changed to RX State  {}" .format(TX_Status))                            
                         elif meter_data_tmp[1] == "172":   # Get Band Decoder Translation Mode Values resulting from Message to CPU #60
                             Dis_OTRPS_Ch_flag = meter_data_tmp[2]   # Get OTRSP band change enable state
                             Inp_Val = meter_data_tmp[3]             # Band Decoder Input Port Translation Value
@@ -1152,6 +1162,7 @@ class App(tk.Frame):
         global myRig_meter_ID
         global myRig
         global rotor_data
+        global TX_Status
 
         if own_call == "":     # allow for running without serial port to meter connection, network still running 
             #ID = "NA"       # No ID available from any source
@@ -1168,7 +1179,12 @@ class App(tk.Frame):
         else:
             ID = meter_data[0]
         self.meter_id_f.configure(text='{0:11s}' .format(ID), width=6) 
-
+        
+        if TX_Status == "1":    # Flip the Radio Label to Red during Transmit, grey on RX.
+            self.meter_id_l.configure(bg="red")
+        else:
+            self.meter_id_l.configure(bg="grey94")
+        
         curr_band = meter_data[2]
         if curr_band == "":         # if blank then the meter is disconnected or turned off.  Instead post up WSJTX data if avaialble            
             curr_band = last_freq  
