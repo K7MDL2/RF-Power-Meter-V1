@@ -3047,7 +3047,7 @@ void reset_EEPROM()
         EEPROM.update(ENET_ENABLE, 1);   // if enet code is not compiled this is jsut ignored.  Enet is enabled by default otherwise
         EEPROM.update(ENET_DATA_OUT_OFFSET, 1);  // if enet is enabled this will toggle the power and voltage data stream output.  Does nto stop comand responses or debug/info messages
         EEPROM.update(SER_DATA_OUT_OFFSET, 1);  // same as for enet but for serial port power and voltage info only
-        EEPROM.update(IP_ADR1, DEF_SUBNET_IP_ADR1);            // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+        EEPROM.update(IP_ADR1, DEF_SUBNET_IP_ADR1);     // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
         EEPROM.update(MY_IP_ADR0, DEF_MY_IP_ADR0);      // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
         EEPROM.update(DEST_IP_ADR0, DEF_DEST_IP_ADR0);  // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
 
