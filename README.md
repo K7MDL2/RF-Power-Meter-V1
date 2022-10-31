@@ -2,7 +2,7 @@
 
 ### 10/30/2022 - Testing Configurable IP address stored in EEPROM
 
-    1. New defines are in the .h file for all four elements of the IP address.  Default is 192.168.2.188 for the decoder.  1st and 2nd bytes 192 and 168 are default.   The 3rd byte (.2 here) is shared with the band decoder IP and the destination (remote) IP (Desktop app) since they are usually on the same subnet and there was only 3 bytes left in the 3rd row of EEPROM. The last bytes are the decoder and the destination.  .188 and .65 be default.
+    1. NOT TESTED YET - Code staged for testing, compiles but may not work! New defines are in the .h file for all four elements of the IP address.  Default is 192.168.2.188 for the decoder.  1st and 2nd bytes 192 and 168 are default.   The 3rd byte (.2 here) is shared with the band decoder IP and the destination (remote) IP (Desktop app) since they are usually on the same subnet and there was only 3 bytes left in the 3rd row of EEPROM. The last bytes are the decoder and the destination.  .188 and .65 be default.
     2. ToDo:  Once the above is working correct, add remote command codes to update each of the 3 bytes to change the IP address without reprogramming with hardcoded addresses in the CPU, assuming the network is still 192.168.x.y.  You can do this with a USB connection in case you lose the IP connection for some reason (wrong adress configured maybe).  Restart will be required to read in the new IP address.
 
 ### 9/8/2022 - Testing completed, code updated to match the board changes
