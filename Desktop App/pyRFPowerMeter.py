@@ -299,6 +299,7 @@ class UDP_Rotor(Thread):
         while self.keep_running_UDP_Rotor:
             self.UDP_Rotor_Rx()
             self.UDP_Rotor_Tx()
+        time.sleep(0.1)    
 
     def UDP_Rotor_Tx(self):
         global rotor_cmd
@@ -322,7 +323,8 @@ class UDP_Rotor(Thread):
                 print("TX to Rotator Controller FAILED Error = {}" .format(t).encode()) 
                 #pass
             # close the socket
-            t.close()  
+            t.close() 
+        time.sleep(0.1) 
            
     def UDP_Rotor_Rx(self):
         global rotor_sock
@@ -371,7 +373,8 @@ class UDP_Rotor(Thread):
                 #print("Timeout on data received from UDP")
             except socket.error:
                 #print("No data received from UDP")    
-                pass  
+                pass
+        time.sleep(0.1)
 # 
 #_________  UDP Message Handler in its own thread______________________________________________________________________________
 #   Separate threads for WSJTX and UDP comms to the meter and the serial comms.  
@@ -399,6 +402,7 @@ class UDP_Meter(Thread):
         while self.keep_running_UDP:
             self.UDP_Rx()
             self.UDP_Tx()
+            time.sleep(0.1)
     
     def UDP_Tx(self):
         global send_meter_cmd_flag
@@ -423,7 +427,8 @@ class UDP_Meter(Thread):
                 print("TX to CPU FAILED Error = {}" .format(t).encode()) 
                 #pass
             # close the socket
-            t.close()  
+            t.close() 
+        time.sleep(0.1) 
            
     def UDP_Rx(self):
         global s_data
@@ -457,6 +462,7 @@ class UDP_Meter(Thread):
             except socket.error:
                 #print("No data received from UDP")    
                 pass  
+        time.sleep(0.1)
 #
 #__________  Network handler in its own thread.  ________________________________________________________________
 #               Monitors WSJT-X broadcast packets to extract frequency for band changing
@@ -525,6 +531,7 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
                                 last_freq = freq                                
                             else:
                                 print("Frequency Now " + freq)       
+        time.sleep(0.1)
 #
 #_________  Serial Port Handler in its own thread______________________________________________________________________________
 #  Handles the Serial Port Rx and TX duties
@@ -582,7 +589,8 @@ class Serial_RxTx(Thread):
                 except serial.SerialException:
                     print ("error communicating while writing serial port: " + str(port_name))
             else:
-                print("cannot access serial port to send commands")     
+                print("cannot access serial port to send commands")    
+        time.sleep(0.1) 
         
     def meter_reader(self):       
         global restart_serial
@@ -621,6 +629,8 @@ class Serial_RxTx(Thread):
             print(" --> Shutting off comms. Hit \'On\' button to resume once problem is resolved. Actual error below:")                
             print(e)
             restart_serial = 1
+        time.sleep(0.1)
+
 #
 # __________  Process power meter received data ________________________________________________________________
 #  Extracts data from either the Newtwork or Serial threads incoming messages 
@@ -749,7 +759,8 @@ class Power_Data():
                 meter_data[0] = "NA"          # no meter ID match so tell the UI  
         except:
                 pass
-    
+        time.sleep(0.1)
+
     def debug_meter_string(self, debug_msg):
         for i in range(len(meter_data)):
             meter_data[i] = ""
@@ -809,7 +820,7 @@ class Send_Mtr_Cmds():
                 cmd = "250"
             else: 
                 pass                    # in case we add more
-        
+        time.sleep(0.1)
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
@@ -1151,6 +1162,7 @@ class App(tk.Frame):
             self.rotor_STOP()
       
         self.update_label() 
+        time.sleep(0.1)
 
     # Update GUI text fields with Serial Data from power meter and maybe other places later 
     def update_label(self):
@@ -1251,7 +1263,7 @@ class App(tk.Frame):
             restart_serial = 0   
 
         self.meter_id_f.after(200, self.update_label)  # refresh the live data display in the GUI window
-               
+        time.sleep(0.1)      
     # These functions are called by a button to do something with the power meter such as change cal sets for a new band
 
     def get_cal_table(self):
@@ -1545,7 +1557,7 @@ class Cfg_Rtr(tk.Frame):
         rtr_cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
         self.Rtr_Cfg_Band_label = tk.Label(rtr_cfg, text="Current AZ Rotor position is {}" .format(rotor_data[0]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
         self.Rtr_Cfg_Band_label.place(x=310, y=0)
-
+        time.sleep(0.1)
 #
 #
 #---------------------------  Wattmeter and Band Decoder Configuration Window ----------------------------------------
@@ -2133,6 +2145,7 @@ class Cfg_Mtr(tk.Frame):
         self.PortC_is_PTT_OFF.place(x=700, y=900, height=20)
         
         self.update_cfg_win()
+        time.sleep(0.1)
 
     def update_cfg_win(self):
         self.Cfg_Band_label.config(text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
