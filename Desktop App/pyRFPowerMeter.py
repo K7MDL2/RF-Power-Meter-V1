@@ -298,8 +298,7 @@ class UDP_Rotor(Thread):
         # This will run when you call .start method
         while self.keep_running_UDP_Rotor:
             self.UDP_Rotor_Rx()
-            self.UDP_Rotor_Tx()
-        time.sleep(0.1)    
+            self.UDP_Rotor_Tx()   
 
     def UDP_Rotor_Tx(self):
         global rotor_cmd
@@ -402,7 +401,6 @@ class UDP_Meter(Thread):
         while self.keep_running_UDP:
             self.UDP_Rx()
             self.UDP_Tx()
-            time.sleep(0.1)
     
     def UDP_Tx(self):
         global send_meter_cmd_flag
@@ -462,7 +460,7 @@ class UDP_Meter(Thread):
             except socket.error:
                 #print("No data received from UDP")    
                 pass  
-        time.sleep(0.1)
+        #time.sleep(0.1)
 #
 #__________  Network handler in its own thread.  ________________________________________________________________
 #               Monitors WSJT-X broadcast packets to extract frequency for band changing
@@ -531,7 +529,7 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
                                 last_freq = freq                                
                             else:
                                 print("Frequency Now " + freq)       
-        time.sleep(0.1)
+        #time.sleep(0.1)
 #
 #_________  Serial Port Handler in its own thread______________________________________________________________________________
 #  Handles the Serial Port Rx and TX duties
@@ -590,7 +588,7 @@ class Serial_RxTx(Thread):
                     print ("error communicating while writing serial port: " + str(port_name))
             else:
                 print("cannot access serial port to send commands")    
-        time.sleep(0.1) 
+        #time.sleep(0.1) 
         
     def meter_reader(self):       
         global restart_serial
@@ -629,7 +627,7 @@ class Serial_RxTx(Thread):
             print(" --> Shutting off comms. Hit \'On\' button to resume once problem is resolved. Actual error below:")                
             print(e)
             restart_serial = 1
-        time.sleep(0.1)
+        #time.sleep(0.1)
 
 #
 # __________  Process power meter received data ________________________________________________________________
@@ -759,7 +757,7 @@ class Power_Data():
                 meter_data[0] = "NA"          # no meter ID match so tell the UI  
         except:
                 pass
-        time.sleep(0.1)
+        time.sleep(0.001)
 
     def debug_meter_string(self, debug_msg):
         for i in range(len(meter_data)):
@@ -820,7 +818,7 @@ class Send_Mtr_Cmds():
                 cmd = "250"
             else: 
                 pass                    # in case we add more
-        time.sleep(0.1)
+        time.sleep(0.0001)
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
@@ -1162,7 +1160,7 @@ class App(tk.Frame):
             self.rotor_STOP()
       
         self.update_label() 
-        time.sleep(0.1)
+        time.sleep(0.001)
 
     # Update GUI text fields with Serial Data from power meter and maybe other places later 
     def update_label(self):
@@ -1263,7 +1261,7 @@ class App(tk.Frame):
             restart_serial = 0   
 
         self.meter_id_f.after(200, self.update_label)  # refresh the live data display in the GUI window
-        time.sleep(0.1)      
+    
     # These functions are called by a button to do something with the power meter such as change cal sets for a new band
 
     def get_cal_table(self):
