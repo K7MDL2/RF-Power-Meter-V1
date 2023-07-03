@@ -5,6 +5,7 @@
  *
  * ========================================
 */
+
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -26,7 +27,7 @@
 // Icom Analog (ACC) and C-IV Serial 
 //#define ICOM_ACC             // voltage 0-8V on pin4 ACC(2) connector - need calibrate table
 //#define ICOM_CIV             // read frequency from CIV
-#define ADS1115_ADC     // uncomment this line to active external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
+#define ADS1115_ADC     // uncomment this line to enable external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
 #define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
 // Below choose single mode. Continuous mode hangs unless needs 20ms delay between mux channel and reads.  Test program does not need this delay (or very little)
 #define ADS1115_SINGLE_MODE  //uncomment this line to operate in single mode capture vs continuous mode
@@ -55,17 +56,18 @@
     // some defaults to get started with to be stored in EEPROM.  Can be updated by remote commands
     #define DEF_NET_IP_ADR1       192
     #define DEF_NET_IP_ADR2       168
-    #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
-    #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
-    #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0) (old value 199)
+    #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0)
+    #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0)
+    #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_DEST_IP_ADR0) (old value 199)
 
     uint8_t ip_adr1       = DEF_SUBNET_IP_ADR1;   // set up defaults
     uint8_t my_ip_adr0    = DEF_MY_IP_ADR0;    
     uint8_t dest_ip_adr0  = DEF_DEST_IP_ADR0;
+    char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
     
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0);    // Our static IP address.  Could use DHCP but preferring static address.
-    unsigned int localPort = 7943;     // local port to LISTEN for the remote display/Desktop app
+    unsigned int localPort = 7943;     // local port to LISTEN from the remote display/Desktop app
     unsigned int localPort_Nex = 7945;     // local port to LISTEN for the remote display/Desktop app
     
     // buffers for receiving and sending data
@@ -97,8 +99,8 @@
 
 #ifdef ADS1115_ADC
     //#define Wire Wire1 // Using 2nd I2C port pins for wiring convenience.  My OLED display has pullup resistors installed, check yours.
-    #include<ADS1115_WE.h> 
     #include <Wire.h>
+    #include<ADS1115_WE.h> 
     #define I2C_ADDRESS 0x48
     ADS1115_WE adc(I2C_ADDRESS);
 #endif
@@ -231,7 +233,7 @@ uint8_t Band_Dec_In_Byte;       // Byte storing decoder input pattern
 uint8_t Band_Dec_OutA_Byte;     // Byte representing pattern for Port A (which is a collection of pins changed by Bit Set commands)
 uint8_t Band_Dec_OutB_Byte;
 uint8_t Antenna_Select;         // byte value pattern overlaid on any nnumber of port pins.  Set bit commands break out which pins are used
-uint8_t SEQ_Delay = 25;         // milliseconds delay for sequencing transveter and amps PTT
+uint8_t SEQ_Delay = 2; //25;         // milliseconds delay between PTT Out 1 and PTT Out 2 for sequencing transverter and amps PTT
 
 #define RX 0
 #define TX 1

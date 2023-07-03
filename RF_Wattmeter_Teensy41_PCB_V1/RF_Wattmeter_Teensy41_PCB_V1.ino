@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h> 
+
 //#include <usb_serial.h>   // not required for Teensy4.1 but maybe other Arduinos?
 #include "RF_Wattmeter_Teensy41_PCB_V1.h"
 #include "Watchdog_t4.h"  // https://github.com/tonton81/WDT_T4 for internal watchdog
@@ -28,7 +29,7 @@
  *   #define DEF_NET_IP_ADR2       168
  *   #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
  *   #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
- *   #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, IP_ADR1, DEST_IP_ADR0)
+ *   #define DEF_DEST_IP_ADR0      199   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, IP_ADR1, DEST_IP_ADR0)
  * 
  *  TO DO:  Add remote commands to update the new EEPROM IP values during operation
  * 
@@ -720,7 +721,7 @@ void adRead(void)   // A/D converter read function.  Normalize the AD output to 
 
     // Throttle the time the CPU spends here.   Offset the timing of the data acquired is just before it is sent out
     Timer_X00ms_InterruptCnt = millis(); 
-    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 25)   // will use our own timestamp.
+    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 50)   // will use our own timestamp.
         return;   // skip out until greater than 25ms since our last visit here
     Timer_X00ms_Last_AD = Timer_X00ms_InterruptCnt;  // time stamp our visit here.  Do not want to come back too soon.  
 
@@ -1953,7 +1954,7 @@ uint16_t serial_usb_read(void)
 void sendSerialData()
 {
     Timer_X00ms_InterruptCnt = millis();
-    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last > 50)
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB > 500)
     {          
         Timer_X00ms_Last_USB = Timer_X00ms_InterruptCnt;       
         sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
@@ -2003,7 +2004,7 @@ void serial_usb_write(void)
     {
         RFWM_Serial.write(tx_buffer, tx_count);         /* Send data back to host. */
         #ifdef ENET
-          enet_write(tx_buffer, tx_count);   // mirror out ro the ethernet connection
+          enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
         #endif        
     }
 }
@@ -2634,7 +2635,8 @@ void print_cal_table()
     // meterid with msg_type = 150 to signal different data set than the normal output. 120 inbound cmd, 170, power out
     for (i=0; i < NUM_SETS; i++) {        
         sprintf((char *) tx_buffer, "%d,%s,%s,%.1f,%.5f,%.5f,%.1f,%.5f,%.5f\r\n", METERID, "150", Band_Cal_Table[i].BandName, Band_Cal_Table[i].Cpl_Fwd, Band_Cal_Table[i].Slope_F, Band_Cal_Table[i].Offset_F, Band_Cal_Table[i].Cpl_Ref, Band_Cal_Table[i].Slope_R, Band_Cal_Table[i].Offset_R);
-        tx_count = strlen((char *) tx_buffer);        
+        tx_count = strlen((char *) tx_buffer);   
+        DBG_Serial.println((char  *) tx_buffer);
         serial_usb_write();   // Output table text to serial port              
     }
 }
@@ -2738,10 +2740,11 @@ void read_Arduino_EEPROM()
         //Translate options using first 5 bytes of row 3 - read and write directly to EEPROM, no variable used.
         // They are initialized in write_Cal_Table_from_Default() function.
         enet_data_out = EEPROM.read(ENET_DATA_OUT_OFFSET);    // this one we want a regular variable to read
-    
-        ip_adr1 =  EEPROM.read(IP_ADR1);            // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
-        my_ip_adr0 = EEPROM.read(MY_IP_ADR0);      // byte 3E - My ip address - static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+      #ifdef ENET  
+        ip_adr1      = EEPROM.read(IP_ADR1);        // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+        my_ip_adr0   = EEPROM.read(MY_IP_ADR0);     // byte 3E - My ip address - static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
         dest_ip_adr0 = EEPROM.read(DEST_IP_ADR0);   // byte 3F - Destination IP Address - static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+      #endif
 
   // Now get the band table struct data   
    for (i=0; i<NUM_SETS; i++) 
@@ -2885,10 +2888,11 @@ void write_Arduino_EEPROM()
     // Byte in Row 3 are reserved for Translate and other lesser used options and initialized in write_Cal_Table_from_Default() function
     // They are read and written direct to EEPROM so nothing to do here for these values, same for some other EEPROM only vars
     EEPROM.update(ENET_DATA_OUT_OFFSET, enet_data_out);    // this one we want a regular variable or
-
-    EEPROM.update(IP_ADR1, ip_adr1);            // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
-    EEPROM.update(MY_IP_ADR0, my_ip_adr0);      // byte 3E - My ip address -  static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
-    EEPROM.update(DEST_IP_ADR0, dest_ip_adr0);   // byte 3F - Destination IP Address - static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+    #ifdef ENET
+        EEPROM.update(IP_ADR1, ip_adr1);             // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+        EEPROM.update(MY_IP_ADR0, my_ip_adr0);       // byte 3E - My ip address -  static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+        EEPROM.update(DEST_IP_ADR0, dest_ip_adr0);   // byte 3F - Destination IP Address - static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+    #endif
 
    // Now write the Cal Table array 
    for (i=0; i< NUM_SETS; i++) {
@@ -3047,9 +3051,11 @@ void reset_EEPROM()
         EEPROM.update(ENET_ENABLE, 1);   // if enet code is not compiled this is jsut ignored.  Enet is enabled by default otherwise
         EEPROM.update(ENET_DATA_OUT_OFFSET, 1);  // if enet is enabled this will toggle the power and voltage data stream output.  Does nto stop comand responses or debug/info messages
         EEPROM.update(SER_DATA_OUT_OFFSET, 1);  // same as for enet but for serial port power and voltage info only
-        EEPROM.update(IP_ADR1, DEF_SUBNET_IP_ADR1);     // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
-        EEPROM.update(MY_IP_ADR0, DEF_MY_IP_ADR0);      // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
-        EEPROM.update(DEST_IP_ADR0, DEF_DEST_IP_ADR0);  // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+        #ifdef ENET
+            EEPROM.update(IP_ADR1, DEF_SUBNET_IP_ADR1);     // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
+            EEPROM.update(MY_IP_ADR0, DEF_MY_IP_ADR0);      // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+            EEPROM.update(DEST_IP_ADR0, DEF_DEST_IP_ADR0);  // byte 3F - Desination IP Address static IP (192, 168, IP_ADR1, DEST_IP_ADR0)
+        #endif
 
         //EEPROM_Init(EE_SAVE_YES);
         printf("Erased Byte 0");
@@ -3756,10 +3762,14 @@ uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
     {
         DBG_Serial.print("ENET Write: ");
         DBG_Serial.println((char *) tx_buffer);
-        Udp.beginPacket(remote_ip, remoteport);
+        Udp.beginPacket(HostIP, remoteport);
         Udp.write((char *) tx_buffer);
-        Udp.endPacket();
-        return 1;
+        if (Udp.endPacket())
+        {
+          return 1;
+        }
+        else
+          DBG_Serial.println("ENET Write Failed");
     }
     return 0;
 } 
@@ -3810,6 +3820,7 @@ void enet_start(void)
         }
     }
 }
+
 /*  Mod required for NativeEthernet.cpp file in Ethernet.begin class.  
  *   At end of the function is a statement that hangs if no ethernet cable is connected.  
  *   
