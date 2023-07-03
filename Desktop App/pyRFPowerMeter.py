@@ -145,6 +145,7 @@ myRig_meter_ID = "100"                 #  Change to set your default meter ID.  
                            # --> Always 3 digits, 100 to 119 only allowed.  
 myWSJTX_ID = "WSJT-X"     # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
 #myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to match your WSJT-X instance name. 
+#myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 # Can name your WSJT-X instance on startup with command line -r <rigname> in a desktop shortcut
 
 # examples to inspire ....
@@ -166,8 +167,8 @@ IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
 PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
 IPADDR_OF_METER = '192.168.2.188'   # for RF Wattmeter/Band Decoder
-PORTNUM_OF_METER_LISTEN = 7942      # for RF Wattmeter/Band Decoder
-PORTNUM_OF_METER_SENDTO = 7943      # for RF Wattmeter/Band Decoder
+PORTNUM_OF_METER_LISTEN = 7942      # for RF Wattmeter/Band Decoder - listen for packets from the meter at this port number
+PORTNUM_OF_METER_SENDTO = 7943      # for RF Wattmeter/Band Decoder - send packets to the meter at this port number
 MY_UDP_IP = '224.255.0.1'       # multicast address and port alternative
 #MY_UDP_IP = "127.0.0.1"        # default local machine address
 WSJTX_UDP_PORT = 2237            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
@@ -436,15 +437,15 @@ class UDP_Meter(Thread):
         buf = {}
         
         if (comms == None):          
-            #print(" listening for UDP messages")        
+            #print(" listening for UDP messages")
             try:                
-                buf, sender = meter_sock.recvfrom(1024)
+                buf, sender = meter_sock.recvfrom(4096)
                 #if sender > 1000: print(sender)    # just gets rid of unused var error, does nothing for us here.
                 #print("Received message before decode: {}" .format(buf))
-                s_data = buf.decode()
-                
+                #s_data = buf.decode()
+                #print(s_data)
                 #try:
-                #    s_data = buf.decode("utf-8")  #encoding='ascii', errors='ignore')
+                s_data = buf.decode(encoding="utf-8", errors='ignore')
                 #except:
                 #    s_data = buf.decode("ascii", errors='ignore')
                 if s_data[0] == ">":
@@ -455,8 +456,8 @@ class UDP_Meter(Thread):
             except UnicodeDecodeError: # catch error and ignore it
                 print("Unicode decode error caught")  # will get this on CPU resets
             except socket.timeout:
-                pass
-                #print("Timeout on data received from UDP")
+                #pass
+                print("Timeout on data received from UDP")
             except socket.error:
                 #print("No data received from UDP")    
                 pass  
@@ -469,7 +470,8 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
     def __init__(self):
         # Call Thread constructor
         super().__init__()
-        self.setDaemon(True)
+        #self.setDaemon(True)
+        self.daemon = True
         self.keep_running_WSJTX = True
         #print("WSJTX Start")
         global s
@@ -668,6 +670,7 @@ class Power_Data():
 
         try:            
             if s_data != '':
+                #print("1  RAW DATA {}" .format(s_data))
                 tempstr =  str(s_data).split('\r')
                 #print("1  DATA HERE {}" .format(tempstr))
                 if tempstr[0][0] == '>':   # Break out debug messages and skip processing
@@ -678,7 +681,10 @@ class Power_Data():
                 if len(meter_data_tmp) >= 3:
                     meter_data[0] = meter_data_tmp[0]  
                     if meter_data_tmp[0] == myRig_meter_ID: 
-                        if meter_data_tmp[1] == "161":   # Cal progress message start
+                        if meter_data_tmp[1] == "150":   # Cal Table Dump Messages
+                            #print("Cal Dump")
+                            print("{}" .format(meter_data_tmp))
+                        elif meter_data_tmp[1] == "161":   # Cal progress message start
                             cal_flag = 1
                             FwdVal_Hi = meter_data_tmp[3]
                             FwdVal_Lo = meter_data_tmp[4]
@@ -1439,7 +1445,7 @@ class App(tk.Frame):
             self.serial_rx = Serial_RxTx()
             self.serial_rx.start() 
             print(" Serial thread started ")
-        elif comms == None:         # USB thread for ethernet option to serial.  UDP_Meter or Serial, only one should be enabled at a time.
+        elif comms == None:         # ethernet option to serial.  UDP_Meter or Serial, only one should be enabled at a time.
             print(" main loop starting up UDP!")
             self.udp_meter = UDP_Meter()            
             meter_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
