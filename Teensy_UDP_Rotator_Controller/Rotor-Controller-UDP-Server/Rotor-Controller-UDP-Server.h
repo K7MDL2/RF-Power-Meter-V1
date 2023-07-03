@@ -48,7 +48,7 @@ char packetBuffer[BUFFER_SIZE];  // buffer to hold incoming packet,
 char ReplyBuffer[] = "Random Reply";        // a string to send back
 
 //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-IPAddress remote_ip(192, 168, 2, 199);  // destination  IP (desktop app or remote display Arduino
+IPAddress remote_ip(192, 168, 2, 65);  // destination  IP (desktop app or remote display Arduino
 unsigned int remoteport = 7947;    // the destination port to SENDTO (a remote display or Desktop app)
 //unsigned int remoteport_Nex = 7949;    // the destination port to SENDTO (a remote display or Desktop app)
 
