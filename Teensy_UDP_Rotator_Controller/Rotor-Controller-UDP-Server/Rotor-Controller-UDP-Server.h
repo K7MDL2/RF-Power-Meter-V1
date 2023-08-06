@@ -70,13 +70,13 @@ unsigned long enet_start_fail_time = 0;
 uint8_t DBG = 0;
 uint16_t RotorTargetAZ;
 float RotorAZ;
-int16_t RotorAZ_Offset = -130;
-float Preset[10] = {300.0, 359.0, 20.0, 40.0, 60.0, 70.0, 100.0, 140.0, 170.0, 185.0};
-uint16_t RotorAZ_StartPos = 302;
+int16_t RotorAZ_Offset = 0; //-130;  // If the antenna is offset from rotator alignment 
+float Preset[10] = {0, 200.0, 270.0, 0.0, 30.0, 62.0, 90.0, 130.0, 170.0, 0.0};  //(desktop app uses 1-8, skips 0 and 9 slots)
+uint16_t RotorAZ_StartPos = 180; //302;   //North is center of 360 swing.  This offsets to 180 for south stopping rotator.
 float RotorAZ_raw;
-uint8_t Rotor_StopBand = 3;
-uint16_t manual_limit_CCW = 310;
-uint16_t manual_limit_CW = 200; 
+uint8_t Rotor_StopBand = 2;
+uint16_t manual_limit_CCW = 182;
+uint16_t manual_limit_CW = 178;
 float RotorPosV;
 uint16_t RotorPosCounts;
 uint16_t RotorPosCounts_raw;
@@ -87,9 +87,11 @@ unsigned long stall_detect_timer = 0;
 uint8_t STALL_DETECT_DISTANCE = 4;  // number of degrees rotor needs to move to reset timeout timer
 uint16_t STALL_TIMEOUT = 4000;  // number in milliseconds
 unsigned long RotorAZ_raw_last = 0;
-uint16_t map_pos_low_Counts = 231;  // A 33 ohm resistor is between the pot and ground and also the pot and 3.3V.  
+uint16_t map_pos_low_Counts = 245;  // A 33 ohm resistor is between the pot and ground and also the pot and 3.3V.  
                                     //There is a 1.756V range in the middle with 0.756 to ground on the bottom of the pot
                                     // and 2.52V on the top of the pot as measured in my install with HD-73 rotor with 75ohm pot.
-uint16_t map_pos_high_Counts = 782;  // Adjust these number for actual install.  A map function wil expand this to 1024 count range 
-                                      // as if the pot was swigning a full 0 to 3.3V.
+                                    // Adjust to 180 on the West Side of rotation (CCW).
+uint16_t map_pos_high_Counts = 775; //782;  // Adjust these number for actual install.  A map function wil expand this to 1024 count range 
+                                      // as if the pot was swinging a full 0 to 3.3V.
+                                      // Adjust to 180 on the east side of rotation (CW).
 unsigned long timer;   // For watchdog timer on Teensy

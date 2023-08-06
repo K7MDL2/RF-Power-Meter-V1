@@ -463,7 +463,7 @@ void compute_rotor_move(void)
   if (MovetoPreset) // for preset or MoveTo commands where we need to decide which direction
   {                      //    to turn relative to where we are and dead zones blocking path there.
       // Start with computing dead zone and adjust target to not go into any dead zone      
-      if (RotorTargetAZ > RotorAZ_raw)
+      if ((RotorTargetAZ > RotorAZ_raw) && (abs(RotorTargetAZ - RotorAZ_raw) > Rotor_StopBand))
       {   // Test for CW move to target possible   
           if (DBG == 4) Serial.print("RTR1-Requested Move to Preset CW");
           if (DBG == 4) Serial.print(" - Manual Limit CW is ");    
@@ -514,6 +514,7 @@ void compute_rotor_move(void)
               MovetoPreset = OFF;
           }
       }
+      
       if (abs(RotorTargetAZ - RotorAZ) <= Rotor_StopBand)   // stop rotor, we have arrived
       {
           allOff();
@@ -521,6 +522,7 @@ void compute_rotor_move(void)
           MoveRotor = STOP;
           sprintf((char*) tx_buffer, "RTR1-Destination Reached");
           send_status();
+          if (DBG == 4) Serial.println("IN STOP BAND AZ="); Serial.println(RotorAZ_raw);    
           return;
       }
   }
@@ -546,9 +548,9 @@ void move_CW(void)
     }
     else if (RotorAZ_raw > man_lim_tmp)
     {
+        allOff();
         sprintf((char*) tx_buffer, "RTR1-CW Manual limit reached! %d", manual_limit_CW);
         send_status();
-        allOff();
     }
     else if (abs(RotorAZ_raw - 360 - RotorAZ_StartPos) <= Rotor_StopBand)
     {
@@ -556,7 +558,7 @@ void move_CW(void)
         sprintf((char*) tx_buffer, "RTR1-AZ Motion Stopped ");
         send_status();
     }
-    else if (RotorTargetAZ - RotorAZ_raw < SlowdownDegrees || man_lim_tmp - RotorAZ_raw < SlowdownDegrees)  
+    else if ((RotorTargetAZ - RotorAZ_raw < SlowdownDegrees) || ((man_lim_tmp - RotorAZ_raw) < SlowdownDegrees))  
     {
         rightSlow();
         sprintf((char*) tx_buffer, "RTR1-Moving CW SLOW ");
@@ -588,9 +590,9 @@ void move_CCW(void)
     }
     else if (RotorAZ_raw < man_lim_tmp) 
     {
+        allOff();
         sprintf((char*) tx_buffer, "RTR1-CCW Manual limit reached! %d", manual_limit_CCW);
         send_status();
-        allOff();
     }
     else if (abs(RotorAZ_raw - RotorAZ_StartPos) <= Rotor_StopBand)
     {
@@ -598,7 +600,7 @@ void move_CCW(void)
         sprintf((char*) tx_buffer, "RTR1-AZ Motion Stopped");
         send_status();
     }
-    else if ((RotorAZ_raw - RotorTargetAZ) < SlowdownDegrees || RotorAZ_raw - man_lim_tmp < SlowdownDegrees)
+    else if ((RotorAZ_raw - RotorTargetAZ) < SlowdownDegrees || (RotorAZ_raw - man_lim_tmp) < SlowdownDegrees)
     {
         leftSlow();        
         sprintf((char*) tx_buffer, "RTR1-Moving CCW SLOW"); 
@@ -681,6 +683,7 @@ void allOff(void)
   if(DBG==1) Serial.println("RTR1-All Off");
   digitalWrite(LED, OFF);
   send_pin_Status();
+  delay(50);
 }
 // 
 //____________________________________ send_pin_Status _________________________________________________
@@ -777,7 +780,7 @@ void set_pins(void)
 void set_EE_Vars(void)
 {
     EEPROM.put(2, map_pos_low_Counts); // Store high and low bytes into EEPROM
-    EEPROM.put(4, map_pos_high_Counts); // Store high and low bytes into EEPROM                
+    EEPROM.put(4, map_pos_high_Counts); // Store high and low bytes into EEPROM                              
     EEPROM.put(6, manual_limit_CW); // Store high and low bytes into EEPROM                
     EEPROM.put(8, manual_limit_CCW); // Store high and low bytes into EEPROM                
     EEPROM.put(10, RotorAZ_StartPos); // Store high and low bytes into EEPROM                

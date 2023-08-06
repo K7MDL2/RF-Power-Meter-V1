@@ -4,6 +4,7 @@
  information back to the client.
 
 January 2021
+Updated : August 6, 2023 
 K7MDL
 
  This code is in the public domain.
@@ -37,6 +38,7 @@ void setup()
   init_relay_state();
   enet_start();
   
+  //if (1)    // force EEPROM rewrite to defaults
   if (EEPROM.read(0) != 'G') 
   {
       Serial.print("RTR1-Initializing EEPROM to default values - Byte 0 = ");
@@ -112,7 +114,15 @@ void loop()
 // read the ADC voltage and store counts returned in global var
 void rotor_position_counts(void)
 {
-    RotorPosCounts_raw = analogRead(ROTOR_ANALOG_AZ_PIN); 
+    RotorPosCounts_raw = analogRead(ROTOR_ANALOG_AZ_PIN);
+    delay(1);
+    RotorPosCounts_raw += analogRead(ROTOR_ANALOG_AZ_PIN); 
+    delay(1);
+    RotorPosCounts_raw += analogRead(ROTOR_ANALOG_AZ_PIN); 
+    delay(1);
+    RotorPosCounts_raw += analogRead(ROTOR_ANALOG_AZ_PIN); 
+    RotorPosCounts_raw /= 4;
+
     RotorPosCounts = map(RotorPosCounts_raw, map_pos_low_Counts, map_pos_high_Counts, 0, 1023);
     if (DBG==4)
     {
