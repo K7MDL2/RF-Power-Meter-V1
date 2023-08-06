@@ -1,5 +1,9 @@
 ## RF-Power-Meter
 
+### 7/2/2023 - Testing Configurable IP address stored in EEPROM
+
+    1. PTT was sluggish, Power data displayed in the desktop app was sluggish.  Reduced the output rate to a couple times per second.  Now commands like Dunp Cal Table are fast. Also hard coded parts of the destination IP address (the desktop app).  The last changes to use variables for parts of the IP address seem to be unreliable for some reason.
+    
 ### 10/30/2022 - Testing Configurable IP address stored in EEPROM
 
     1. New defines are in the .h file for all four elements of the IP address.  Default is 192.168.2.188 for the decoder.  1st and 2nd bytes 192 and 168 are default.   The 3rd byte (.2 here) is shared with the band decoder IP and the destination (remote) IP (Desktop app) since they are usually on the same subnet and there was only 3 bytes left in the 3rd row of EEPROM. The last bytes are the decoder and the destination.  .188 and .65 be default.
