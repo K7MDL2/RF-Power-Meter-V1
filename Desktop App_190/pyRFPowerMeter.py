@@ -140,8 +140,8 @@ version_string = "RF Wattmeter Remote\nby K7MDL\nV2.6 January 2021"
 myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Title Bar Text
 
 # edit these to match your meter ID and Rig/Location text for this meter instance
-myRig = "Cabinet"       # Rig name and location - about 10 characters max
-myRig_meter_ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
+myRig = "2M Amp"       # Rig name and location - about 10 characters max
+myRig_meter_ID = "101"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
                            # --> Always 3 digits, 100 to 119 only allowed.  
 #myWSJTX_ID = "WSJT-X-None"     # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
 #myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to match your WSJT-X instance name. 
@@ -163,16 +163,16 @@ myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 
 # addressing information of target
 HIDE_POWER_INFO = 1   # set to 0 to show (normal) or 1 to hide info.
-ROTOR_ENABLE = 1  # 1 is ENABLED, any other value or commented out is DISABLED
+ROTOR_ENABLE = 0  # 1 is ENABLED, any other value or commented out is DISABLED
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
 PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
-IPADDR_OF_METER = '192.168.2.188'   # for RF Wattmeter/Band Decoder
-PORTNUM_OF_METER_LISTEN = 7942      # for RF Wattmeter/Band Decoder - listen for packets from the meter at this port number
-PORTNUM_OF_METER_SENDTO = 7943      # for RF Wattmeter/Band Decoder - send packets to the meter at this port number
+IPADDR_OF_METER = '192.168.2.190'   # for RF Wattmeter/Band Decoder
+PORTNUM_OF_METER_LISTEN = 7940      # for RF Wattmeter/Band Decoder - listen for packets from the meter at this port number
+PORTNUM_OF_METER_SENDTO = 7941      # for RF Wattmeter/Band Decoder - send packets to the meter at this port number
 #MY_UDP_IP = '224.255.0.1'       # multicast address and port alternative
 MY_UDP_IP = "127.0.0.1"        # default local machine address
-WSJTX_UDP_PORT = 2238  #2237 normal            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
+WSJTX_UDP_PORT = 2239  #2238  #2237 normal            # change to match your WSJTX source of data port number. 2237 is a common WSJTX default port.  See below for more info...
 # I am using 2334 with JTAlert re-broadcasting
 
 #  This program can optionally use WSJT-X UDP reporting broadcasts to automatically track your radio's frequency and send a command
@@ -739,7 +739,7 @@ class Power_Data():
                                     meter_data_fl[i] = float(meter_data[i])
                                 else: # Not a float so zero fill the field
                                     meter_data_fl[i] = 0.0
-                            meter_data_fl[2] = float(meter_data[2][:-3])    # convert band label to a number.  Ideally would use a RegEx to split at the end of the numbers
+                            meter_data_fl[2] = float(meter_data[2][:-3])    # convert band label to a number.  Ideally would use a RegEx to split at teh end of the numbers
                             if meter_data_fl[5] == 0 and cmd_flag != 1:
                                 meter_data[3] = "0.0"          #  zero out the dBm values when F watts is zero
                                 meter_data[4] = "0.0"
@@ -1230,7 +1230,7 @@ class App(tk.Frame):
                 self.hv_a.configure(text='%4s' % meter_data2[2], anchor="e")
                 self.v14_a.configure(text='%4s' % meter_data2[3], anchor="e")
                 self.curr_a.configure(text='%4s' % meter_data2[4], anchor="e") 
-                self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")     
+                self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")            
             else:    # Place "NA" in the power fields because sensors are not used or not connected (Band decoder role only).
                 self.F_Watts_a.configure(text='   NA  ', width=7)
                 self.R_Watts_a.configure(text='  NA  ', width=6)
