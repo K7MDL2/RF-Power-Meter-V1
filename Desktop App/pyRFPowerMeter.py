@@ -1223,17 +1223,19 @@ class App(tk.Frame):
                 elif meter_data_fl[5] > 99.9:
                     self.F_Watts_a.configure(text='{0:4.0f}W' .format(meter_data_fl[5]), width=7)      
                 else:
-                    self.F_Watts_a.configure(text='{0:4.1f}W' .format(meter_data_fl[5]), width=7)                        
-                self.F_dBm_f.configure(text='(%6sdBm)' % meter_data[3], anchor="e")
-                self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)
-                self.R_dBm_f.configure(text='(%6sdBm)' % meter_data[4], anchor="e")
-                self.hv_a.configure(text='%4s' % meter_data2[2], anchor="e")
-                self.v14_a.configure(text='%4s' % meter_data2[3], anchor="e")
-                self.curr_a.configure(text='%4s' % meter_data2[4], anchor="e") 
-                self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")     
+                    self.F_Watts_a.configure(text='{0:4.1f}W' .format(meter_data_fl[5]), width=7)   
             else:    # Place "NA" in the power fields because sensors are not used or not connected (Band decoder role only).
                 self.F_Watts_a.configure(text='   NA  ', width=7)
                 self.R_Watts_a.configure(text='  NA  ', width=6)
+                                     
+            self.F_dBm_f.configure(text='(%6sdBm)' % meter_data[3], anchor="e")
+            self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)
+            self.R_dBm_f.configure(text='(%6sdBm)' % meter_data[4], anchor="e")
+            self.hv_a.configure(text='%4s' % meter_data2[2], anchor="e")
+            self.v14_a.configure(text='%4s' % meter_data2[3], anchor="e")
+            self.curr_a.configure(text='%4s' % meter_data2[4], anchor="e") 
+            self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")     
+ 
         else:           
             self.F_Watts_a.configure(text='   NA  ', width=7)
             self.F_dBm_f.configure(text='(     dBm)', anchor="e")  
