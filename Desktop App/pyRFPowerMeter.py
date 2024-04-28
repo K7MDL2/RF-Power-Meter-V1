@@ -40,7 +40,7 @@ import simple_server
 import tkinter.messagebox
 import socket
 
-PowerMeterVersionNum = "2.6"
+PowerMeterVersionNum = "2.7"
 version_string = "RF Wattmeter Remote\nby K7MDL\nV2.6 January 2021"
 # pyRFPowerMeter  January 30, 2021
 # Author: M. Lewis K7MDL
@@ -162,7 +162,7 @@ myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
-HIDE_POWER_INFO = 1   # set to 0 to show (normal) or 1 to hide info.
+HIDE_POWER_INFO = 0   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
 ROTOR_ENABLE = 1  # 1 is ENABLED, any other value or commented out is DISABLED
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
@@ -1213,7 +1213,13 @@ class App(tk.Frame):
         self.R_Watts_f.configure(text='  REF:', anchor="w", width=5)        
         
         if curr_band != "HF":       #  HF band is a "dummy" band to show it is not active 
-            if (HIDE_POWER_INFO == 0):
+            # Place "NA" in the power fields because sensors are not used or not connected (Band decoder role only).
+            if (HIDE_POWER_INFO != 0):   # Only show Ref Power when HIDE is 0
+                self.R_Watts_a.configure(text='  NA  ', width=6)
+            else:
+                self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)    
+            
+            if (HIDE_POWER_INFO < 2):   #  Only show Fwd Power when HIDE is 0 or 1
                 if meter_data_fl[5] < 1.0:
                     meter_data_fl[5] = meter_data_fl[6] = 0.0  # zero out values less then minimum detectable by meter
                     meter_data[3] =  meter_data[4] = '0.0'   # also do the dBm values               
@@ -1223,19 +1229,18 @@ class App(tk.Frame):
                 elif meter_data_fl[5] > 99.9:
                     self.F_Watts_a.configure(text='{0:4.0f}W' .format(meter_data_fl[5]), width=7)      
                 else:
-                    self.F_Watts_a.configure(text='{0:4.1f}W' .format(meter_data_fl[5]), width=7)   
+                    self.F_Watts_a.configure(text='{0:4.1f}W' .format(meter_data_fl[5]), width=7)    
+                #self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)    
             else:    # Place "NA" in the power fields because sensors are not used or not connected (Band decoder role only).
                 self.F_Watts_a.configure(text='   NA  ', width=7)
-                self.R_Watts_a.configure(text='  NA  ', width=6)
-                                     
+                
             self.F_dBm_f.configure(text='(%6sdBm)' % meter_data[3], anchor="e")
-            self.R_Watts_a.configure(text='{0:6.1f}W' .format(meter_data_fl[6]), width=6)
             self.R_dBm_f.configure(text='(%6sdBm)' % meter_data[4], anchor="e")
             self.hv_a.configure(text='%4s' % meter_data2[2], anchor="e")
             self.v14_a.configure(text='%4s' % meter_data2[3], anchor="e")
             self.curr_a.configure(text='%4s' % meter_data2[4], anchor="e") 
-            self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")     
- 
+            self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")            
+
         else:           
             self.F_Watts_a.configure(text='   NA  ', width=7)
             self.F_dBm_f.configure(text='(     dBm)', anchor="e")  
@@ -1247,7 +1252,7 @@ class App(tk.Frame):
             self.temperature_a.configure(text='%4sF' % meter_data2[5], anchor="e")
 
         swr = meter_data_fl[7]
-        if swr ==  0.0 or HIDE_POWER_INFO == 1:
+        if swr ==  0.0 or HIDE_POWER_INFO != 0:
             self.SWR_a.configure(text='NA  ',font=('Helvetica', 12, 'bold'), bg="grey94", fg="black", width=4)   # not transmitting
         else:       
             if swr > 9.9:
