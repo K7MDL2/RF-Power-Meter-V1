@@ -5,7 +5,7 @@
     1. My new QTH has 2 outdoor locations each now with its own band decoder\wattmeter board. The desktop app can now run a separate instances for each.  Rotator control is configurable and turned on for one only instance since I have remote 1 rotor controller.
     2. A new variable was added HIDE_POWER_INFO = x where x == 0 to show all (normal) or 1 to hide Ref and SWR info, or 2 to hide all (Fwd, Ref and SWR).  This allows for ignoring all power display if not monitoring power, or just using Forward Power if no reflected coupling is connected.
     3. To run multiple instances of the desktop monitor app create a copy of the main python file pyRFPowerMeter.py and customize the remote IP address and port numbers.  I found the port must be unique, not just the IP address.  Probably a bug in there causing that.  I provided an example file with the suffix 190 showing how I configured my 2nd instance for my 2nd board.
-    4. I am looking into porting the Python desktop app over to Linux, RPi specifically.  I have some PiHPSDR controllers hanging around with 7" screens looking for work.  This will give an easy option for a dedicated wattmeter display regardless of status of the Windows lock screen.
+    4. I was able to run the Python desktop app on Linux Mint with no changes.  Next wil lbe to test on RPi.  I have some PiHPSDR controllers hanging around with 7" screens looking for work.  This will give an easy option for a dedicated wattmeter display regardless of status of the Windows lock screen.
     
 ### 7/2/2023 - Testing Configurable IP address stored in EEPROM
 
