@@ -135,10 +135,10 @@
 
 void(* resetFunc) (void) = 0; //declare reset function @ address 0
 
-#define RESET_EEPROM 0    // Set this to 1 to force a EEPROM reset on program startup
+#define RESET_EEPROM 0    // Set this to 1 to force a EEPROM reset on program startup - Needed if you change IP adress of desktop monitor also
 
 // #define SerialUSB1 SerialUSB1  // assign as needed for your CPU type. 
-                                  // For Teesny set ports to Dual or Triple and Use Serial USB1 and Serial USB2 for 2 and 3rd ports
+                                  // For Teensy set ports to Dual or Triple and Use Serial USB1 and Serial USB2 for 2 and 3rd ports
 WDT_T4<WDT1> wdt;   // internal watchdog functionality.
 //#define EXT_WD
 
@@ -244,7 +244,9 @@ void setup(void)
   pinMode(SERIAL1_RX_PIN, INPUT);   // initializing for Nextion or other usage
   pinMode(SERIAL1_TX_PIN, OUTPUT);
 #endif  
+#ifdef OTRSP_Serial
   OTRSP_Serial.begin(9600);  // open port for OTRSP serial port command input    
+#endif
   RFWM_Serial.begin(115200); // For debug or data output
   RFWM_Serial.println(" ");   // Clear our output text from CPU init text
 
@@ -542,6 +544,7 @@ void loop()
     if (rx_count!=0)
         get_remote_cmd();       // scan buffer for command strings
 
+    #ifdef OTRSP_Serial
     ret1 = OTRSP();   // set Aux output pins and change bands to match
     if (ret1)  // True if we got commands
     {
@@ -559,7 +562,8 @@ void loop()
             else
                 DBG_Serial.println("> OTRSP sourced band changes are Disabled");
         }
-    }     
+    }  
+    #endif // OTRSP   
 
 #ifdef ENET     // remove this code if no ethernet usage intended
     if (EEPROM.read(ENET_ENABLE))   // only process enet if enabled.
@@ -822,6 +826,15 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     // 0dBm is max. = 1W fullscale on 1W scale for example
     FwdPwr =  pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
     
+    // When the measured range is larger than the log detector (<60dB), such as for 1KW range, can never get 0 Watts.  Filter out readings below X Watts
+    if (FwdPwr < FwdPwr_Cutoff)
+    {
+      FwdPwr = 0.0;
+      Fwd_dBm = 0.0;
+      Ref_dBm = 0.0;
+      RefPwr = 0.0;
+    }
+
     if (FwdPwr > 9999.9)
         FwdPwr = 9999.9999;    
     
@@ -835,9 +848,9 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
 // ------------------------ SWR -----------------------------------------------------------------------        
 //
     SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
-    if (RefPwr > FwdPwr && FwdPwr < 0.2) // Remove false SWR values if no Fwd Pwr such as TX turns off and Fwd goes to 0 before Ref.
+    if ((RefPwr > FwdPwr) && (FwdPwr < FwdPwr_Cutoff)) //  0.2 for <400W range.  Remove false SWR values if no Fwd Pwr such as TX turns off and Fwd goes to 0 before Ref.
         SWRVal = 0;
-    else if (RefPwr <= 0.00001 || FwdPwr <= 0.2)
+    else if ((RefPwr <= 0.00001) || (FwdPwr <= FwdPwr_Cutoff))  // Adjust this number. 3 to 5 good for 1KW ranges.  0.2 for <400W range. This is because the detector range is 55dB and 1KW is 60dB.  Will never hit true zero.
         SWRVal = 0;   // remove misleading SWR numbers when input are floating around in RX mode.
     else if (SWRVal > 9.9)
         SWRVal = 10;
@@ -2264,7 +2277,7 @@ void get_remote_cmd()
                         if (cmd1 == 95) {    // Not used on Arduino
                            //digitalWrite(Nextion_Switch, 0);    // Switch serial from display to CPU                                                        
                         }
-                        if (cmd1 == 94) {    // This is cal routine. cmd is target Fwd value.  uses Attenuaor value adjustment to set cal.  Depricated.
+                        if (cmd1 == 94) {    // This is cal routine. cmd is target Fwd value.  uses Attenuator value adjustment to set cal.  Depricated.
                             //if higher than cmd 2 decrement, do adread(), check and adj again until a near match.
                             // Challenge might be impossible to get an exact match, so need close enough decision logic.
                             for (i = 0; i< 100; i++)   // put a limit on to ensure we do not have an endless loop if we cannot get a match within the window
@@ -3124,6 +3137,8 @@ uint8_t EEPROM_Init_Read(void)
     return 1;
 }
 
+
+#ifdef OTRSP_Serial
 /* ========================================
  *  OTRSP parsing
  *  Parses serial port commands from N1MM Logging program to control antennas and transverter
@@ -3142,7 +3157,7 @@ uint8_t EEPROM_Init_Read(void)
 #define FALSE 0
 #define TRUE 1
 #define AUXCMDLEN 4
-#define BANDCMDLEN 12
+#define BANDCMDLEN 20
 
 /*
 Convert AUX command from N1MM to 4 bit BCD
@@ -3250,6 +3265,7 @@ uint8_t OTRSP_Process(void)
     }  
     return 0;   // nothing processed 0 is a valid band number so using 255.
 }
+#endif // OTRSP
 
 uint8_t BCDToDecimal(char *hex)
 {
@@ -3760,8 +3776,8 @@ uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
 
     if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
     {
-        DBG_Serial.print("ENET Write: ");
-        DBG_Serial.println((char *) tx_buffer);
+        //DBG_Serial.print("ENET Write: ");
+        //DBG_Serial.println((char *) tx_buffer);
         Udp.beginPacket(HostIP, remoteport);
         Udp.write((char *) tx_buffer);
         if (Udp.endPacket())

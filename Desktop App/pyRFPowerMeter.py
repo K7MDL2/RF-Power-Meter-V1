@@ -40,8 +40,8 @@ import simple_server
 import tkinter.messagebox
 import socket
 
-PowerMeterVersionNum = "2.7"
-version_string = "RF Wattmeter Remote\nby K7MDL\nV2.6 January 2021"
+PowerMeterVersionNum = "2.8"
+version_string = "RF Wattmeter Remote\nby K7MDL\nV2.8 May 7, 2024"
 # pyRFPowerMeter  January 30, 2021
 # Author: M. Lewis K7MDL
 #
@@ -162,7 +162,7 @@ myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
-HIDE_POWER_INFO = 0   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
+HIDE_POWER_INFO = 2   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
 ROTOR_ENABLE = 1  # 1 is ENABLED, any other value or commented out is DISABLED
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller

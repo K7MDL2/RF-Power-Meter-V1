@@ -2,7 +2,7 @@
  *  RF_Wattmeter.h
  * For the RF_Wattmeter_Teensy41_PCB_V1
  * K7MDL April 8, 2022
- *
+ * Updated May 2024 for 21 bands to include all bands 160 thorugh 10GHz plus generic HF for undefined input match
  * ========================================
 */
 
@@ -16,9 +16,9 @@
 /******************************************************************************
   Select Features for compile time
 ******************************************************************************/
-#define SSD1306_OLED   // local OLED display option - only uncomment if actually connected
-#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
-//#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
+//#define SSD1306_OLED   // local OLED display option - only uncomment if actually connected
+//#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
+#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
 #define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
@@ -57,17 +57,19 @@
     #define DEF_NET_IP_ADR1       192
     #define DEF_NET_IP_ADR2       168
     #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0)
-    #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0)
-    #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_DEST_IP_ADR0) (old value 199)
+    #define DEF_MY_IP_ADR0        190   //188   // byte 3E - My ipadress static IP address byte (192, 168, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0)
+   
+    // Desktop Monitor App Address (last byte - same subnet as device)
+    #define DEF_DEST_IP_ADR0      106   //65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_DEST_IP_ADR0) (old value 199)
 
     uint8_t ip_adr1       = DEF_SUBNET_IP_ADR1;   // set up defaults
     uint8_t my_ip_adr0    = DEF_MY_IP_ADR0;    
     uint8_t dest_ip_adr0  = DEF_DEST_IP_ADR0;
-    char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
+    char HostIP[] = "192.168.2.106";   // this seems to work best for enet_write() function
     
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0);    // Our static IP address.  Could use DHCP but preferring static address.
-    unsigned int localPort = 7943;     // local port to LISTEN from the remote display/Desktop app
+    unsigned int localPort = 7941;     // local port to LISTEN from the remote display/Desktop app
     unsigned int localPort_Nex = 7945;     // local port to LISTEN for the remote display/Desktop app
     
     // buffers for receiving and sending data
@@ -78,8 +80,8 @@
    //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
    //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
    //IPAddress remote_ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_DEST_IP_ADR0);  // destination  IP (desktop app or remote display Arduino
-   unsigned int remoteport = 7942;    // the destination port to SENDTO (a remote display or Desktop app)
-   unsigned int remoteport_Nex = 7944;    // the destination port to SENDTO (a remote display or Desktop app)
+   unsigned int remoteport = 7940;    // the destination port to SENDTO (a remote display or Desktop app)
+   unsigned int remoteport_Nex = 7942;    // the destination port to SENDTO (a remote display or Desktop app)
    
     // An EthernetUDP instance to let us send and receive packets over UDP
     EthernetUDP Udp;
@@ -95,6 +97,7 @@
     //#define dbSerial Serial     // defined in NexConfig.h
     #include <Nextion.h>
     #define NexSerialBAUD 115200   // Also set in Nexhardware.cpp!!
+    //#define NexSerialBAUD 38400   // Also set in Nexhardware.cpp!!
 #endif
 
 #ifdef ADS1115_ADC
@@ -124,7 +127,7 @@
 //#define METERID 102 // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 #define CALLSIGN_LEN            (7u)
 char   Callsign[CALLSIGN_LEN] = "K7MDL\0";
-uint8_t default_METERID = 100; // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
+uint8_t default_METERID = 101; // Set the ID for this meter to permit monitoring more than 1 meter unit on a remote station
 // range is 100 to 119 based on UI input method design limits
 // Can be overriden by external commands if stored in EEPROM
 const float HV_MAX = 28.5;
@@ -136,8 +139,10 @@ const uint8_t TEMP_MAX = 135;
 Non-user edit section
 *********************************************/
 void Clear_buf(void);
+#ifdef OTRSP_Serial
 void OTRSP_setup(void);
 uint8_t OTRSP(void);
+#endif
 
 #ifdef DETECTOR_TEMP_CONNECTED
 float TempVal = 0.0;    
@@ -245,7 +250,8 @@ uint8_t SEQ_Delay = 2; //25;         // milliseconds delay between PTT Out 1 and
 #define ADC_COUNTS 1024       // 4096 for ESP32 12bit, 1024 for 10 bit ESP32 and Nano.  Not used for ADS1115
 
 // Edit the Coupler Set data in the Cal_Table function.  Set the max number of sets here, and the default to load at startup
-#define NUM_SETS 11 // 11 bands, 0 through 10 for example
+#define NUM_SETS 21// 20 bands, 0 through 20 for example.  0 is default for no match on input pattern.  Generically labeled "HF"
+// Predefined bands, if enabled, cover 160M through 10GHz.  Each wil be able to be disabled if not used making cycling though them quicker.
 
 #define SETPOINT_LEN            (0x0004)
 #define TEMPERATURE_LEN         (0x0001)
@@ -295,7 +301,7 @@ uint8_t SEQ_Delay = 2; //25;         // milliseconds delay between PTT Out 1 and
 #define CFG_ARR_TEST_STRING     "01234567890123"
 /* The buffer size is equal to the maximum packet size of the IN and OUT bulk
 * endpoints.*/
-#define Serial_USB_BUFFER_SIZE  (64)
+#define Serial_USB_BUFFER_SIZE  (128)
 #define LINE_STR_LENGTH         (20u)
 #define BUF_LEN  Serial_USB_BUFFER_SIZE
 
@@ -303,7 +309,7 @@ uint8_t SEQ_Delay = 2; //25;         // milliseconds delay between PTT Out 1 and
 //char* parity[] = {"None", "Odd", "Even", "Mark", "Space"};
 //char* stop[]   = {"1", "1.5", "2"};
 float Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP32 also has calibrated Vref curve
-uint8_t METERID = 100;    // tracks current Meter ID number   Resets to default_METERID.
+uint8_t METERID = 101;    // tracks current Meter ID number   Resets to default_METERID.
 uint8_t CouplerSetNum = 0;   // 0 is the default set on power up.  
 uint8_t ser_data_out = 0;
 uint8_t enet_data_out = 0;
@@ -334,6 +340,7 @@ float FwdPwr_last = 0;
 float Pwr_hi = 0, Pwr_lo = 0;
 float FwdVal_hi = 0, FwdVal_lo = 0; // used for auto cal
 float RefVal_hi = 0, RefVal_lo = 0; // used for auto cal
+float FwdPwr_Cutoff = 9.9;   // Set this closer to 10 for KW range.  0.2 for < 250W range
 #define NUMREADINGS 1   // adjust this for longer or shorter smooting period as AD noise requires
 float readings_Fwd[NUMREADINGS];      // the readings from the analog input
 float readings_Ref[NUMREADINGS];      // the readings from the analog input
@@ -549,21 +556,31 @@ struct Band_Cal {
     uint8_t band_B_output_pattern;  // pattern per band for band decode output Port B pins
     uint8_t band_C_output_pattern;  // pattern per band for band decode output Port C pins
 } Band_Cal_Table_Def[NUM_SETS] = {   // set up defaults for EEPROM
-     {"HF",     72.0, -0.02145, 0.48840, 73.6, -0.02145, 0.48840, 0x00, 0x00, 0x01, 0x00},
-     {"50MHz",  72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408, 0x01, 0x0F, 0x01, 0x00},
-     {"144MHz", 63.4, -0.01802, 0.55814, 63.4, -0.00772, 1.22091, 0x02, 0x0D, 0x02, 0x00},
-     {"222MHz", 60.5, -0.02221, 0.63030, 60.5, -0.02130, 0.87564, 0x03, 0x0C, 0x84, 0x00},
-     {"432MHz", 59.6, -0.01729, 0.57677, 59.6, -0.02282, 0.78104, 0x04, 0x0B, 0x48, 0x00},
-     {"902MHz", 59.2, -0.02269, 0.45607, 59.2, -0.01422, 0.89591, 0x05, 0x0A, 0xD0, 0x00},
+     {"HF",   72.0, -0.02145, 0.48840, 73.6, -0.02145, 0.48840, 0x3F, 0xFF, 0xFF, 0xFF},
+     {"160M", 72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408, 0x1E, 0xFF, 0xFF, 0xFF},
+     {"80M",  63.4, -0.01802, 0.55814, 63.4, -0.00772, 1.22091, 0x1D, 0xFF, 0xFF, 0xFF},
+     {"60M",  60.5, -0.02221, 0.63030, 60.5, -0.02130, 0.87564, 0x1F, 0xFf, 0xFF, 0xFF},
+     {"40M",  59.6, -0.01729, 0.57677, 59.6, -0.02282, 0.78104, 0x1C, 0xFF, 0xFF, 0xFF},
+     {"30M",  59.2, -0.02269, 0.45607, 59.2, -0.01422, 0.89591, 0x1B, 0xFF, 0xFF, 0xFF},
+     {"20M",  72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408, 0x1A, 0xFF, 0xFF, 0xFF},
+     {"17M",  63.4, -0.01802, 0.55814, 63.4, -0.00772, 1.22091, 0x19, 0xFF, 0xFF, 0xFF},
+     {"15M",  60.5, -0.02221, 0.63030, 60.5, -0.02130, 0.87564, 0x18, 0xFF, 0xFF, 0xFF},
+     {"12M",  59.6, -0.01729, 0.57677, 59.6, -0.02282, 0.78104, 0x17, 0xFF, 0xFF, 0xFF},
+     {"10M",  59.2, -0.02269, 0.45607, 59.2, -0.01422, 0.89591, 0x16, 0xFF, 0xFF, 0xFF},
+     {"6M",   72.6, -0.02148, 0.48102, 72.6, -0.02154, 0.51408, 0x15, 0xFF, 0xFF, 0xFF},
+     {"2M",   63.4, -0.01802, 0.55814, 63.4, -0.00772, 1.22091, 0x3D, 0xFE, 0xFF, 0xFF},
+     {"1.25M", 60.5, -0.02221, 0.63030, 60.5, -0.02130, 0.87564, 0x3C, 0xFF, 0xFF, 0xFF},
+     {"70cm", 59.6, -0.01729, 0.57677, 59.6, -0.02282, 0.78104, 0x3B, 0xFF, 0xFF, 0xFF},
+     {"33cm", 59.2, -0.02269, 0.45607, 59.2, -0.01422, 0.89591, 0x3A, 0xFF, 0xFF, 0xFF},
 #ifdef SWR_ANALOG    
-    {"1296MHz", 61.5, -0.02224, 0.40569, 51.5, -0.02607, 0.38766, 0x06, 0x09, 0x07, 0x00},  // for KitProg
+    {"23cm",  61.5, -0.02224, 0.40569, 51.5, -0.02607, 0.38766, 0x39, 0xFF, 0xFF, 0xFF},  // for KitProg
 #elif !SWR_ANALOG    
-    {"1296MHz", 72.6, -0.00621, 0.59162, 72.6, -0.02174, 0.45506, 0x06, 0x09, 0x20, 0x00},  // for normal board
+    {"23cm",  72.6, -0.00621, 0.59162, 72.6, -0.02174, 0.45506, 0x39, 0xFF, 0xFF, 0xFF},  // for normal board
 #endif    
-     {"2.3GHz", 60.1, -0.02514, 0.644, 60.1, -0.02514, 0.644, 0x07, 0x07, 8, 7},
-     {"3.4GHz", 60.2, -0.02514, 0.644, 60.2, -0.02514, 0.644, 0x08, 0x08, 9, 8},
-     {"5.7GHz", 60.3, -0.02514, 0.644, 60.3, -0.02514, 0.644, 0x09, 0x09, 10, 9},
-     {"10GHz",  60.4, -0.02514, 0.644, 60.4, -0.02514, 0.644, 0x0A, 0x0A, 11, 10}
+     {"13cm", 60.1, -0.02514, 0.644, 60.1, -0.02514, 0.644, 0x38, 0xFF, 0xFF, 0xFF},
+     {"9cm",  60.2, -0.02514, 0.644, 60.2, -0.02514, 0.644, 0x37, 0xFF, 0xFF, 0xFF},
+     {"5cm",  60.3, -0.02514, 0.644, 60.3, -0.02514, 0.644, 0x36, 0xFF, 0xFF, 0xFF},
+     {"3cm",  60.4, -0.02514, 0.644, 60.4, -0.02514, 0.644, 0x35, 0xFF, 0xFF, 0xFF}
     };
 struct Band_Cal Band_Cal_Table[NUM_SETS];   // Calibration table, one for each band
 
@@ -572,7 +589,7 @@ struct Band_Cal Band_Cal_Table[NUM_SETS];   // Calibration table, one for each b
 #endif 
 
 #ifdef NEXTION
-  #include <RF_Wattmeter_Nextion.h>
+  #include "RF_Wattmeter_Nextion.h"
 // For Nextion Display usage
     uint32_t rcv_num;
     static char cmd[64];

@@ -1,6 +1,8 @@
 {
-    "board": "arduino:avr:mega",
-    "configuration": "cpu=atmega2560",
+    "board": "teensy:avr:teensy41",
+    "configuration": "usb=serial3,speed=600,opt=o2std,keys=en-us",
     "sketch": "RF_Wattmeter_Teensy41_PCB_V1.ino",
-    "port": "COM32"
+    "port": "COM13",
+    "output": "../build",
+    "intelliSenseGen": "global"
 }
