@@ -4,3 +4,11 @@ __init__.py
 RF_Wattmeter_Teensy41\nextion_patched\ITEADLIB_Arduino_Nextion_patched\doc
 RF_Wattmeter_Teensy41\nextion_patched\ITEADLIB_Arduino_Nextion_patched\html
 RF_Wattmeter_Teensy41\nextion_patched\ITEADLIB_Arduino_Nextion_patched\latex
+build/libraries.cache
+*.d
+*build/**
+*.json
+*/doc/*
+*/examples/*
+*/html/*
+*/latex/*
