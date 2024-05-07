@@ -3,6 +3,8 @@
  This sketch receives UDP message commands from a client to turn a rotator and sends rotator position
  information back to the client.
 
+ Program consists of 3 parts - this file, Rotor-Controller-UDP-Server-Enet.ino, and Rotor-Controller-UDP-Server-RotorHandler.ino
+
 January 2021
 Updated : August 6, 2023 
 K7MDL
@@ -175,16 +177,16 @@ void rotor_position_AZ(void)
 void load_presets(void)
 {
     // set up test presets
-    Preset[0] = 30.0;
-    Preset[1] = 60.0;
-    Preset[2] = 90.0;
-    Preset[3] = 120.0;
-    Preset[4] = 150.0;
-    Preset[5] = 180.0;
-    Preset[6] = 240.0;
-    Preset[7] = 285.0;
-    Preset[8] = 330.0;
-    Preset[9] = 355.0;
+    Preset[0] = 8.0;    // Mt Baker, Cascades
+    Preset[1] = 30.0;   // Mt Pilchuck, Cascades
+    Preset[2] = 62.0;   // Glacier Peak, Cascades
+    Preset[3] = 91.0;   // Mt Index, Cascades
+    Preset[4] = 144.0;  // Mt Si, Cascades
+    Preset[5] = 169.0;  // Mt Rainier, Cascades
+    Preset[6] = 261.0;  // The Brothers, Olympics
+    Preset[7] = 279.0;  // Baldy, Olympics
+    Preset[8] = 330.0;  // Cultus Mtn, Cascades
+    Preset[9] = 359.0;  // North
 }
 
 void send_status(void)

@@ -44,7 +44,7 @@ extern unsigned char pg;
 // Less and you start missing events, numbers come back 0.  After a while LoRa data gets backed up, missing events
 // Need flow control on the Nextion end likely.
 
-#define NEX_UDP
+//#define NEX_UDP
 
 #ifdef NEX_UDP
     extern void Nex_Redirect_from_UDP(char *);

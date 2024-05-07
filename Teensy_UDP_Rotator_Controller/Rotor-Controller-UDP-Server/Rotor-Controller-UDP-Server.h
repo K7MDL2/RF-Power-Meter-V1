@@ -71,16 +71,16 @@ uint8_t DBG = 0;
 uint16_t RotorTargetAZ;
 float RotorAZ;
 int16_t RotorAZ_Offset = 0; //-130;  // If the antenna is offset from rotator alignment 
-float Preset[10] = {0, 200.0, 270.0, 0.0, 30.0, 62.0, 90.0, 130.0, 170.0, 0.0};  //(desktop app uses 1-8, skips 0 and 9 slots)
-uint16_t RotorAZ_StartPos = 180; //302;   //North is center of 360 swing.  This offsets to 180 for south stopping rotator.
+float Preset[10] = {0.0, 30.0, 62.0, 91.0, 144.0, 169.0, 261.0, 279.0, 0.0};  //(desktop app uses 1-8, skips 0 and 9 slots)
+uint16_t RotorAZ_StartPos = 1; //302;   //North is center of 360 swing.  This offsets to 180 for south stopping rotator.
 float RotorAZ_raw;
 uint8_t Rotor_StopBand = 2;
-uint16_t manual_limit_CCW = 182;
-uint16_t manual_limit_CW = 178;
+uint16_t manual_limit_CCW = 1;
+uint16_t manual_limit_CW = 359;
 float RotorPosV;
 uint16_t RotorPosCounts;
 uint16_t RotorPosCounts_raw;
-uint8_t SlowdownDegrees = 10;
+uint8_t SlowdownDegrees = 6;
 uint8_t MoveRotor = STOP;
 uint8_t MovetoPreset = 0;
 unsigned long stall_detect_timer = 0;
