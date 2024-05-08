@@ -804,7 +804,27 @@ class Send_Mtr_Cmds():
         else:            
             cmd_data = 0        # data value always zero for band change commands
             band = int(cmd_str)           # non direct band change commands, usually from sources like WSJT-X where a frequency is provided rather than specific band info.
-            if band < 49:
+            if band < 4:
+                cmd = "230"
+            elif 3 < band < 5:
+                cmd = "231"
+            elif 4 < band < 6:
+                cmd = "232"
+            elif 5 < band < 8:
+                cmd = "233"
+            elif 7 < band < 11:
+                cmd = "234"
+            elif 10 < band < 15:
+                cmd = "235"
+            elif 14 < band < 19: 
+                cmd = "236"
+            elif 18 < band < 22: 
+                cmd = "237"
+            elif 21 < band < 25: 
+                cmd = "238"
+            elif 24 < band < 28: 
+                cmd = "239"
+            elif 27 < band < 50: 
                 cmd = "240"
             elif 49 < band < 70:
                 cmd = "241"
@@ -1374,11 +1394,71 @@ class App(tk.Frame):
         # Write command to jump to band 0
         rx.send_meter_cmd("241","", True)
     
-    def band_HF(self):
+    def band_10(self):
         rx = Send_Mtr_Cmds()
-        print("Jump to HF Band ")
+        print("Jump to 28MHz Band ")
         # Write command to jump to band 0
         rx.send_meter_cmd("240","", True)
+        
+    def band_12(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 24MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("239","", True)
+    
+    def band_15(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 21MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("238","", True)
+        
+    def band_17(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 18MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("237","", True)    
+        
+    def band_20(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 14MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("236","", True)
+        
+    def band_30(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 10MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("235","", True)
+            
+    def band_40(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 7MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("234","", True)
+            
+    def band_60(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 5MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("233","", True)    
+    
+    def band_80(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 3.5MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("232","", True)
+        
+    def band_160(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 1.8MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("231","", True)
+        
+    def band_HF(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to HF (Generic) Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("230","", True)
 
     def rotor_CCW(self):
         print("Move rotor CCW up to limits")
@@ -1901,17 +1981,73 @@ class Table_Cfg_Mtr(tk.Frame):
             #label = tk.Label(table_cfg, text=f"Selected item : {selected_item}", font="arial 12 bold")
            #label.pack()
  
+            if band_selected == "HF":
+                #self.band_HF
+                m_cmd.send_meter_cmd("230","", True)
             if band_selected == "160M":
                 #self.band_160 
-                m_cmd.send_meter_cmd("246","", True)
+                m_cmd.send_meter_cmd("231","", True)
+            if band_selected == "80M":
+                #self.band_80 
+                m_cmd.send_meter_cmd("232","", True)
+            if band_selected == "60M":
+                #self.band_60 
+                m_cmd.send_meter_cmd("233","", True)
+            if band_selected == "40M":
+                #self.band_40 
+                m_cmd.send_meter_cmd("234","", True)
+            if band_selected == "30M":
+                #self.band_30 
+                m_cmd.send_meter_cmd("235","", True)
+            if band_selected == "20M":
+                #self.band_20 
+                m_cmd.send_meter_cmd("236","", True)
+            if band_selected == "17M":
+                #self.band_17 
+                m_cmd.send_meter_cmd("237","", True)
+            if band_selected == "15M":
+                #self.band_15 
+                m_cmd.send_meter_cmd("238","", True)
+            if band_selected == "12M":
+                #self.band_12 
+                m_cmd.send_meter_cmd("239","", True)
+            if band_selected == "10M":
+                #self.band_10 
+                m_cmd.send_meter_cmd("240","", True)
             if band_selected == "6M":
                 #self.band_50 
                 m_cmd.send_meter_cmd("241","", True)
             if band_selected == "2M":
                 #self.band_144 
                 m_cmd.send_meter_cmd("242","", True)
- 
-   # TODO - load the selected band data for the normal Decoder config form to use  
+            if band_selected == "1.25M":
+                #self.band_222
+                m_cmd.send_meter_cmd("243","", True)
+            if band_selected == "70cm":
+                #self.band_432
+                m_cmd.send_meter_cmd("244","", True)            
+            if band_selected == "33cm":
+                #self.band_902 
+                m_cmd.send_meter_cmd("245","", True)
+            if band_selected == "23cm":
+                #self.band_1296 
+                m_cmd.send_meter_cmd("246","", True)
+            if band_selected == "13cm":
+                #self.band_2304
+                m_cmd.send_meter_cmd("247","", True)
+            if band_selected == "9cm":
+                #self.band_3300
+                m_cmd.send_meter_cmd("248","", True)
+            if band_selected == "6cm":
+                #self.band_5760 
+                m_cmd.send_meter_cmd("249","", True)
+            if band_selected == "3cm":
+                #self.band_144 
+                m_cmd.send_meter_cmd("250","", True)
+            else: 
+                #self.band_HF
+                m_cmd.send_meter_cmd("230","", True)
+
      
         #listbox.pack()
         listbox.grid()
