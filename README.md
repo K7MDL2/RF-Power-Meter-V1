@@ -1,5 +1,13 @@
 ## RF-Power-Meter
 
+### 5/8/2024 - Modified Desktop App and Teensy Firmware to support 160M through 10GHz bands
+
+    1. The firmware now has 20 predefined ham bands and one called HF which is for undefined band scenario.  Covers all bands 160M through 3cm (10GHz). The bands use remote commands 230-250 to select any one of them. 
+    2. There are 2 Desktop App folders.  The one with 190 suffix has a different IP address:port combo and Meter ID=101 to run as a separate instance from the original with Meter ID = 100.  The 190 version now has the first code changes supporting the 20 bands mentioned above. The buttons can be edited to activate any band you like.  Real estate in the current layout limits the number of buttons to 7.
+    3. The Edit Meter Config page can set the power/SWR cal and the Decoder IO config per band.  When you have unconfigured bands and no buttons assigned it is a challenge to make that band current to edit the IO paterns.  A chicken and the egg problem.  One workarond is to edit the firmware band table with the desired values.  A new Edit Meter Table page was created to select any of the bands and edit it.
+    4. The Edit Meter Config page is modified to remove the global Calibration fields for Temp, HiVoltage, 12V and Load_Current.  These fields are moved to the new Edit Meter Table page.  This new menu page does not have the per-band power/SWR cal fields.  Instead it has a new scrolling list box containing all 20 bands.  When you select one of them, the band will change to that selection and load the form with the current values for that selected band.  The Decoder IO and top buttons are the same on each Meter page, the difference is how the current band is made active. Once you edit the IO for Band Input using the Edit Meter Table page, then the decoder will recognize any wired or serial band inputs and change bands appropriately.
+    5.  ToDo: Update the Original Desktop App to match after some testing time.
+
 ### 4/28/2024 - Modified Desktop app to run multiple instances for multiple boards
 
     1. My new QTH has 2 outdoor locations each now with its own band decoder\wattmeter board. The desktop app can now run a separate instances for each.  Rotator control is configurable and turned on for one only instance since I have remote 1 rotor controller.
