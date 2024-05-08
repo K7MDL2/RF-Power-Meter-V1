@@ -579,7 +579,7 @@ struct Band_Cal {
 #endif    
      {"13cm", 60.1, -0.02514, 0.644, 60.1, -0.02514, 0.644, 0x38, 0xFF, 0xFF, 0xFF},
      {"9cm",  60.2, -0.02514, 0.644, 60.2, -0.02514, 0.644, 0x37, 0xFF, 0xFF, 0xFF},
-     {"5cm",  60.3, -0.02514, 0.644, 60.3, -0.02514, 0.644, 0x36, 0xFF, 0xFF, 0xFF},
+     {"6cm",  60.3, -0.02514, 0.644, 60.3, -0.02514, 0.644, 0x36, 0xFF, 0xFF, 0xFF},
      {"3cm",  60.4, -0.02514, 0.644, 60.4, -0.02514, 0.644, 0x35, 0xFF, 0xFF, 0xFF}
     };
 struct Band_Cal Band_Cal_Table[NUM_SETS];   // Calibration table, one for each band

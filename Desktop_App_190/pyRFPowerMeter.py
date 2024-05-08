@@ -1984,64 +1984,64 @@ class Table_Cfg_Mtr(tk.Frame):
             if band_selected == "HF":
                 #self.band_HF
                 m_cmd.send_meter_cmd("230","", True)
-            if band_selected == "160M":
+            elif band_selected == "160M":
                 #self.band_160 
                 m_cmd.send_meter_cmd("231","", True)
-            if band_selected == "80M":
+            elif band_selected == "80M":
                 #self.band_80 
                 m_cmd.send_meter_cmd("232","", True)
-            if band_selected == "60M":
+            elif band_selected == "60M":
                 #self.band_60 
                 m_cmd.send_meter_cmd("233","", True)
-            if band_selected == "40M":
+            elif band_selected == "40M":
                 #self.band_40 
                 m_cmd.send_meter_cmd("234","", True)
-            if band_selected == "30M":
+            elif band_selected == "30M":
                 #self.band_30 
                 m_cmd.send_meter_cmd("235","", True)
-            if band_selected == "20M":
+            elif band_selected == "20M":
                 #self.band_20 
                 m_cmd.send_meter_cmd("236","", True)
-            if band_selected == "17M":
+            elif band_selected == "17M":
                 #self.band_17 
                 m_cmd.send_meter_cmd("237","", True)
-            if band_selected == "15M":
+            elif band_selected == "15M":
                 #self.band_15 
                 m_cmd.send_meter_cmd("238","", True)
-            if band_selected == "12M":
+            elif band_selected == "12M":
                 #self.band_12 
                 m_cmd.send_meter_cmd("239","", True)
-            if band_selected == "10M":
+            elif band_selected == "10M":
                 #self.band_10 
                 m_cmd.send_meter_cmd("240","", True)
-            if band_selected == "6M":
+            elif band_selected == "6M":
                 #self.band_50 
                 m_cmd.send_meter_cmd("241","", True)
-            if band_selected == "2M":
+            elif band_selected == "2M":
                 #self.band_144 
                 m_cmd.send_meter_cmd("242","", True)
-            if band_selected == "1.25M":
+            elif band_selected == "1.25M":
                 #self.band_222
                 m_cmd.send_meter_cmd("243","", True)
-            if band_selected == "70cm":
+            elif band_selected == "70cm":
                 #self.band_432
                 m_cmd.send_meter_cmd("244","", True)            
-            if band_selected == "33cm":
+            elif band_selected == "33cm":
                 #self.band_902 
                 m_cmd.send_meter_cmd("245","", True)
-            if band_selected == "23cm":
+            elif band_selected == "23cm":
                 #self.band_1296 
                 m_cmd.send_meter_cmd("246","", True)
-            if band_selected == "13cm":
+            elif band_selected == "13cm":
                 #self.band_2304
                 m_cmd.send_meter_cmd("247","", True)
-            if band_selected == "9cm":
+            elif band_selected == "9cm":
                 #self.band_3300
                 m_cmd.send_meter_cmd("248","", True)
-            if band_selected == "6cm":
+            elif band_selected == "6cm":
                 #self.band_5760 
                 m_cmd.send_meter_cmd("249","", True)
-            if band_selected == "3cm":
+            elif band_selected == "3cm":
                 #self.band_144 
                 m_cmd.send_meter_cmd("250","", True)
             else: 
@@ -2050,9 +2050,10 @@ class Table_Cfg_Mtr(tk.Frame):
 
      
         #listbox.pack()
-        listbox.grid()
+        #listbox.grid()
         
         # Add items to the listbox
+        listbox.insert(END, "HF")
         listbox.insert(END, "160M")
         listbox.insert(END, "80M")
         listbox.insert(END, "60M")
@@ -2071,7 +2072,7 @@ class Table_Cfg_Mtr(tk.Frame):
         listbox.insert(END, "23cm")
         listbox.insert(END, "13cm")
         listbox.insert(END, "9cm")
-        listbox.insert(END, "5cm")
+        listbox.insert(END, "6cm")
         listbox.insert(END, "3cm")
         
         # Bind the event to the listbox

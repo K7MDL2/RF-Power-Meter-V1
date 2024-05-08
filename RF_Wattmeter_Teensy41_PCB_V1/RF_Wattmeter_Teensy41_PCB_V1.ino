@@ -2168,52 +2168,94 @@ void get_remote_cmd()
                         }
                         if (cmd1 == 253) Button_C = YES;   // Switch op_modes betweem SWR and PWR - same as scale, not useful lif you cannot seethe meter face.
                         if (cmd1 == 252) print_cal_table();  //Speed up or slow down the Serial line output info rate
-                        if (cmd1 == 251) ;  // Not Used yet
-                        if (cmd1 == 250) {   // dump current cal table to remote  (Was Scale GUI button)
+                        if (cmd1 == 251) ;  // dump current cal table to remote  (Was Scale GUI button)
+
+                        //Cover 20 bands plus generic HF (band 0) for undefined band needs.
+                        if (cmd1 == 250) {     // Jump to Band 10G (3cm)
+                            Button_B = YES;
+                            NewBand = 20;  
+                        }   
+                        if (cmd1 == 249) {     // Jump to Band 5.7G (6cm)
+                            Button_B = YES;
+                            NewBand = 19;  
+                        }
+                        if (cmd1 == 248) {     // Jump to Band 3.4G (3cm)
+                            Button_B = YES;
+                            NewBand = 18;  
+                        }
+                        if (cmd1 == 247) {     // Jump to Band 2.3G (12cm)
+                            Button_B = YES;
+                            NewBand = 17;  
+                        }
+                        if (cmd1 == 246) {     // Jump to Band 1296 (23cm)
+                            Button_B = YES;
+                            NewBand = 16;  
+                        }
+                        if (cmd1 == 245) {     // Jump to Band 902 (33cm)
+                            Button_B = YES;
+                            NewBand = 15;  
+                        }
+                        if (cmd1 == 244) {     // Jump to Band 70cm
+                            Button_B = YES;
+                            NewBand = 14;  
+                        }
+                        if (cmd1 == 243) {     // Jump to Band 1.25M
+                            Button_B = YES;
+                            NewBand = 13;  
+                        }
+                        if (cmd1 == 242) {     // Jump to Band 2M
+                            Button_B = YES;
+                            NewBand = 12;  
+                        }
+                        if (cmd1 == 241) {     // Jump to Band 6M
+                            Button_B = YES;
+                            NewBand = 11;                          
+                        }
+                        if (cmd1 == 240) {     // Jump to Band 10M
                             Button_B = YES;
                             NewBand = 10;  
                         }   
-                        if (cmd1 == 249) {     // Jump to Band 5.7G
+                        if (cmd1 == 239) {     // Jump to Band 12M
                             Button_B = YES;
                             NewBand = 9;  
                         }
-                        if (cmd1 == 248) {     // Jump to Band 3.4G
+                        if (cmd1 == 238) {     // Jump to Band 15M
                             Button_B = YES;
                             NewBand = 8;  
                         }
-                        if (cmd1 == 247) {     // Jump to Band 2.3G
+                        if (cmd1 == 237) {     // Jump to Band 17M
                             Button_B = YES;
                             NewBand = 7;  
                         }
-                        if (cmd1 == 246) {     // Jump to Band 1296
+                        if (cmd1 == 236) {     // Jump to Band 20M
                             Button_B = YES;
                             NewBand = 6;  
                         }
-                        if (cmd1 == 245) {     // Jump to Band 902
+                        if (cmd1 == 235) {     // Jump to Band 30M
                             Button_B = YES;
                             NewBand = 5;  
                         }
-                        if (cmd1 == 244) {     // Jump to Band 432
+                        if (cmd1 == 234) {     // Jump to Band 40M
                             Button_B = YES;
                             NewBand = 4;  
                         }
-                        if (cmd1 == 243) {     // Jump to Band 222
+                        if (cmd1 == 233) {     // Jump to Band 60M
                             Button_B = YES;
                             NewBand = 3;  
                         }
-                        if (cmd1 == 242) {     // Jump to Band 144
+                        if (cmd1 == 232) {     // Jump to Band 80M
                             Button_B = YES;
                             NewBand = 2;  
                         }
-                        if (cmd1 == 241) {     // Jump to Band 50
+                        if (cmd1 == 231) {     // Jump to Band 160M
                             Button_B = YES;
                             NewBand = 1;  
                         }
-                        if (cmd1 == 240) {     // Jump to Band HF
+                        if (cmd1 == 230) {     // Jump to Band HF
                             Button_B = YES;
-                            NewBand = 0;  
+                            NewBand = 0;
                         }
-                        if (cmd1 == 239) {     // Toggle Serial power data outpout.  Other serial functions remain available.
+                        if (cmd1 == 209) {     // Toggle Serial power data outpout.  Other serial functions remain available.
                             //DBG_Serial.println(">Call Serial Data Output Toggle");
                             toggle_ser_data_output(cmd2);
                         }
