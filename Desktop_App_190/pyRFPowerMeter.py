@@ -1963,15 +1963,14 @@ class Table_Cfg_Mtr(tk.Frame):
         table_cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
         
         self.Table_Cfg_Band_label = tk.Label(table_cfg, text="Band Input and Output Port Configuration Editor",font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
-        self.Table_Cfg_Band_label.place(x=10, y=60) 
+        self.Table_Cfg_Band_label.place(x=330, y=30) 
         
-            
-        self.Choose_Band = tk.Label(table_cfg, text="Choose a Band to Configure from the list below",font=('Helvetica', 12, 'bold'), justify='right')
-        self.Choose_Band.place(x=100, y=70, height=20, width=300)
+        self.Choose_Band = tk.Label(table_cfg, text="Choose a Band to Configure from the list",font=('Helvetica', 12, 'bold'), justify='right')
+        self.Choose_Band.place(x=70, y=190, height=20, width=350)
         
         # Create the listbox
         listbox = Listbox(table_cfg, height=10, width=20, font="arial 12 bold")
-        listbox.place(x=100, y=225, height=20, width=130)
+        listbox.place(x=420, y=90, height=200, width=60)
         
         #listbox           
         def on_item_click(event):
