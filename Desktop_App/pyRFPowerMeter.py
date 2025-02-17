@@ -23,8 +23,11 @@ from tkinter import StringVar
 from tkinter import IntVar
 from tkinter import LEFT
 from tkinter import RIGHT
+from tkinter import ttk
+from tkinter.messagebox import showinfo
 #from tkinter import *
 from tkinter.filedialog import askopenfilename
+from tktable import Table
 import sys, threading
 thread_names = {t.ident: t.name for t in threading.enumerate()}
 
@@ -325,7 +328,7 @@ class UDP_Rotor(Thread):
                 #pass
             # close the socket
             t.close() 
-        time.sleep(0.1) 
+        #time.sleep(0.1) 
            
     def UDP_Rotor_Rx(self):
         global rotor_sock
@@ -452,7 +455,7 @@ class UDP_Meter(Thread):
                 if s_data[0] == ">":
                     print("CMD received message echo: {}" .format(s_data))
                 #else:
-                #print("received message: {}" .format(s_data))
+                #print("Rcvd: {}" .format(s_data))
                 pd.get_power_data(pd, str(s_data))
             except UnicodeDecodeError: # catch error and ignore it
                 print("Unicode decode error caught")  # will get this on CPU resets
@@ -462,7 +465,7 @@ class UDP_Meter(Thread):
             except socket.error:
                 #print("No data received from UDP")    
                 pass  
-        time.sleep(0.1)
+        #time.sleep(0.1)
 #
 #__________  Network handler in its own thread.  ________________________________________________________________
 #               Monitors WSJT-X broadcast packets to extract frequency for band changing
@@ -504,7 +507,7 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
         global band
         
         #print("Listening for WSJTX messages")
-        time.sleep(0.5)
+        #time.sleep(0.5)
         (pkt, addr_port) = s.rx_packet()
         if (pkt != None):
             the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, pkt)
@@ -764,7 +767,7 @@ class Power_Data():
                 meter_data[0] = "NA"          # no meter ID match so tell the UI  
         except:
                 pass
-        time.sleep(0.001)
+        #time.sleep(0.001)
 
     def debug_meter_string(self, debug_msg):
         for i in range(len(meter_data)):
@@ -801,7 +804,27 @@ class Send_Mtr_Cmds():
         else:            
             cmd_data = 0        # data value always zero for band change commands
             band = int(cmd_str)           # non direct band change commands, usually from sources like WSJT-X where a frequency is provided rather than specific band info.
-            if band < 49:
+            if band < 4:
+                cmd = "230"
+            elif 3 < band < 5:
+                cmd = "231"
+            elif 4 < band < 6:
+                cmd = "232"
+            elif 5 < band < 8:
+                cmd = "233"
+            elif 7 < band < 11:
+                cmd = "234"
+            elif 10 < band < 15:
+                cmd = "235"
+            elif 14 < band < 19: 
+                cmd = "236"
+            elif 18 < band < 22: 
+                cmd = "237"
+            elif 21 < band < 25: 
+                cmd = "238"
+            elif 24 < band < 28: 
+                cmd = "239"
+            elif 27 < band < 50: 
                 cmd = "240"
             elif 49 < band < 70:
                 cmd = "241"
@@ -825,7 +848,7 @@ class Send_Mtr_Cmds():
                 cmd = "250"
             else: 
                 pass                    # in case we add more
-        time.sleep(0.0001)
+        #time.sleep(0.0001)
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
@@ -1167,7 +1190,7 @@ class App(tk.Frame):
             self.rotor_STOP()
       
         self.update_label() 
-        time.sleep(0.001)
+        #time.sleep(0.001)
 
     # Update GUI text fields with Serial Data from power meter and maybe other places later 
     def update_label(self):
@@ -1371,11 +1394,71 @@ class App(tk.Frame):
         # Write command to jump to band 0
         rx.send_meter_cmd("241","", True)
     
-    def band_HF(self):
+    def band_10(self):
         rx = Send_Mtr_Cmds()
-        print("Jump to HF Band ")
+        print("Jump to 28MHz Band ")
         # Write command to jump to band 0
         rx.send_meter_cmd("240","", True)
+        
+    def band_12(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 24MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("239","", True)
+    
+    def band_15(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 21MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("238","", True)
+        
+    def band_17(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 18MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("237","", True)    
+        
+    def band_20(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 14MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("236","", True)
+        
+    def band_30(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 10MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("235","", True)
+            
+    def band_40(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 7MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("234","", True)
+            
+    def band_60(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 5MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("233","", True)    
+    
+    def band_80(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 3.5MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("232","", True)
+        
+    def band_160(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to 1.8MHz Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("231","", True)
+        
+    def band_HF(self):
+        rx = Send_Mtr_Cmds()
+        print("Jump to HF (Generic) Band ")
+        # Write command to jump to band 0
+        rx.send_meter_cmd("230","", True)
 
     def rotor_CCW(self):
         print("Move rotor CCW up to limits")
@@ -1469,8 +1552,8 @@ class App(tk.Frame):
         else:
             print("Serial thread not started")
             #pass    
-        # Start the WSJTX thread in any case.  
-        #print(" WSJT-X thread started in comms function ")
+        # Start the WSJTX thread in any case.
+        #print(" WSJT-X thread started in comms function
         #self.wsjtx_decode = WSJTX_Decode()      # Start the WSJTx UDP Thread - runs always for now.
         #self.wsjtx_decode.start()      # start the WSJTX_Decode thread now 
         if (ROTOR_ENABLE == 1):
@@ -1531,7 +1614,11 @@ class App(tk.Frame):
 
     def start_cfg(self):
         Cfg_Mtr()
-        print(" ---->  Started Config Window")
+        print(" ---->  Started Config Window")    
+        
+    def start_table_cfg(self):
+        Table_Cfg_Mtr()
+        print(" ---->  Started Table Config Window")
 
     def start_cfg_rtr(self):
         Cfg_Rtr()
@@ -1573,7 +1660,773 @@ class Cfg_Rtr(tk.Frame):
         rtr_cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
         self.Rtr_Cfg_Band_label = tk.Label(rtr_cfg, text="Current AZ Rotor position is {}" .format(rotor_data[0]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
         self.Rtr_Cfg_Band_label.place(x=310, y=0)
+        #time.sleep(0.1)
+#
+#
+#---------------------------  Wattmeter and Band Decoder Configuration Table Editor Window----------------------------------------
+#
+class Table_Cfg_Mtr(tk.Frame):      
+    global update_table_cfg_win_callback
+#    def __init__(self):
+        # Call superclass constructor
+#        super().__init__()   
+    def __init__(self, master=None): 
+        # Call superclass constructor
+        super().__init__(master) 
+        self.Hi_Flag = 0
+        self.Lo_Flag = 0
+        self.Old_Band = 0
+        self.Table_Cfg_Window()
+        self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
+
+    def exit_protocol(self):
+        # Will be called when the main window is closed
+        #self.after_cancel(update_cfg_win_callback)  
+        self.master.destroy()  # Destroy root window
+        self.master.quit()  # Exiting the main loop
+        
+    def NexProgram(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Switch Nextion to Program Connection")
+        m_cmd.send_meter_cmd("96","", True)
+        
+    def NexOperate(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Switch Nextion to Operate Connection")
+        m_cmd.send_meter_cmd("95","", True)
+
+    def Cal_Dump(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Dump Cal Table")
+        m_cmd.send_meter_cmd("252","", True)
+
+    def Cal_Temp(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Cal Temperature")
+        m_cmd.send_meter_cmd("84",self.Temp.get(), True)
+
+    def Cal_HVDC(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Cal HV DC")
+        m_cmd.send_meter_cmd("88",self.HVDC.get(), True)
+
+    def Cal_V14(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Cal 14VDC")
+        m_cmd.send_meter_cmd("87",self.V14.get(), True)
+  
+    def Cal_Curr(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Cal Current")
+        m_cmd.send_meter_cmd("86",self.Curr.get(), True)
+    
+    def Cal_Curr0(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Cal No Load Current")
+        m_cmd.send_meter_cmd("85",self.Curr0.get(), True)
+
+    def Cal_Hi(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Measure Fwd and Ref High Power ADC Voltage at {}{}" .format(self.Pwr_Hi.get(), self.P_Units.get()))        
+        if self.P_Units.get() == "dBm":
+            m_cmd.send_meter_cmd("78",self.Pwr_Hi.get(), True)
+        else:
+            m_cmd.send_meter_cmd("79",self.Pwr_Hi.get(), True)
+        time.sleep(2)
+        self.Cal_HiV_F_Text.config(text="F:"+FwdVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))   
+        self.Cal_HiV_R_Text.config(text="R:"+RefVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))        
+        if self.Lo_Flag == 1:
+            self.Cal_Fwd_btn.config(state='normal')
+            self.Cal_Ref_btn.config(state='normal')
+            print(RefVal_Hi+"    "+RefVal_Lo+"  "+FwdVal_Hi+"    "+FwdVal_Lo)                            
+        self.Hi_Flag = 1
+        
+    def Cal_Lo(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Measure Fwd and Ref Low Power ADC Voltage at {}{}" .format(self.Pwr_Lo.get(), self.P_Units.get()))                
+        if self.P_Units.get() == "dBm":
+            m_cmd.send_meter_cmd("76",self.Pwr_Lo.get(), True)
+        else:
+            m_cmd.send_meter_cmd("77",self.Pwr_Lo.get(), True)
+        time.sleep(2)
+        self.Cal_LoV_F_Text.config(text="F:"+FwdVal_Lo+"VDC", font=('Helvetica', 12, 'bold')) 
+        self.Cal_LoV_R_Text.config(text="R:"+RefVal_Lo+"VDC", font=('Helvetica', 12, 'bold'))  
+        if self.Hi_Flag == 1:
+            self.Cal_Fwd_btn.config(state='normal')
+            self.Cal_Ref_btn.config(state='normal')
+            print(RefVal_Hi+"    "+RefVal_Lo+"  "+FwdVal_Hi+"    "+FwdVal_Lo)    
+        self.Lo_Flag = 1
+
+    def Cal_Fwd(self):    # used measured hi and lo values sent to host earlier, now calculate
+        m_cmd = Send_Mtr_Cmds()
+        print("Calculate Fwd Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
+        m_cmd.send_meter_cmd("75","", True)        
+    
+    def Cal_Ref(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Calculate Ref Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
+        m_cmd.send_meter_cmd("74","", True)    
+
+    def Set_B_Dec_In_Mode(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Applying Translation Mode {} to Band Decode Input Port".format(self.BDec_In.get()))
+        m_cmd.send_meter_cmd("65",self.BDec_In.get(), True)    
+        if self.BDec_In.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Input Port using {}".format(self.CustomInp.get()))
+            time.sleep(0.1)
+            m_cmd.send_meter_cmd("69",self.CustomInp.get(), True)  
         time.sleep(0.1)
+        self.GetDecoderValues()  
+        time.sleep(0.1)           
+
+    def Set_B_Dec_A_Mode(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Applying Translation Mode {} to Band Decode Output Port A".format(self.BDec_A.get()))
+        m_cmd.send_meter_cmd("64",self.BDec_A.get(), True)    
+        if self.BDec_A.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Output Port A using {}".format(self.CustomA.get()))
+            time.sleep(0.1)
+            m_cmd.send_meter_cmd("68",self.CustomA.get(), True)
+        time.sleep(0.1)
+        self.GetDecoderValues()  
+        time.sleep(0.1)           
+
+    def Set_B_Dec_B_Mode(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Applying Translation Mode {} to Band Decode Output Port B".format(self.BDec_B.get()))
+        m_cmd.send_meter_cmd("63",self.BDec_B.get(), True)    
+        if self.BDec_B.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Output Port B using {}".format(self.CustomB.get()))
+            time.sleep(0.1)
+            m_cmd.send_meter_cmd("67",self.CustomB.get(), True)
+        time.sleep(0.1)
+        self.GetDecoderValues()              
+        time.sleep(0.1)
+
+    def Set_B_Dec_C_Mode(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Applying Translation Mode {} to Band Decode Output Port C".format(self.BDec_C.get()))
+        m_cmd.send_meter_cmd("62",self.BDec_C.get(), True)    
+        if self.BDec_C.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Applying Custom Pattern to Band Decode Output Port C using {}".format(self.CustomC.get()))
+            time.sleep(0.1)
+            m_cmd.send_meter_cmd("66",self.CustomC.get(), True)
+        time.sleep(0.1)  
+        self.GetDecoderValues()
+        time.sleep(0.1)
+
+    def Dis_OTRSP_Band_Change(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        if self.Dis_OTRPS_Ch.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("DISABLE Band Change by OTRSP AUX1 Command")  
+            m_cmd.send_meter_cmd("61","1", True)  
+        else:
+            print("ENABLE Band Change by OTRSP AUX1 Command")  
+            m_cmd.send_meter_cmd("61","0", True) 
+        time.sleep(0.1)
+        self.GetDecoderValues()
+        time.sleep(0.1)
+
+    def PTT_Input_Polarity(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        if self.PTT_IN_pol.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set PTT Input to Active HI mode")  
+            m_cmd.send_meter_cmd("59","1", True)  
+        else:
+            print("Set PTT Input to Active LOW mode")  
+            m_cmd.send_meter_cmd("59","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+    
+    def PTT_Ouput_Polarity(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        if self.PTT_OUT_pol.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set PTT Output to Active HI mode")  
+            m_cmd.send_meter_cmd("58","1", True)  
+        else:
+            print("Set PTT Output to Active LOW mode")  
+            m_cmd.send_meter_cmd("58","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+    
+    def CW_Key_Polarity(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        if self.CW_KEY_OUT_pol.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set CW Key Out to Active HI mode")  
+            m_cmd.send_meter_cmd("57","1", True)  
+        else:
+            print("Set CW Key Out to Active LOW mode")  
+            m_cmd.send_meter_cmd("57","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+
+    def PortA_is_PTT(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        if self.PORTA_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Set Port A PTT Mode to Active HI mode")  
+            m_cmd.send_meter_cmd("56","2", True)  
+        elif self.PORTA_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set Port A PTT Mode to Active LOW mode")  
+            m_cmd.send_meter_cmd("56","1", True)  
+        else:
+            print("Set Port A PTT Mode OFF")  
+            m_cmd.send_meter_cmd("56","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+
+    def PortB_is_PTT(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        if self.PORTB_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Set Port B PTT Mode to Active HI mode")  
+            m_cmd.send_meter_cmd("55","2", True)  
+        elif self.PORTB_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set Port B PTT Mode to Active LOW mode")  
+            m_cmd.send_meter_cmd("55","1", True)  
+        else:
+            print("Set Port B PTT Mode to OFF")
+            m_cmd.send_meter_cmd("55","0", True)   
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+
+    def PortC_is_PTT(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        if self.PORTC_IS_PTT_var.get() == 2:   # If custom mode then get the entered pattern and store it
+            print("Set Port C PTT Mode to Active HI mode")  
+            m_cmd.send_meter_cmd("54","2", True)  
+        elif self.PORTC_IS_PTT_var.get() == 1:   # If custom mode then get the entered pattern and store it
+            print("Set Port C PTT Mode to Active LOW mode")  
+            m_cmd.send_meter_cmd("54","1", True)  
+        else:
+            print("Set Port C PTT Mode to OFF")  
+            m_cmd.send_meter_cmd("54","0", True) 
+        time.sleep(0.2)
+        self.GetDecoderValues()
+        time.sleep(0.2)
+    
+    def GetDecoderValues(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        print("Retrieve Band Decoder Translation Modes and current band custom patterns")    # Used to prepopulate the Config Screen Band Decoder section to reflect current vlaues
+        m_cmd.send_meter_cmd("60","", True)    # Will result in a reply message from CPU in message type 172 which will stash values into global variable
+        time.sleep(0.1)
+
+    def Save_to_Meter(self):   # Commit to EEPROM
+        m_cmd = Send_Mtr_Cmds()
+        print("Save cal table changes to Meter's EEPROM")
+        m_cmd.send_meter_cmd("195","", True)    
+
+    def Toggle_Ser_Data(self):
+        m_cmd = Send_Mtr_Cmds()
+        print("Toggle Meter Data Output Stream")
+        m_cmd.send_meter_cmd("239","2", True)    
+    
+    def Show_MeterID(self):
+        print("Meter ID received is ", meter_data[0])
+
+    # this page will collect Auto Cal hi and lo power levels issueing commands for each
+    # the power levels can be slider, or best is to type it in and remember the last value
+    #   in a cfg file entry for future use
+    # also read in a cfg file and save one back out.
+    #start with issueing auto cal commands. Add factory reset button.
+
+    def Table_Cfg_Window(self):   
+        global Dis_OTRPS_Ch_flag
+        global Inp_Val
+        global PortA_Val
+        global PortB_Val
+        global PortC_Val
+        global InputPort_pattern
+        global PortA_pattern
+        global PortB_pattern
+        global PortC_pattern
+        global PTT_IN_POLARITY_Val
+        global PTT_OUT_POLARITY_Val
+        global CW_KEY_OUT_POLARITY_val
+        global PORTA_IS_PTT_Val
+        global PORTB_IS_PTT_Val
+        global PORTC_IS_PTT_Val                
+        print("Table Config Screen Goes Here")
+        table_cfg = tk.Tk()      
+        #   Later improve to save config file and remember the last position 
+        screen_width = table_cfg.winfo_screenwidth()
+        screen_height = table_cfg.winfo_screenheight()                
+        w = 1000   # width of our app window
+        h = 940   # height of our app window
+        x = screen_width/3
+        y = screen_height/30
+        print('Window size and placement is %dx%d+%d+%d' % (w, h, x, y))
+        table_cfg.title("Remote Wattmeter Configuration Table Editor")
+        table_cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        
+        self.Table_Cfg_Band_label = tk.Label(table_cfg, text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        self.Table_Cfg_Band_label.place(x=330, y=10) 
+        
+        self.Choose_Band = tk.Label(table_cfg, text="Choose a Band to Configure from the list",font=('Helvetica', 12, 'bold'), justify='right')
+        self.Choose_Band.place(x=70, y=190, height=20, width=350)
+        
+        # Create the listbox
+        listbox = Listbox(table_cfg, height=10, width=20, font="arial 12 bold")
+        listbox.place(x=420, y=190, height=200, width=60)
+        
+        #listbox           
+        def on_item_click(event):
+            m_cmd = Send_Mtr_Cmds()
+            band_selected = listbox.get(listbox.curselection())
+            print("Band Selected: " + str(band_selected))
+            #label = tk.Label(table_cfg, text=f"Selected item : {selected_item}", font="arial 12 bold")
+            #label.pack()
+ 
+            if band_selected == "HF":
+                #self.band_HF
+                m_cmd.send_meter_cmd("230","", True)
+            elif band_selected == "160M":
+                #self.band_160 
+                m_cmd.send_meter_cmd("231","", True)
+            elif band_selected == "80M":
+                #self.band_80 
+                m_cmd.send_meter_cmd("232","", True)
+            elif band_selected == "60M":
+                #self.band_60 
+                m_cmd.send_meter_cmd("233","", True)
+            elif band_selected == "40M":
+                #self.band_40 
+                m_cmd.send_meter_cmd("234","", True)
+            elif band_selected == "30M":
+                #self.band_30 
+                m_cmd.send_meter_cmd("235","", True)
+            elif band_selected == "20M":
+                #self.band_20 
+                m_cmd.send_meter_cmd("236","", True)
+            elif band_selected == "17M":
+                #self.band_17 
+                m_cmd.send_meter_cmd("237","", True)
+            elif band_selected == "15M":
+                #self.band_15 
+                m_cmd.send_meter_cmd("238","", True)
+            elif band_selected == "12M":
+                #self.band_12 
+                m_cmd.send_meter_cmd("239","", True)
+            elif band_selected == "10M":
+                #self.band_10 
+                m_cmd.send_meter_cmd("240","", True)
+            elif band_selected == "6M":
+                #self.band_50 
+                m_cmd.send_meter_cmd("241","", True)
+            elif band_selected == "2M":
+                #self.band_144 
+                m_cmd.send_meter_cmd("242","", True)
+            elif band_selected == "1.25M":
+                #self.band_222
+                m_cmd.send_meter_cmd("243","", True)
+            elif band_selected == "70cm":
+                #self.band_432
+                m_cmd.send_meter_cmd("244","", True)            
+            elif band_selected == "33cm":
+                #self.band_902 
+                m_cmd.send_meter_cmd("245","", True)
+            elif band_selected == "23cm":
+                #self.band_1296 
+                m_cmd.send_meter_cmd("246","", True)
+            elif band_selected == "13cm":
+                #self.band_2304
+                m_cmd.send_meter_cmd("247","", True)
+            elif band_selected == "9cm":
+                #self.band_3300
+                m_cmd.send_meter_cmd("248","", True)
+            elif band_selected == "6cm":
+                #self.band_5760 
+                m_cmd.send_meter_cmd("249","", True)
+            elif band_selected == "3cm":
+                #self.band_144 
+                m_cmd.send_meter_cmd("250","", True)
+            else: 
+                #self.band_HF
+                m_cmd.send_meter_cmd("230","", True)
+        
+        # Add items to the listbox
+        listbox.insert(END, "HF")
+        listbox.insert(END, "160M")
+        listbox.insert(END, "80M")
+        listbox.insert(END, "60M")
+        listbox.insert(END, "40M")
+        listbox.insert(END, "30M")
+        listbox.insert(END, "20M")
+        listbox.insert(END, "17M")
+        listbox.insert(END, "15M")
+        listbox.insert(END, "12M")
+        listbox.insert(END, "10M")
+        listbox.insert(END, "6M")
+        listbox.insert(END, "2M")
+        listbox.insert(END, "1.25M")
+        listbox.insert(END, "70cm")
+        listbox.insert(END, "33cm")
+        listbox.insert(END, "23cm")
+        listbox.insert(END, "13cm")
+        listbox.insert(END, "9cm")
+        listbox.insert(END, "6cm")
+        listbox.insert(END, "3cm")
+        
+        # Bind the event to the listbox
+        listbox.bind("<<ListboxSelect>>", on_item_click)
+         
+        self.NexOperate_btn = tk.Button(table_cfg, text='Nextion\nOperate', command = self.NexOperate,font=('Helvetica', 12, 'bold'))
+        self.NexOperate_btn.place(x=90, y=50, height=60, width=100) 
+        self.NexProgram_btn = tk.Button(table_cfg, text='Nextion\nProgram', command = self.NexProgram,font=('Helvetica', 12, 'bold'))
+        self.NexProgram_btn.place(x=210, y=50, height=60, width=100)  
+        self.Toggle_Ser_Data_btn = tk.Button(table_cfg, text='Toggle\nData', command = self.Toggle_Ser_Data, font=('Helvetica', 12, 'bold'))
+        self.Toggle_Ser_Data_btn.place(x=330, y=50, height=60, width=100) 
+        self.Cal_Dump_btn = tk.Button(table_cfg, text='Dump Cal\nTable', command = self.Cal_Dump, font=('Helvetica', 12, 'bold'))
+        self.Cal_Dump_btn.place(x=450, y=50, height=60, width=100) 
+        self.Show_MeterID_btn = tk.Button(table_cfg, text='Show \nMeter ID', command = self.Show_MeterID,font=('Helvetica', 12, 'bold'))
+        self.Show_MeterID_btn.place(x=570, y=50, height=60, width=100)
+        self.Reset_btn = tk.Button(table_cfg, text='Factory\nReset', command = self.Factory_Reset,font=('Helvetica', 12, 'bold'))
+        self.Reset_btn.place(x=690, y=50, height=60, width=100)
+        # Save any and all changes to EEPROM
+        self.Save_to_Meter_btn = tk.Button(table_cfg, text='Save to\nMeter', command = self.Save_to_Meter, font=('Helvetica', 12, 'bold'), state='normal')
+        self.Save_to_Meter_btn.place(x=810, y=50, height=60, width=100)
+        
+        #
+        #  Cal Temp, Voltage and Current
+        #
+        self.Temp = StringVar(table_cfg)
+        self.Temp.set(0)  # default entry
+        self.HVDC = StringVar(table_cfg)
+        self.HVDC.set(28.0)  # default entry
+        self.V14 = StringVar(table_cfg)
+        self.V14.set(13.6)  # default entry
+        self.Curr = StringVar(table_cfg)
+        self.Curr.set(10.0)  # default entry
+        self.Curr0 = StringVar(table_cfg)
+        self.Curr0.set(0.0)  # default entry
+
+        self.Cal_VText = tk.Label(table_cfg,text='--------Calibrate Temp Volts and Current--------', font=('Helvetica', 12, 'bold'), justify=LEFT)
+        self.Cal_VText.place(x=560, y=140, height=20)
+        self.Cal1_VText = tk.Label(table_cfg,text='1. Enter your measured values\n2. For Temp a value of 0 = no scaling applied\n3. For No Load Current turn off power\n4. Push Measure to calculate', font=('Helvetica', 10), justify=LEFT)
+        self.Cal1_VText.place(x=560, y=160, height=60)
+
+        self.Cal_Temp_Text = tk.Label(table_cfg,text='Enter Temp :', font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_Temp_Text.place(x=580, y=235, height=20, width=130) 
+        self.Cal_Temp_Entry = tk.Entry(table_cfg, textvariable=self.Temp, font=('Helvetica', 12, 'bold'))
+        self.Cal_Temp_Entry.place(x=700, y=235, height=20, width=60)     
+        self.Cal_Temp_Entry.bind('<Return>', self.get_Temp)                        
+        self.Cal_Temp_btn = tk.Button(table_cfg, text='Measure', command=self.Cal_Temp, font=('Helvetica', 12, 'bold'))
+        self.Cal_Temp_btn.place(x=780, y=225, height=40, width=100)         
+
+        self.Cal_HVDC_Text = tk.Label(table_cfg,text='Enter HV DC:', font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_HVDC_Text.place(x=580, y=275, height=20, width=130)
+        self.Cal_HVDC_Entry = tk.Entry(table_cfg, textvariable=self.HVDC, font=('Helvetica', 12, 'bold'))
+        self.Cal_HVDC_Entry.place(x=700, y=275, height=20, width=60)         
+        self.Cal_HVDC_Entry.bind('<Return>', self.get_HVDC)                
+        self.Cal_HVDC_btn = tk.Button(table_cfg, text='Measure', command=self.Cal_HVDC, font=('Helvetica', 12, 'bold'))
+        self.Cal_HVDC_btn.place(x=780, y=265, height=40, width=100)
+
+        self.Cal_V14_Text = tk.Label(table_cfg,text='Enter 14VDC:', font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_V14_Text.place(x=580, y=315, height=20, width=130)
+        self.Cal_V14_Entry = tk.Entry(table_cfg, textvariable=self.V14, font=('Helvetica', 12, 'bold'))
+        self.Cal_V14_Entry.place(x=700, y=315, height=20, width=60)         
+        self.Cal_V14_Entry.bind('<Return>', self.get_V14)                
+        self.Cal_V14_btn = tk.Button(table_cfg, text='Measure', command=self.Cal_V14, font=('Helvetica', 12, 'bold'))
+        self.Cal_V14_btn.place(x=780, y=305, height=40, width=100)
+
+        self.Cal_Curr_Text = tk.Label(table_cfg,text='Load Current:', font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_Curr_Text.place(x=578, y=355, height=20, width=130)
+        self.Cal_Curr_Entry = tk.Entry(table_cfg, textvariable=self.Curr, font=('Helvetica', 12, 'bold'))
+        self.Cal_Curr_Entry.place(x=700, y=355, height=20, width=60)         
+        self.Cal_Curr_Entry.bind('<Return>', self.get_Curr)                
+        self.Cal_Curr_btn = tk.Button(table_cfg, text='Measure', command=self.Cal_Curr, font=('Helvetica', 12, 'bold'))
+        self.Cal_Curr_btn.place(x=780, y=345, height=40, width=100)
+        
+        self.Cal_Curr0_Text = tk.Label(table_cfg,text='No Load Current:', font=('Helvetica', 12, 'bold'), justify='right')
+        self.Cal_Curr0_Text.place(x=560, y=395, height=20, width=130)
+        self.Cal_Curr0_Entry = tk.Entry(table_cfg, textvariable=self.Curr0, font=('Helvetica', 12, 'bold'))
+        self.Cal_Curr0_Entry.place(x=700, y=395, height=20, width=60)         
+        self.Cal_Curr0_Entry.bind('<Return>', self.get_Curr0)                
+        self.Cal_Curr0_btn = tk.Button(table_cfg, text='Measure', command=self.Cal_Curr0, font=('Helvetica', 12, 'bold'))
+        self.Cal_Curr0_btn.place(x=780, y=385, height=40, width=100)
+
+        self.CalV_Text = tk.Label(table_cfg,text='After measuring push the Save to Meter button\n to commit changes to EEPROM', font=('Helvetica', 10))  #, 'bold'))
+        self.CalV_Text.place(x=600, y=425, height=60)
+
+        #  Band Decoder Configuration
+        self.CustomInp = StringVar(table_cfg)
+        # Preset this value by reading results of Message 60 query when this window opened        
+        self.CustomA = StringVar(table_cfg)        
+        self.CustomB = StringVar(table_cfg)        
+        self.CustomC = StringVar(table_cfg)
+        self.BDec_In = IntVar(table_cfg)
+        self.BDec_A = IntVar(table_cfg)
+        self.BDec_B = IntVar(table_cfg)
+        self.BDec_C = IntVar(table_cfg)
+        self.Dis_OTRPS_Ch = IntVar(table_cfg)
+        self.PTT_IN_pol = IntVar(table_cfg)
+        self.PTT_OUT_pol = IntVar(table_cfg)
+        self.CW_KEY_OUT_pol = IntVar(table_cfg)
+        self.PORTA_IS_PTT_var = IntVar(table_cfg)
+        self.PORTB_IS_PTT_var = IntVar(table_cfg)
+        self.PORTC_IS_PTT_var = IntVar(table_cfg)
+
+        self.Update_table_cfg_Decoder()
+        self.CustomInp.set(InputPort_pattern)  # default entry
+        self.CustomA.set(PortA_pattern)  # default entry
+        self.CustomB.set(PortB_pattern)  # default entry
+        self.CustomC.set(PortC_pattern)  # default entry
+        self.BDec_In.set(Inp_Val)
+        self.BDec_A.set(PortA_Val)
+        self.BDec_B.set(PortB_Val)
+        self.BDec_C.set(PortC_Val)
+        self.Dis_OTRPS_Ch.set(Dis_OTRPS_Ch_flag)
+        self.PTT_IN_pol.set(PTT_IN_POLARITY_Val)
+        self.PTT_OUT_pol.set(PTT_OUT_POLARITY_Val)
+        self.CW_KEY_OUT_pol.set(CW_KEY_OUT_POLARITY_val)
+        self.PORTA_IS_PTT_var.set(PORTA_IS_PTT_Val)
+        self.PORTB_IS_PTT_var.set(PORTB_IS_PTT_Val)
+        self.PORTC_IS_PTT_var.set(PORTC_IS_PTT_Val)
+
+        self.B_Decode_Text = tk.Label(table_cfg,text='------------Band Decoder Configuration------------', font=('Helvetica', 12, 'bold'))
+        self.B_Decode_Text.place(x=340, y=490, height=60)
+
+        self.B_Decode1_Text = tk.Label(table_cfg,text='Choose the Translation Mode ports will use on this band. If \'Custom\' then enter the pattern in decimal form.  Press Apply when complete.', font=('Helvetica', 10))
+        self.B_Decode1_Text.place(x=80, y=530, height=60)
+
+        self.B_Dec_In_Text = tk.Label(table_cfg,text='Input Port Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_In_Text.place(x=25, y=570, height=40, width=210)                        
+        self.B_Dec_In_Radio = tk.Radiobutton(table_cfg, text="Transparent", variable=self.BDec_In, value=0, font=('Helvetica', 10))
+        self.B_Dec_In_Radio.place(x=220, y=570, height=40)
+        self.B_Dec_In_Radio = tk.Radiobutton(table_cfg, text="1-of-8", variable=self.BDec_In, value=1, font=('Helvetica', 10))
+        self.B_Dec_In_Radio.place(x=335, y=570, height=40)
+        self.B_Dec_In_Radio = tk.Radiobutton(table_cfg, text="Custom", variable=self.BDec_In, value=2, font=('Helvetica', 10))
+        self.B_Dec_In_Radio.place(x=670, y=570, height=40)
+        self.B_Dec_In_Entry = tk.Entry(table_cfg, textvariable=self.CustomInp, font=('Helvetica', 10))
+        self.B_Dec_In_Entry.place(x=750, y=580, height=20, width=60)         
+        self.B_Dec_In_Entry.bind('<Return>', self.get_CustomInp)                
+        self.B_Dec_In_btn = tk.Button(table_cfg, text='Apply', command=self.Set_B_Dec_In_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_In_btn.place(x=840, y=575, height=30, width=100)
+
+        self.B_Decode2_Text = tk.Label(table_cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode2_Text.place(x=80, y=603, height=13)
+
+        self.B_Dec_A_Text = tk.Label(table_cfg,text='Port A Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_A_Text.place(x=25, y=620, height=40, width=210)      
+        self.B_Dec_A_Radio = tk.Radiobutton(table_cfg, text="Transparent", variable=self.BDec_A, value=0, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=220, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(table_cfg, text="1-of-8", variable=self.BDec_A, value=1, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=335, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(table_cfg, text="OTRSP Lookup", variable=self.BDec_A, value=3, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=410, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(table_cfg, text="OTRSP Direct", variable=self.BDec_A, value=4, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=540, y=620, height=40)
+        self.B_Dec_A_Radio = tk.Radiobutton(table_cfg, text="Custom", variable=self.BDec_A, value=2, font=('Helvetica', 10))
+        self.B_Dec_A_Radio.place(x=670, y=620, height=40)
+        self.B_Dec_A_Entry = tk.Entry(table_cfg, textvariable=self.CustomA, font=('Helvetica', 10))
+        self.B_Dec_A_Entry.place(x=750, y=630, height=20, width=60)         
+        self.B_Dec_A_Entry.bind('<Return>', self.get_CustomA)                
+        self.B_Dec_A_btn = tk.Button(table_cfg, text='Apply', command=self.Set_B_Dec_A_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_A_btn.place(x=840, y=625, height=30, width=100)
+
+        self.B_Decode3_Text = tk.Label(table_cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode3_Text.place(x=80, y=653, height=13)
+
+        self.B_Dec_B_Text = tk.Label(table_cfg,text='Port B Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_B_Text.place(x=25, y=670, height=40, width=210)
+
+        self.B_Dec_B_Radio = tk.Radiobutton(table_cfg, text="Transparent", variable=self.BDec_B, value=0, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=220, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(table_cfg, text="1-of-8", variable=self.BDec_B, value=1, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=335, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(table_cfg, text="OTRSP Lookup", variable=self.BDec_B, value=3, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=410, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(table_cfg, text="OTRSP Direct", variable=self.BDec_B, value=4, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=540, y=670, height=40)
+        self.B_Dec_B_Radio = tk.Radiobutton(table_cfg, text="Custom", variable=self.BDec_B, value=2, font=('Helvetica', 10))
+        self.B_Dec_B_Radio.place(x=670, y=670, height=40)
+        self.B_Dec_B_Entry = tk.Entry(table_cfg, textvariable=self.CustomB, font=('Helvetica', 10))
+        self.B_Dec_B_Entry.place(x=750, y=680, height=20, width=60)         
+        self.B_Dec_B_Entry.bind('<Return>', self.get_CustomB)                
+        self.B_Dec_B_btn = tk.Button(table_cfg, text='Apply', command=self.Set_B_Dec_B_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_B_btn.place(x=840, y=675, height=30, width=100)
+
+        self.B_Decode4_Text = tk.Label(table_cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode4_Text.place(x=80, y=703, height=13)
+
+        self.B_Dec_C_Text = tk.Label(table_cfg,text='Port C Mode ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_C_Text.place(x=25, y=720, height=40, width=210)
+        self.B_Dec_C_Radio = tk.Radiobutton(table_cfg, text="Transparent", variable=self.BDec_C, value=0, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=220, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(table_cfg, text="1-of-8", variable=self.BDec_C, value=1, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=335, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(table_cfg, text="OTRSP Lookup", variable=self.BDec_C, value=3, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=410, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(table_cfg, text="OTRSP Direct", variable=self.BDec_C, value=4, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=540, y=720, height=40)
+        self.B_Dec_C_Radio = tk.Radiobutton(table_cfg, text="Custom", variable=self.BDec_C, value=2, font=('Helvetica', 10))
+        self.B_Dec_C_Radio.place(x=670, y=720, height=40)
+        self.B_Dec_C_Entry = tk.Entry(table_cfg, textvariable=self.CustomC, font=('Helvetica', 10))
+        self.B_Dec_C_Entry.place(x=750, y=730, height=20, width=60)         
+        self.B_Dec_C_Entry.bind('<Return>', self.get_CustomC)                
+        self.B_Dec_C_btn = tk.Button(table_cfg, text='Apply', command=self.Set_B_Dec_C_Mode, font=('Helvetica', 10, 'bold'))
+        self.B_Dec_C_btn.place(x=840, y=725, height=30, width=100)
+        self.B_Dec_Disable = tk.Checkbutton(table_cfg, text='Disable Band Change on OTRSP Commands', variable=self.Dis_OTRPS_Ch, onvalue=1, command=self.Dis_OTRSP_Band_Change, font=('Helvetica', 10))
+        self.B_Dec_Disable.place(x=80, y=760, height=40)
+
+        self.B_Decode4_Text = tk.Label(table_cfg,text='____________________________________________________________________________________________________________________________________________________')
+        self.B_Decode4_Text.place(x=80, y=790, height=13)
+
+        self.B_Dec_PTT_OPTS = tk.Label(table_cfg,text='PTT Options ', font=('Helvetica', 10, 'bold'), justify='right')
+        self.B_Dec_PTT_OPTS.place(x=25, y=810, height=20, width=210)
+        self.B_Dec_PTT_IN_Pol = tk.Checkbutton(table_cfg, text='PTT Input Active High ', variable=self.PTT_IN_pol, onvalue=1, command=self.PTT_Input_Polarity, font=('Helvetica', 10))
+        self.B_Dec_PTT_IN_Pol.place(x=220, y=810, height=20)
+        self.B_Dec_PTT_OUT_Pol = tk.Checkbutton(table_cfg, text='PTT Output Active High', variable=self.PTT_OUT_pol, onvalue=1, command=self.PTT_Ouput_Polarity, font=('Helvetica', 10))
+        self.B_Dec_PTT_OUT_Pol.place(x=400, y=810, height=20)
+        self.CW_KEY_Pol = tk.Checkbutton(table_cfg, text="CW Key Polarity High", variable=self.CW_KEY_OUT_pol, onvalue=1, command=self.CW_Key_Polarity,font=('Helvetica', 10))
+        self.CW_KEY_Pol.place(x=580, y=810, height=20)
+
+        self.PortA_is_PTT_HI = tk.Radiobutton(table_cfg, text="Port A Follows PTT (Active High) ----- ", variable=self.PORTA_IS_PTT_var, value=2, command=self.PortA_is_PTT, font=('Helvetica', 10))
+        self.PortA_is_PTT_HI.place(x=220, y=840, height=20)
+        self.PortA_is_PTT_LO = tk.Radiobutton(table_cfg, text="Port A Follows PTT (Active Low) -----", variable=self.PORTA_IS_PTT_var, value=1, command=self.PortA_is_PTT, font=('Helvetica', 10))
+        self.PortA_is_PTT_LO.place(x=460, y=840, height=20)
+        self.PortA_is_PTT_OFF = tk.Radiobutton(table_cfg, text="Port A Follows PTT OFF", variable=self.PORTA_IS_PTT_var, value=0, command=self.PortA_is_PTT, font=('Helvetica', 10))
+        self.PortA_is_PTT_OFF.place(x=700, y=840, height=20)
+        
+        self.PortB_is_PTT_HI = tk.Radiobutton(table_cfg, text="Port B Follows PTT (Active High) ----- ", variable=self.PORTB_IS_PTT_var, value=2, command=self.PortB_is_PTT, font=('Helvetica', 10))
+        self.PortB_is_PTT_HI.place(x=220, y=870, height=20)
+        self.PortB_is_PTT_LO = tk.Radiobutton(table_cfg, text="Port B Follows PTT (Active Low) ----- ", variable=self.PORTB_IS_PTT_var, value=1, command=self.PortB_is_PTT, font=('Helvetica', 10))
+        self.PortB_is_PTT_LO.place(x=460, y=870, height=20)
+        self.PortB_is_PTT_OFF = tk.Radiobutton(table_cfg, text="Port B Follows PTT OFF", variable=self.PORTB_IS_PTT_var, value=0, command=self.PortB_is_PTT, font=('Helvetica', 10))
+        self.PortB_is_PTT_OFF.place(x=700, y=870, height=20)
+
+        self.PortC_is_PTT_HI = tk.Radiobutton(table_cfg, text="Port C Follows PTT (Active High) ----- ", variable=self.PORTC_IS_PTT_var, value=2, command=self.PortC_is_PTT, font=('Helvetica', 10))
+        self.PortC_is_PTT_HI.place(x=220, y=900, height=20)
+        self.PortC_is_PTT_LO = tk.Radiobutton(table_cfg, text="Port C Follows PTT (Active Low) ----- ", variable=self.PORTC_IS_PTT_var, value=1, command=self.PortC_is_PTT, font=('Helvetica', 10))
+        self.PortC_is_PTT_LO.place(x=460, y=900, height=20)
+        self.PortC_is_PTT_OFF = tk.Radiobutton(table_cfg, text="Port C Follows PTT OFF", variable=self.PORTC_IS_PTT_var, value=0, command=self.PortC_is_PTT, font=('Helvetica', 10))
+        self.PortC_is_PTT_OFF.place(x=700, y=900, height=20)
+        
+        self.update_table_cfg_win()
+        time.sleep(0.1)
+
+    def update_table_cfg_win(self):
+        #self.Table_Cfg_Band_label.config(text="Edit Band Table Data", font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        self.Table_Cfg_Band_label.config(text="Current Band for Edit is {}" .format(meter_data[2]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
+        if meter_data[2] != self.Old_Band:
+            self.Update_table_cfg_Decoder()
+        self.Old_Band = meter_data[2]
+        #update_cfg_win_callback = self.Table_Cfg_Band_label.after(500, self.update_cfg_win)   
+        self.Table_Cfg_Band_label.after(500, self.update_table_cfg_win)
+
+    def Update_table_cfg_Decoder(self):  
+        self.GetDecoderValues()
+        time.sleep(0.1)
+        self.CustomInp.set(InputPort_pattern)
+        self.CustomA.set(PortA_pattern)
+        self.CustomB.set(PortB_pattern)
+        self.CustomC.set(PortC_pattern)
+        self.BDec_In.set(Inp_Val)
+        self.BDec_A.set(PortA_Val)
+        self.BDec_B.set(PortB_Val)
+        self.BDec_C.set(PortC_Val)
+        self.Dis_OTRPS_Ch.set(Dis_OTRPS_Ch_flag)
+      
+    def Choice_Units(self):
+        #print(self.Measure_Units.get())
+        print(self.P_Units.get())
+
+    def get_Hi_Watts(self, event):
+        #global FwdVal_Hi
+        temp_val = self.Cal_Hi_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.Pwr_Hi.set(temp_val)             
+        print(self.Pwr_Hi.get())
+
+    def get_Lo_Watts(self, event):
+        temp_val = self.Cal_Lo_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.Pwr_Lo.set(temp_val)
+        print(self.Pwr_Lo.get())
+
+    def get_Temp(self, event):
+        temp_val = self.Cal_Temp_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.Temp.set(temp_val)             
+        print(self.Temp.get())
+
+    def get_HVDC(self, event):
+        temp_val = self.Cal_HVDC_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.HVDC.set(temp_val)             
+        print(self.HVDC.get())
+
+    def get_V14(self, event):
+        temp_val = self.Cal_V14_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.V14.set(temp_val)             
+        print(self.V14.get())
+
+    def get_Curr(self, event):
+        temp_val = self.Cal_Curr_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.Curr.set(temp_val)             
+        print(self.Curr.get())
+        
+    def get_Curr0(self, event):
+        temp_val = self.Cal_Curr0_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.Curr0.set(temp_val)             
+        print(self.Curr0.get())
+
+    def get_CustomInp(self, event):
+        temp_val = self.B_Dec_In_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomInp.set(temp_val)             
+        print(self.CustomInp.get())
+        self.Update_table_cfg_Decoder()
+
+    def get_CustomA(self, event):
+        temp_val = self.B_Dec_A_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomA.set(temp_val)             
+        print(self.CustomA.get())
+        self.Update_table_cfg_Decoder()        
+
+    def get_CustomB(self, event):
+        temp_val = self.B_Dec_B_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomB.set(temp_val)             
+        print(self.CustomB.get())
+        self.Update_table_cfg_Decoder()        
+
+    def get_CustomC(self, event):
+        temp_val = self.B_Dec_C_Entry.get()
+        if temp_val == "":
+            temp_val = 1
+        self.CustomC.set(temp_val)             
+        print(self.CustomC.get())
+        self.Update_table_cfg_Decoder()
+
+    def Factory_Reset(self):      
+        m_cmd = Send_Mtr_Cmds()
+        print("Sending part 1 of 2 commands for Factory Reset")
+        m_cmd.send_meter_cmd("193","", True)
+        while (cmd_flag == 0):            
+            time.sleep(0.1)        
+        m_cmd.send_meter_cmd("194","", True)
+        while (cmd_flag == 1):
+            time.sleep(0.1)                    
+        self.Reset_btn.configure(font=('Helvetica', 12, 'bold'), bg="grey94")                                
+
 #
 #
 #---------------------------  Wattmeter and Band Decoder Configuration Window ----------------------------------------
@@ -2320,6 +3173,7 @@ def main():
     configmenu = Menu(menu)
     menu.add_cascade(label="Configuration", menu=configmenu)
     configmenu.add_command(label="Edit Meter Config...", command=app.start_cfg)   
+    configmenu.add_command(label="Edit Meter Table...", command=app.start_table_cfg)   
     configmenu.add_command(label="Edit Rotor Config...", command=app.start_cfg_rtr)   
     helpmenu = Menu(app)
     menu.add_cascade(label="Help", menu=helpmenu)

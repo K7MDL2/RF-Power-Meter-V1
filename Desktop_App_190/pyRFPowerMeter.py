@@ -742,7 +742,7 @@ class Power_Data():
                                     meter_data_fl[i] = float(meter_data[i])
                                 else: # Not a float so zero fill the field
                                     meter_data_fl[i] = 0.0
-                            meter_data_fl[2] = float(meter_data[2][:-3])    # convert band label to a number.  Ideally would use a RegEx to split at teh end of the numbers
+                            meter_data_fl[2] = float(meter_data[2][:-3])    # convert band label to a number.  Ideally would use a RegEx to split at the end of the numbers
                             if meter_data_fl[5] == 0 and cmd_flag != 1:
                                 meter_data[3] = "0.0"          #  zero out the dBm values when F watts is zero
                                 meter_data[4] = "0.0"
@@ -1551,9 +1551,9 @@ class App(tk.Frame):
             #pass 
         else:
             print("Serial thread not started")
-            #pass      
-        #print(" WSJT-X thread started in comms
-        # Start the WSJTX thread in any case. function ")
+            #pass
+        # Start the WSJTX thread in any case.
+        #print(" WSJT-X thread started in comms function
         #self.wsjtx_decode = WSJTX_Decode()      # Start the WSJTx UDP Thread - runs always for now.
         #self.wsjtx_decode.start()      # start the WSJTX_Decode thread now 
         if (ROTOR_ENABLE == 1):
