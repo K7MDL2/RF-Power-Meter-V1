@@ -455,7 +455,7 @@ class UDP_Meter(Thread):
                 if s_data[0] == ">":
                     print("CMD received message echo: {}" .format(s_data))
                 #else:
-                print("received message: {}" .format(s_data))
+                #print("Rcvd: {}" .format(s_data))
                 pd.get_power_data(pd, str(s_data))
             except UnicodeDecodeError: # catch error and ignore it
                 print("Unicode decode error caught")  # will get this on CPU resets
