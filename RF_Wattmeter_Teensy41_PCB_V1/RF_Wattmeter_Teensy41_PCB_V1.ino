@@ -28,8 +28,8 @@
  *   #define DEF_NET_IP_ADR1       192   // Form of (192, 168, 2, 188) which is 192.168.2.188;
  *   #define DEF_NET_IP_ADR2       168
  *   #define DEF_SUBNET_IP_ADR1      2   // byte 3D - shared subnet byte ex: (192, 168, IP_ADR1, MY_IP_ADR0)
- *   #define DEF_MY_IP_ADR0        188   // byte 3E - My ipadress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
- *   #define DEF_DEST_IP_ADR0      199   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, IP_ADR1, DEST_IP_ADR0)
+ *   #define DEF_MY_IP_ADR0        188   // byte 3E - My ipaddress static IP address byte (192, 168, IP_ADR1, MY_IP_ADR0)
+ *   #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, IP_ADR1, DEST_IP_ADR0)
  * 
  *  TO DO:  Add remote commands to update the new EEPROM IP values during operation
  * 
@@ -1967,9 +1967,9 @@ uint16_t serial_usb_read(void)
 void sendSerialData()
 {
     Timer_X00ms_InterruptCnt = millis();
-    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB > 500)
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PWR > PWR_MSG_DELAY)
     {          
-        Timer_X00ms_Last_USB = Timer_X00ms_InterruptCnt;       
+        Timer_X00ms_Last_USB_PWR = Timer_X00ms_InterruptCnt;       
         sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
         if (ser_data_out)
             RFWM_Serial.print((char*) tx_buffer);  //, tx_count); 
@@ -1977,6 +1977,10 @@ void sendSerialData()
         if (enet_data_out)
             enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
         #endif    
+    }
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_VOLTS > VOLTS_MSG_DELAY)
+    {        
+        Timer_X00ms_Last_USB_VOLTS = Timer_X00ms_InterruptCnt;   
         sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
         if (ser_data_out)
             RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
@@ -1984,6 +1988,10 @@ void sendSerialData()
         if (enet_data_out)
             enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
         #endif
+    }
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PTT > PTT_MSG_DELAY)
+    {          
+        Timer_X00ms_Last_USB_PTT = Timer_X00ms_InterruptCnt;       
         sprintf((char *) tx_buffer,"%d,%s,%s,%d\r\n%c", METERID, "173", "PTT", PTT_IN_state, '\0');       
         if (ser_data_out)
             RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 

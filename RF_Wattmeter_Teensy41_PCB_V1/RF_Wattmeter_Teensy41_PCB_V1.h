@@ -60,13 +60,18 @@
     #define DEF_MY_IP_ADR0        190   //188   // byte 3E - My ipadress static IP address byte (192, 168, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0)
    
     // Desktop Monitor App Address (last byte - same subnet as device)
-    #define DEF_DEST_IP_ADR0      106   //65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_DEST_IP_ADR0) (old value 199)
+    #define DEF_DEST_IP_ADR0       65   // byte 3F - Desination IP Address static IP (DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_DEST_IP_ADR0) (old value 199)
 
     uint8_t ip_adr1       = DEF_SUBNET_IP_ADR1;   // set up defaults
     uint8_t my_ip_adr0    = DEF_MY_IP_ADR0;    
     uint8_t dest_ip_adr0  = DEF_DEST_IP_ADR0;
-    char HostIP[] = "192.168.2.106";   // this seems to work best for enet_write() function
-    
+    char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
+
+    // delay between serial and ethernet packet send to remote
+    #define PWR_MSG_DELAY    280   // This delay bgoverns how fast hte remote can update power and SWR
+    #define PTT_MSG_DELAY    105   // Nice to have PTT reflected on the remote scxreen closer to real time
+    #define VOLTS_MSG_DELAY  5030  // HV, 28V, Curr and Temp do nto need rapid updates 
+
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0);    // Our static IP address.  Could use DHCP but preferring static address.
     unsigned int localPort = 7941;     // local port to LISTEN from the remote display/Desktop app
@@ -159,7 +164,9 @@ float TempVal = 0.0;
 uint32_t Timer_X00ms_InterruptCnt;
 uint32_t Timer_X00ms_Last;
 uint32_t Timer_X00ms_Last_AD;
-uint32_t Timer_X00ms_Last_USB;
+uint32_t Timer_X00ms_Last_USB_PWR;
+uint32_t Timer_X00ms_Last_USB_VOLTS;
+uint32_t Timer_X00ms_Last_USB_PTT;
 uint32_t Timer_X00ms_Last_Nex;
 uint32_t Timer_X00ms_Last_OLED;
 
