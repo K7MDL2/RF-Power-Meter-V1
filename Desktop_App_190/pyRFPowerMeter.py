@@ -328,7 +328,7 @@ class UDP_Rotor(Thread):
                 #pass
             # close the socket
             t.close() 
-        time.sleep(0.1) 
+        #time.sleep(0.1) 
            
     def UDP_Rotor_Rx(self):
         global rotor_sock
@@ -455,7 +455,7 @@ class UDP_Meter(Thread):
                 if s_data[0] == ">":
                     print("CMD received message echo: {}" .format(s_data))
                 #else:
-                #print("received message: {}" .format(s_data))
+                print("received message: {}" .format(s_data))
                 pd.get_power_data(pd, str(s_data))
             except UnicodeDecodeError: # catch error and ignore it
                 print("Unicode decode error caught")  # will get this on CPU resets
@@ -465,7 +465,7 @@ class UDP_Meter(Thread):
             except socket.error:
                 #print("No data received from UDP")    
                 pass  
-        time.sleep(0.1)
+        #time.sleep(0.1)
 #
 #__________  Network handler in its own thread.  ________________________________________________________________
 #               Monitors WSJT-X broadcast packets to extract frequency for band changing
@@ -507,7 +507,7 @@ class WSJTX_Decode(Thread):   # WSJTX and UDP rx thread
         global band
         
         #print("Listening for WSJTX messages")
-        time.sleep(0.5)
+        #time.sleep(0.5)
         (pkt, addr_port) = s.rx_packet()
         if (pkt != None):
             the_packet = pywsjtx.WSJTXPacketClassFactory.from_udp_packet(addr_port, pkt)
@@ -767,7 +767,7 @@ class Power_Data():
                 meter_data[0] = "NA"          # no meter ID match so tell the UI  
         except:
                 pass
-        time.sleep(0.001)
+        #time.sleep(0.001)
 
     def debug_meter_string(self, debug_msg):
         for i in range(len(meter_data)):
@@ -848,7 +848,7 @@ class Send_Mtr_Cmds():
                 cmd = "250"
             else: 
                 pass                    # in case we add more
-        time.sleep(0.0001)
+        #time.sleep(0.0001)
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
 # # #                       
@@ -1190,7 +1190,7 @@ class App(tk.Frame):
             self.rotor_STOP()
       
         self.update_label() 
-        time.sleep(0.001)
+        #time.sleep(0.001)
 
     # Update GUI text fields with Serial Data from power meter and maybe other places later 
     def update_label(self):
@@ -1551,9 +1551,9 @@ class App(tk.Frame):
             #pass 
         else:
             print("Serial thread not started")
-            #pass    
-        # Start the WSJTX thread in any case.  
-        #print(" WSJT-X thread started in comms function ")
+            #pass      
+        #print(" WSJT-X thread started in comms
+        # Start the WSJTX thread in any case. function ")
         #self.wsjtx_decode = WSJTX_Decode()      # Start the WSJTx UDP Thread - runs always for now.
         #self.wsjtx_decode.start()      # start the WSJTX_Decode thread now 
         if (ROTOR_ENABLE == 1):
@@ -1660,7 +1660,7 @@ class Cfg_Rtr(tk.Frame):
         rtr_cfg.geometry('%dx%d+%d+%d' % (w, h, x, y))
         self.Rtr_Cfg_Band_label = tk.Label(rtr_cfg, text="Current AZ Rotor position is {}" .format(rotor_data[0]),font=('Helvetica', 18, 'bold'), bg="grey94", fg="black")
         self.Rtr_Cfg_Band_label.place(x=310, y=0)
-        time.sleep(0.1)
+        #time.sleep(0.1)
 #
 #
 #---------------------------  Wattmeter and Band Decoder Configuration Table Editor Window----------------------------------------
