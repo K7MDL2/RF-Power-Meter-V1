@@ -1,5 +1,10 @@
 ## RF-Power-Meter
 
+### 5/13/2026 - Created Headless-Band-Decoder-Only branch to test a slimmed down image for basic band decoding only
+    1. Keeps the remote Config capability via USB. Can re-enable features like Nextion, OLED, and/or ENET if desired using the #defines.  Changes are mostlly about deactivating code blocks with #ifdef ADS1115_ADC, ENET, NEXTION, SSD1306_OLED so there is no RF power, SWR, display or enet active.  Can still usethe desktop GUI over USB to conig, or enable the ENET for that path if you have the enet jack hardware.
+    2. Intended for simple hardware build with a T4.0 or T4.1 and off-the-shelf IO modules such as a common 8-port opto module(s).
+    3. Once tested will merge into main branch.
+
 ### 5/8/2024 - Modified Desktop App and Teensy Firmware to support 160M through 10GHz bands
 
     1. The firmware now has 20 predefined ham bands and one called HF which is for undefined band scenario.  Covers all bands 160M through 3cm (10GHz). The bands use remote commands 230-250 to select any one of them. 
