@@ -18,17 +18,17 @@
 ******************************************************************************/
 //#define SSD1306_OLED   // local OLED display option - only uncomment if actually connected
 //#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
-#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
-#define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
+///#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
+///#define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
 //#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
-#define ENET              // Include support for ethernet
+//#define ENET              // Include support for ethernet
 // Icom Analog (ACC) and C-IV Serial 
 //#define ICOM_ACC             // voltage 0-8V on pin4 ACC(2) connector - need calibrate table
 //#define ICOM_CIV             // read frequency from CIV
-#define ADS1115_ADC     // uncomment this line to enable external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
-#define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
+///#define ADS1115_ADC     // uncomment this line to enable external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
+///#define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
 // Below choose single mode. Continuous mode hangs unless needs 20ms delay between mux channel and reads.  Test program does not need this delay (or very little)
 #define ADS1115_SINGLE_MODE  //uncomment this line to operate in single mode capture vs continuous mode
 //#define Nex_UDP
@@ -68,8 +68,7 @@
     char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
 
     // delay between serial and ethernet packet send to remote
-    #define PWR_MSG_DELAY    280   // This delay bgoverns how fast hte remote can update power and SWR
-    #define PTT_MSG_DELAY    105   // Nice to have PTT reflected on the remote scxreen closer to real time
+    #define PWR_MSG_DELAY    280   // This delay governs how fast the remote can update power and SWR
     #define VOLTS_MSG_DELAY  5030  // HV, 28V, Curr and Temp do nto need rapid updates 
 
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
@@ -94,6 +93,8 @@
       EthernetUDP Udp_Nex;
     #endif
 #endif
+
+#define PTT_MSG_DELAY    105   // Nice to have PTT reflected on the remote scxreen closer to real time
 
 #ifdef NEXTION
     //#define nexSerial Serial1   // defined in NexConfig.h
@@ -177,16 +178,18 @@ uint32_t Timer_X00ms_Last_OLED;
 
 #define ADC_VREF (3.28)   // For Teensy4.1 which is a 3.3V chip  
 
-// Define the Analog input pins   -- !!!! These are 3.3VDC max on Teensy 4.X PUs!!!!
-// These may not be used if using external ADC such as the ADS1115 4 channel board.  can use both if needed, mixed.
-#define ADC_FWD   ADS1115_COMP_3_GND     // Forward Power
-#define ADC_REF   ADS1115_COMP_2_GND     // Reflected Power
-#define ADC_TEMP  ADS1115_COMP_1_GND     // Temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is not the RF amp heat sink temp!
-#define ADC_SPARE ADS1115_COMP_0_GND     // Spare
-#define ADC_SPARE_A6  A6
-#define ADC_CURR      A7
-#define ADC_14V       A8
-#define ADC_HV        A9
+#ifdef ADS1115_ADC
+    // Define the Analog input pins   -- !!!! These are 3.3VDC max on Teensy 4.X PUs!!!!
+    // These may not be used if using external ADC such as the ADS1115 4 channel board.  can use both if needed, mixed.
+    #define ADC_FWD   ADS1115_COMP_3_GND     // Forward Power
+    #define ADC_REF   ADS1115_COMP_2_GND     // Reflected Power
+    #define ADC_TEMP  ADS1115_COMP_1_GND     // Temperature from detector for better calibration.  ADL5519 and some AD8318 modules.  This is not the RF amp heat sink temp!
+    #define ADC_SPARE ADS1115_COMP_0_GND     // Spare
+    #define ADC_SPARE_A6  A6
+    #define ADC_CURR      A7
+    #define ADC_14V       A8
+    #define ADC_HV        A9
+#endif
 
 // Band Decoder Input Pins - Assign these according to your needs includng wiring convenience.  
 // Each pin is mapped into bytes so there is no need to have them adjacent.  Easier when they are for wiring purposes.  See GitHUb Wiki pages for wiring example chart.
@@ -491,51 +494,56 @@ float curr_read(void);
 float temp_read(void);
 uint8_t OTRSP(void);
 uint8_t OTRSP_Process(void);
+void Band_Decode_A_Output(uint8_t pattern);
+void Band_Decode_B_Output(uint8_t pattern);
+void Band_Decode_C_Output(uint8_t pattern);
+void PTT_IN_handler(uint8_t pin_state);
+void PTT_OUT_handler(void);
 
 #ifdef SWR_ANALOG  // Update SWR Analog output for Amplifier protection when using KitProg board in an amplifier
 float SWR_Fail(void);
 #endif
 
 #ifdef NEXTION
-void savecfg_btn_1_push_Callback(void *);
-void savecfg_btn_1_pop_Callback(void *);
-void fwd_cal_pop_Callback(void *);
-void ref_cal_pop_Callback(void *);
-void f_att_minus_pop_Callback(void *);
-void f_att_plus_pop_Callback(void *);
-void r_att_minus_pop_Callback(void *);
-void r_att_plus_pop_Callback(void *);
-void toMain_push_Callback(void *);
-void toConfig_pop_Callback(void *);
-void FactoryRst1_pop_Callback(void *);
-void FactoryRst2_pop_Callback(void *);
-void Set1_Callback(void *ptr);
-void toPwrGraph_Callback(void *);
-void meterID_adj_pop_Callback(void *);
-void band_set_adj_pop_Callback(void *);
-void hv_adj_pop_Callback(void *ptr);
-void v14_adj_pop_Callback(void *ptr);
-void curr_adj_pop_Callback(void *ptr);
-void temp_adj_pop_Callback(void *ptr);
-void band_pop_Callback(void *ptr);
-void Measure_hi_pop_Callback(void *ptr);
-void Measure_lo_pop_Callback(void *ptr);
-void CalcFwd_pop_Callback(void *ptr);
-void CalcRef_pop_Callback(void *ptr);
-void BandSelect(uint8_t);
-void BandSelect_HF_pop_Callback(void *ptr);
-void BandSelect_50_pop_Callback(void *ptr);
-void BandSelect_144_pop_Callback(void *ptr);
-void BandSelect_222_pop_Callback(void *ptr);
-void BandSelect_432_pop_Callback(void *ptr);
-void BandSelect_902_pop_Callback(void *ptr);
-void BandSelect_1296_pop_Callback(void *ptr);
-void BandSelect_2_3G_pop_Callback(void *ptr);
-void BandSelect_3_4G_pop_Callback(void *ptr);
-void BandSelect_5_7G_pop_Callback(void *ptr);
-void BandSelect_10G_pop_Callback(void *ptr);
-uint8_t update_Nextion(uint8_t);
-uint8_t pg;
+    void savecfg_btn_1_push_Callback(void *);
+    void savecfg_btn_1_pop_Callback(void *);
+    void fwd_cal_pop_Callback(void *);
+    void ref_cal_pop_Callback(void *);
+    void f_att_minus_pop_Callback(void *);
+    void f_att_plus_pop_Callback(void *);
+    void r_att_minus_pop_Callback(void *);
+    void r_att_plus_pop_Callback(void *);
+    void toMain_push_Callback(void *);
+    void toConfig_pop_Callback(void *);
+    void FactoryRst1_pop_Callback(void *);
+    void FactoryRst2_pop_Callback(void *);
+    void Set1_Callback(void *ptr);
+    void toPwrGraph_Callback(void *);
+    void meterID_adj_pop_Callback(void *);
+    void band_set_adj_pop_Callback(void *);
+    void hv_adj_pop_Callback(void *ptr);
+    void v14_adj_pop_Callback(void *ptr);
+    void curr_adj_pop_Callback(void *ptr);
+    void temp_adj_pop_Callback(void *ptr);
+    void band_pop_Callback(void *ptr);
+    void Measure_hi_pop_Callback(void *ptr);
+    void Measure_lo_pop_Callback(void *ptr);
+    void CalcFwd_pop_Callback(void *ptr);
+    void CalcRef_pop_Callback(void *ptr);
+    void BandSelect(uint8_t);
+    void BandSelect_HF_pop_Callback(void *ptr);
+    void BandSelect_50_pop_Callback(void *ptr);
+    void BandSelect_144_pop_Callback(void *ptr);
+    void BandSelect_222_pop_Callback(void *ptr);
+    void BandSelect_432_pop_Callback(void *ptr);
+    void BandSelect_902_pop_Callback(void *ptr);
+    void BandSelect_1296_pop_Callback(void *ptr);
+    void BandSelect_2_3G_pop_Callback(void *ptr);
+    void BandSelect_3_4G_pop_Callback(void *ptr);
+    void BandSelect_5_7G_pop_Callback(void *ptr);
+    void BandSelect_10G_pop_Callback(void *ptr);
+    uint8_t update_Nextion(uint8_t);
+    uint8_t pg;
 #endif
 
 #ifdef NEX_UDP

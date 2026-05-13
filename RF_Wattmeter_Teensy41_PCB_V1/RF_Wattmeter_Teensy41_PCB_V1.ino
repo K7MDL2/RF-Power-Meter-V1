@@ -145,15 +145,17 @@ WDT_T4<WDT1> wdt;   // internal watchdog functionality.
 void setup(void) 
 { 
   // Set up our input pins
-  #ifndef ADS1115_ADC
-  pinMode(ADC_FWD,INPUT);
-  pinMode(ADC_REF,INPUT);
-  pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP will pin them to Vcc and prevent floating around.
+  //#ifndef ADS1115_ADC
+  //pinMode(ADC_FWD,INPUT);
+  //pinMode(ADC_REF,INPUT);
+  //pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP will pin them to Vcc and prevent floating around.
+  //#endif
+  #ifdef ADS1115_ADC
+    pinMode(ADC_CURR,INPUT_PULLUP);
+    pinMode(ADC_14V,INPUT);
+    pinMode(ADC_HV,INPUT_PULLUP);
+    pinMode(ADC_SPARE_A6,INPUT_PULLUP);
   #endif
-  pinMode(ADC_CURR,INPUT_PULLUP);
-  pinMode(ADC_14V,INPUT);
-  pinMode(ADC_HV,INPUT_PULLUP);
-  pinMode(ADC_SPARE_A6,INPUT_PULLUP);
   pinMode(BAND_DEC_IN_0, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_1, INPUT_PULLUP);
   pinMode(BAND_DEC_IN_2, INPUT_PULLUP);
@@ -545,40 +547,40 @@ void loop()
         get_remote_cmd();       // scan buffer for command strings
 
     #ifdef OTRSP_Serial
-    ret1 = OTRSP();   // set Aux output pins and change bands to match
-    if (ret1)  // True if we got commands
-    {
-        ret1 = OTRSP_Process();  
-        if (ret1)   // True if we got a valid AUX or BAND command
-        { 
-            if (!EEPROM.read(DIS_OTRSP_BAND_CHANGE))
-            {
-                // If 1 then Disable is active.   Default is 0, change bands with AUX1 changes.
-                Button_B = YES;  // Process any N1MM Aux port commands on UART                  
-                NewBand = AuxNum1;  // Use AUX 1 to change the wattmeter band
-                DBG_Serial.print("> New Band # = ");
-                DBG_Serial.println(NewBand);              
+        ret1 = OTRSP();   // set Aux output pins and change bands to match
+        if (ret1)  // True if we got commands
+        {
+            ret1 = OTRSP_Process();  
+            if (ret1)   // True if we got a valid AUX or BAND command
+            { 
+                if (!EEPROM.read(DIS_OTRSP_BAND_CHANGE))
+                {
+                    // If 1 then Disable is active.   Default is 0, change bands with AUX1 changes.
+                    Button_B = YES;  // Process any N1MM Aux port commands on UART                  
+                    NewBand = AuxNum1;  // Use AUX 1 to change the wattmeter band
+                    DBG_Serial.print("> New Band # = ");
+                    DBG_Serial.println(NewBand);              
+                }
+                else
+                    DBG_Serial.println("> OTRSP sourced band changes are Disabled");
             }
-            else
-                DBG_Serial.println("> OTRSP sourced band changes are Disabled");
-        }
-    }  
+        }  
     #endif // OTRSP   
 
-#ifdef ENET     // remove this code if no ethernet usage intended
-    if (EEPROM.read(ENET_ENABLE))   // only process enet if enabled.
-    {
-        if (!enet_ready)
-            if ((millis() - enet_start_fail_time) >  600000)  // check every 10 minutes (600K ms) and attempt a restart.
-                {
-                  enet_start();
-                  enet_start_fail_time = millis();  // reset timer for another 10 minutes
-                }
-        enet_read();
-        if (rx_count!=0)
-          get_remote_cmd();       // scan buffer for command strings
-    }
-#endif
+    #ifdef ENET     // remove this code if no ethernet usage intended
+        if (EEPROM.read(ENET_ENABLE))   // only process enet if enabled.
+        {
+            if (!enet_ready)
+                if ((millis() - enet_start_fail_time) >  600000)  // check every 10 minutes (600K ms) and attempt a restart.
+                    {
+                    enet_start();
+                    enet_start_fail_time = millis();  // reset timer for another 10 minutes
+                    }
+            enet_read();
+            if (rx_count!=0)
+            get_remote_cmd();       // scan buffer for command strings
+        }
+    #endif
     
     if (Band_Decoder() && PTT_IN_state != TX)       // Process any radio band decoder changes. 
     {                                                    // if in transmit, skip.  Don't want RFI or band change operating relays hot.    
@@ -607,14 +609,14 @@ void loop()
         DBG_Serial.print("> CouplerSetNum = ");
         DBG_Serial.println(CouplerSetNum);
         
-#ifdef NEXTION
-        strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
-        Set1_Bandvar.setText(cmd);    // Update Nextion display for new values            
-        toConfig_pop_Callback(0);  // when on the Config pages will update them
-        Set1_Callback(0);   
-        update_Nextion(1);  
-        DBG_Serial.println(">Nextion Update");                      
-#endif       
+        #ifdef NEXTION
+                strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
+                Set1_Bandvar.setText(cmd);    // Update Nextion display for new values            
+                toConfig_pop_Callback(0);  // when on the Config pages will update them
+                Set1_Callback(0);   
+                update_Nextion(1);  
+                DBG_Serial.println(">Nextion Update");                      
+        #endif       
         EE_Save_State();
     }    
     
@@ -650,291 +652,309 @@ void loop()
     
     adRead(); //get and calculate power + SWR values and display them        
     
-#ifdef SSD1306_OLED
-    // Process OLED Display if used
-    OLED();  // Update display for all params
-#endif 
+    #ifdef SSD1306_OLED
+        // Process OLED Display if used
+        OLED();  // Update display for all params
+    #endif 
     
-#ifdef NEXTION
-    // Process Nextion Display events
-    if (nexSerial.available()) 
-      nexLoop(nex_listen_list);  // Process Nextion Display  
-    if (NewBand != CouplerSetNum)
-        update_Nextion(1);
-    else   // skip if waiting for response from a diaplsy query to reduce traffic
-        update_Nextion(0);    
-#endif
+    #ifdef NEXTION
+        // Process Nextion Display events
+        if (nexSerial.available()) 
+        nexLoop(nex_listen_list);  // Process Nextion Display  
+        if (NewBand != CouplerSetNum)
+            update_Nextion(1);
+        else   // skip if waiting for response from a diaplsy query to reduce traffic
+            update_Nextion(0);    
+    #endif
 
-  #ifdef EXT_WD
-    // Reset External WD Timer
-    if (millis() - wd_timestamp > 8000 && WD_reset_flag != 2)
-    // if flag == 2 skip wd timer reset and force a WD timeout and power relay cycle, usually from remote command cmd=192.
-    {     
-        // Strobe low for 200ms  This part starts it only.
-        wd_timestamp = millis();
-        WD_reset_flag = 1;
-        //Serial.println("Reset WD Timer");
-        digitalWrite(WD1_PIN, LOW);
-        digitalWrite(WD2_PIN, LOW);
-    }
-    if ((millis() - wd_timestamp > 200) && WD_reset_flag == 1)   // forms a non-blocking delay of 200ms to ensure a good WD timer reset
-    {        
-        // now release the low pulse allowing WD to count again
-        digitalWrite(WD1_PIN, HIGH);
-        digitalWrite(WD2_PIN, HIGH);
-        //Serial.println("End Reset WD Timer");
-        WD_reset_flag = 0;
-    }
-  #else  // reset internal WD Timer
-      // if flag == 2 skip wd timer reset and force a WD timeout, usually from remote command cmd=192.
-      if (WD_reset_flag != 2)
-        wdt.feed(); /* uncomment to feed the watchdog */
-      //DBG_Serial.println("Reset WD Timer");
-  #endif
+    #ifdef EXT_WD
+        // Reset External WD Timer
+        if (millis() - wd_timestamp > 8000 && WD_reset_flag != 2)
+        // if flag == 2 skip wd timer reset and force a WD timeout and power relay cycle, usually from remote command cmd=192.
+        {     
+            // Strobe low for 200ms  This part starts it only.
+            wd_timestamp = millis();
+            WD_reset_flag = 1;
+            //Serial.println("Reset WD Timer");
+            digitalWrite(WD1_PIN, LOW);
+            digitalWrite(WD2_PIN, LOW);
+        }
+        if ((millis() - wd_timestamp > 200) && WD_reset_flag == 1)   // forms a non-blocking delay of 200ms to ensure a good WD timer reset
+        {        
+            // now release the low pulse allowing WD to count again
+            digitalWrite(WD1_PIN, HIGH);
+            digitalWrite(WD2_PIN, HIGH);
+            //Serial.println("End Reset WD Timer");
+            WD_reset_flag = 0;
+        }
+    #else  // reset internal WD Timer
+        // if flag == 2 skip wd timer reset and force a WD timeout, usually from remote command cmd=192.
+        if (WD_reset_flag != 2)
+            wdt.feed(); /* uncomment to feed the watchdog */
+        //DBG_Serial.println("Reset WD Timer");
+    #endif
 } // ------ End of Main Loop() --------------------
 
-// Return the supply voltage in volts.  For ESP32 (M5Stack) 
-float read_vcc()
-{
-    //const float V_BAND_GAP = 1.1;     // typical
-    //ADMUX  = _BV(REFS0)    // ref = Vcc
-    //       | 14;           // channel 14 is the bandgap reference
-    //ADCSRA |= _BV(ADSC);   // start conversion
-    //loop_until_bit_is_clear(ADCSRA, ADSC);  // wait until complete
-    //return V_BAND_GAP * 1024 / ADC;
-    return 3.3;  // ToDo Fix this for Teensy
-}
-
-float ADC_RF_Power_CountsTo_Volts(uint32_t counts)
-{
-    float Volts, VRef;
-    //analogReference(DEFAULT);
-    VRef = ADC_VREF;
-    Volts = (counts/ADC_COUNTS) * VRef;
-    //DBG_Serial.println(Volts);
-    return Volts;
-}
-
-void adRead(void)   // A/D converter read function.  Normalize the AD output to 100%.
-{
-    float a;
-    float b;
-    uint16_t c;
-    float tmp, retry=0;
-    uint16_t i;
-
-    // Throttle the time the CPU spends here.   Offset the timing of the data acquired is just before it is sent out
-    Timer_X00ms_InterruptCnt = millis(); 
-    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 50)   // will use our own timestamp.
-        return;   // skip out until greater than 25ms since our last visit here
-    Timer_X00ms_Last_AD = Timer_X00ms_InterruptCnt;  // time stamp our visit here.  Do not want to come back too soon.  
-
-__reread:   // jump label to reread values in case of odd result or hi SWR
-
-// Get Reflected Power  
-// ____________________ Ref Power Capture ___________________________
-//   
-        total_Ref -= readings_Ref[readIndex_Ref];// subtract the last reading:    
-    c = 1; // read from the sensor:
-    a = 0;
-    for (i = 0; i < c; ++i)  
+#ifdef ADS1115_ADC
+    // Return the supply voltage in volts.  For ESP32 (M5Stack) 
+    float read_vcc()
     {
-        #ifdef ADS1115_ADC  
-            #ifdef ADS1115_SINGLE_MODE
-                RefVal = readChannel(ADC_REF);        
-            #else   // continuous mode locks up without 20ms+ delay
-                adc.setCompareChannels(ADC_REF); //comment line/change parameter to change channel           
-                delay(20);
-                RefVal = adc.getResult_V();    // for ADS1115 module        
-            #endif
-            //RefVal = constrain(RefVal, 0.000, 3300.0);
-        #else    // internal ADC           
-           uint32_t ad_counts=0;    
-           ad_counts = analogRead(ADC_REF);              
-           RefVal = ADC_RF_Power_CountsTo_Volts(ad_counts);         
-        #endif  
-        a += RefVal;
+        //const float V_BAND_GAP = 1.1;     // typical
+        //ADMUX  = _BV(REFS0)    // ref = Vcc
+        //       | 14;           // channel 14 is the bandgap reference
+        //ADCSRA |= _BV(ADSC);   // start conversion
+        //loop_until_bit_is_clear(ADCSRA, ADSC);  // wait until complete
+        //return V_BAND_GAP * 1024 / ADC;
+        return 3.3;  // ToDo Fix this for Teensy
     }
-    a /= c; // calculate the average then use result in a running average
-    readings_Ref[readIndex_Ref] = a;   // get from the latest average above and track in this runnign average
-    total_Ref += readings_Ref[readIndex_Ref];// add the reading to the total:
-    readIndex_Ref += 1;       // advance to the next position in the array:
-    //if (NUMREADINGS >1)  // Average less than the Fwd readings to minimize chance of ref being higher than Fwd on transient downward.
-    //{
-    //    if (readIndex_Ref >= NUMREADINGS-1)  // if we're at the end of the array...        
-    //        readIndex_Ref = 0;// ...wrap around to the beginning:
-    //}
-    //else 
-    //{
-        if (readIndex_Ref >= NUMREADINGS)  // if we're at the end of the array...        
-            readIndex_Ref = 0;// ...wrap around to the beginning:
-    //}
-    // caclulate dB value for digital display section
-    RefVal = b = total_Ref / NUMREADINGS;// calculate the average:        
-    b -= Offset_R;   // adjust to 0V reference point
-    b /= Slope_R;   // will be negative for detectors like AD8318
-    b += CouplingFactor_Ref;
-    b += 0.0; // fudge factor for frequency independent factors like cabling
 
-    Ref_dBm = b;
-    // 0dBm is max. = 1W fullscale on 1W scale.
-    RefPwr = pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference 
-    if (RefPwr > 999.9) 
-        RefPwr = 999.9999;
+    float ADC_RF_Power_CountsTo_Volts(uint32_t counts)
+    {
+        float Volts, VRef;
+        //analogReference(DEFAULT);
+        VRef = ADC_VREF;
+        Volts = (counts/ADC_COUNTS) * VRef;
+        //DBG_Serial.println(Volts);
+        return Volts;
+    }
+
+    void adRead(void)   // A/D converter read function.  Normalize the AD output to 100%.
+    {
+        float a;
+        float b;
+        uint16_t c;
+        float tmp, retry=0;
+        uint16_t i;
+
+        // Throttle the time the CPU spends here.   Offset the timing of the data acquired is just before it is sent out
+        Timer_X00ms_InterruptCnt = millis(); 
+        if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 50)   // will use our own timestamp.
+            return;   // skip out until greater than 25ms since our last visit here
+        Timer_X00ms_Last_AD = Timer_X00ms_InterruptCnt;  // time stamp our visit here.  Do not want to come back too soon.  
+
+    __reread:   // jump label to reread values in case of odd result or hi SWR
+
+    // Get Reflected Power  
+    // ____________________ Ref Power Capture ___________________________
+    //   
+            total_Ref -= readings_Ref[readIndex_Ref];// subtract the last reading:    
+        c = 1; // read from the sensor:
+        a = 0;
+        for (i = 0; i < c; ++i)  
+        {
+            #ifdef ADS1115_ADC  
+                #ifdef ADS1115_SINGLE_MODE
+                    RefVal = readChannel(ADC_REF);        
+                #else   // continuous mode locks up without 20ms+ delay
+                    adc.setCompareChannels(ADC_REF); //comment line/change parameter to change channel           
+                    delay(20);
+                    RefVal = adc.getResult_V();    // for ADS1115 module        
+                #endif
+                //RefVal = constrain(RefVal, 0.000, 3300.0);
+            #else    // internal ADC           
+            uint32_t ad_counts=0;    
+            ad_counts = analogRead(ADC_REF);              
+            RefVal = ADC_RF_Power_CountsTo_Volts(ad_counts);         
+            #endif  
+            a += RefVal;
+        }
+        a /= c; // calculate the average then use result in a running average
+        readings_Ref[readIndex_Ref] = a;   // get from the latest average above and track in this runnign average
+        total_Ref += readings_Ref[readIndex_Ref];// add the reading to the total:
+        readIndex_Ref += 1;       // advance to the next position in the array:
+        //if (NUMREADINGS >1)  // Average less than the Fwd readings to minimize chance of ref being higher than Fwd on transient downward.
+        //{
+        //    if (readIndex_Ref >= NUMREADINGS-1)  // if we're at the end of the array...        
+        //        readIndex_Ref = 0;// ...wrap around to the beginning:
+        //}
+        //else 
+        //{
+            if (readIndex_Ref >= NUMREADINGS)  // if we're at the end of the array...        
+                readIndex_Ref = 0;// ...wrap around to the beginning:
+        //}
+        // caclulate dB value for digital display section
+        RefVal = b = total_Ref / NUMREADINGS;// calculate the average:        
+        b -= Offset_R;   // adjust to 0V reference point
+        b /= Slope_R;   // will be negative for detectors like AD8318
+        b += CouplingFactor_Ref;
+        b += 0.0; // fudge factor for frequency independent factors like cabling
+
+        Ref_dBm = b;
+        // 0dBm is max. = 1W fullscale on 1W scale.
+        RefPwr = pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference 
+        if (RefPwr > 999.9) 
+            RefPwr = 999.9999;
+            
+    // ____________________ Fwd Power Capture ___________________________
+    //
+    // subtract the last reading for Fwd Power
+        total_Fwd -= readings_Fwd[readIndex_Fwd];
+        // read from the sensor:
+        c = 6;   // short term samples that feed into running average
+        a = 0;
+
+        for (int i = 0; i < c; ++i) 
+        {
+            #ifdef ADS1115_ADC   
+                #ifdef ADS1115_SINGLE_MODE
+                    FwdVal = readChannel(ADC_FWD);   
+                #else   // continuous mode locks up without 20ms+ delay
+                    adc.setCompareChannels(ADC_FWD); //comment line/change parameter to change channel
+                    delay(20);           
+                    FwdVal = adc.getResult_V();    // for ADS1115 module
+                #endif
+            #else
+                uint32_t ad_counts=0;
+                ad_counts = analogRead(ADC_FWD);  // single read               
+                FwdVal = ADC_RF_Power_CountsTo_Volts(ad_counts); 
+            #endif   
+            a += FwdVal;
+        }
+        a /= c; // calculate the average then use result in a running average
+        readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this running average
+        total_Fwd += readings_Fwd[readIndex_Fwd];    // add the reading to the total: 
+        readIndex_Fwd += 1;     // advance to the next position in the array:
+        if (readIndex_Fwd >= NUMREADINGS) {     // if we're at the end of the array...      
+            readIndex_Fwd = 0;  // ...wrap around to the beginning:
+        }     
+        FwdVal = b = (float) total_Fwd / NUMREADINGS;    // calculate the average:
+
+        // caclulate dB value for digital display section
+        b -= Offset_F;   // adjusts to 0V reference point - calculated during cal
+        b /= Slope_F;   // will be negative for detectors like AD8318 - calculated during cal
+        b += CouplingFactor_Fwd;
+        b += 0.0; // Fudge factor for frequency independent factors like cabling   
+        Fwd_dBm = b;    // Now have calibrated Forward Value in dBm.   
         
-// ____________________ Fwd Power Capture ___________________________
-//
-// subtract the last reading for Fwd Power
-    total_Fwd -= readings_Fwd[readIndex_Fwd];
-    // read from the sensor:
-    c = 6;   // short term samples that feed into running average
-    a = 0;
+        // 0dBm is max. = 1W fullscale on 1W scale for example
+        FwdPwr =  pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
+        
+        // When the measured range is larger than the log detector (<60dB), such as for 1KW range, can never get 0 Watts.  Filter out readings below X Watts
+        if (FwdPwr < FwdPwr_Cutoff)
+        {
+        FwdPwr = 0.0;
+        Fwd_dBm = 0.0;
+        Ref_dBm = 0.0;
+        RefPwr = 0.0;
+        }
 
-    for (int i = 0; i < c; ++i) 
-    {
-        #ifdef ADS1115_ADC   
-            #ifdef ADS1115_SINGLE_MODE
-                FwdVal = readChannel(ADC_FWD);   
-            #else   // continuous mode locks up without 20ms+ delay
-                adc.setCompareChannels(ADC_FWD); //comment line/change parameter to change channel
-                delay(20);           
-                FwdVal = adc.getResult_V();    // for ADS1115 module
-            #endif
-        #else
-            uint32_t ad_counts=0;
-            ad_counts = analogRead(ADC_FWD);  // single read               
-            FwdVal = ADC_RF_Power_CountsTo_Volts(ad_counts); 
-        #endif   
-        a += FwdVal;
+        if (FwdPwr > 9999.9)
+            FwdPwr = 9999.9999;    
+        
+        if (RefPwr < FwdPwr) 
+            tmp = sqrt(RefPwr/FwdPwr);
+        else 
+            tmp = sqrt(FwdPwr-0.1/FwdPwr);
+            //tmp = .99999;   // if Ref > Fwd, then SWR is sky high, limit number range < 99
+
+    //        
+    // ------------------------ SWR -----------------------------------------------------------------------        
+    //
+        SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
+        if ((RefPwr > FwdPwr) && (FwdPwr < FwdPwr_Cutoff)) //  0.2 for <400W range.  Remove false SWR values if no Fwd Pwr such as TX turns off and Fwd goes to 0 before Ref.
+            SWRVal = 0;
+        else if ((RefPwr <= 0.00001) || (FwdPwr <= FwdPwr_Cutoff))  // Adjust this number. 3 to 5 good for 1KW ranges.  0.2 for <400W range. This is because the detector range is 55dB and 1KW is 60dB.  Will never hit true zero.
+            SWRVal = 0;   // remove misleading SWR numbers when input are floating around in RX mode.
+        else if (SWRVal > 9.9)
+            SWRVal = 10;
+        else if(SWRVal < 0)
+            SWRVal = 0;
+    
+        if (retry < 2 && SWRVal > 2.0) // if SWR is high re read to verify.  Getting occasional false trips when Ref is Higher than Fwd on TX turning off.
+        {
+            retry++;  // prevent endless loop in hi SWR scenario - we just want to wait out any transient such as transition for RX to TX and TX to RX.
+            delay(10);
+            //adRead();
+            goto __reread;        
+        }
+        retry = 0;
+        
+    #ifdef SWR_ANALOG  // Update SWR Analog output for Amplifier protection when using KitProg board in an amplifier
+        float SWR_val_temp = 0;
+        uint8_t SWR_analog_value = 0;
+        
+        // DAC is configured for 0-4.0VDC output.  Amp board will be adjusted to suit this.
+        // SWR_Val should be 0-100 type of number.  We care about 0 to 5 since the amp trip point will be about 3.0/
+        SWR_val_temp = SWRVal;   // bounds check uing like size/type vars
+        if (SWR_val_temp < 0.0)
+            SWR_val_temp = 0.0;
+        if (SWR_val_temp > 5.0)
+            SWR_val_temp = 5.0;       
+        // Actual trip point is set by pot on Amp Control board reading DAC voltage
+        SWR_analog_value = SWR_val_temp * (255/5);  // Convert to 0-4.0 range (DAC value 0-255).
+        if (SWR_analog_value < 0)
+            SWR_analog_value = 0;
+        if (SWR_analog_value > 255)
+            SWR_analog_value = 255;                
+        analogWrite(A11, SWR_analog_value);     // Dummy call for now until Band ecoder and DAC outputs are sorted after port from PSoC5 code.
+    #endif
+        SWR_Serial_Val = SWRVal;
+        FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
+        sendSerialData();   // send this data to the serial port for remote monitoring
     }
-    a /= c; // calculate the average then use result in a running average
-    readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this running average
-    total_Fwd += readings_Fwd[readIndex_Fwd];    // add the reading to the total: 
-    readIndex_Fwd += 1;     // advance to the next position in the array:
-    if (readIndex_Fwd >= NUMREADINGS) {     // if we're at the end of the array...      
-        readIndex_Fwd = 0;  // ...wrap around to the beginning:
-    }     
-    FwdVal = b = (float) total_Fwd / NUMREADINGS;    // calculate the average:
 
-    // caclulate dB value for digital display section
-    b -= Offset_F;   // adjusts to 0V reference point - calculated during cal
-    b /= Slope_F;   // will be negative for detectors like AD8318 - calculated during cal
-    b += CouplingFactor_Fwd;
-    b += 0.0; // Fudge factor for frequency independent factors like cabling   
-    Fwd_dBm = b;    // Now have calibrated Forward Value in dBm.   
-    
-    // 0dBm is max. = 1W fullscale on 1W scale for example
-    FwdPwr =  pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
-    
-    // When the measured range is larger than the log detector (<60dB), such as for 1KW range, can never get 0 Watts.  Filter out readings below X Watts
-    if (FwdPwr < FwdPwr_Cutoff)
-    {
-      FwdPwr = 0.0;
-      Fwd_dBm = 0.0;
-      Ref_dBm = 0.0;
-      RefPwr = 0.0;
+    float readChannel(ADS1115_MUX channel) {
+    float voltage = 0.0;
+    adc.setCompareChannels(channel);
+    adc.startSingleMeasurement();
+    while(adc.isBusy()){}
+    voltage = adc.getResult_V(); // alternative: getResult_mV for Millivolt
+    return voltage;
     }
 
-    if (FwdPwr > 9999.9)
-        FwdPwr = 9999.9999;    
-    
-    if (RefPwr < FwdPwr) 
-        tmp = sqrt(RefPwr/FwdPwr);
-    else 
-        tmp = sqrt(FwdPwr-0.1/FwdPwr);
-        //tmp = .99999;   // if Ref > Fwd, then SWR is sky high, limit number range < 99
+#else  // just return 0 in messages when ADC is not used.
+    void adRead(void)   // A/D converter read function.  Normalize the AD output to 100%.
+    {  }  // empty
 
-//        
-// ------------------------ SWR -----------------------------------------------------------------------        
-//
-    SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
-    if ((RefPwr > FwdPwr) && (FwdPwr < FwdPwr_Cutoff)) //  0.2 for <400W range.  Remove false SWR values if no Fwd Pwr such as TX turns off and Fwd goes to 0 before Ref.
-        SWRVal = 0;
-    else if ((RefPwr <= 0.00001) || (FwdPwr <= FwdPwr_Cutoff))  // Adjust this number. 3 to 5 good for 1KW ranges.  0.2 for <400W range. This is because the detector range is 55dB and 1KW is 60dB.  Will never hit true zero.
-        SWRVal = 0;   // remove misleading SWR numbers when input are floating around in RX mode.
-    else if (SWRVal > 9.9)
-        SWRVal = 10;
-    else if(SWRVal < 0)
-        SWRVal = 0;
- 
-    if (retry < 2 && SWRVal > 2.0) // if SWR is high re read to verify.  Getting occasional false trips when Ref is Higher than Fwd on TX turning off.
-    {
-        retry++;  // prevent endless loop in hi SWR scenario - we just want to wait out any transient such as transition for RX to TX and TX to RX.
-        delay(10);
-        //adRead();
-        goto __reread;        
-    }
-    retry = 0;
-    
-#ifdef SWR_ANALOG  // Update SWR Analog output for Amplifier protection when using KitProg board in an amplifier
-    float SWR_val_temp = 0;
-    uint8_t SWR_analog_value = 0;
-    
-    // DAC is configured for 0-4.0VDC output.  Amp board will be adjusted to suit this.
-    // SWR_Val should be 0-100 type of number.  We care about 0 to 5 since the amp trip point will be about 3.0/
-    SWR_val_temp = SWRVal;   // bounds check uing like size/type vars
-    if (SWR_val_temp < 0.0)
-        SWR_val_temp = 0.0;
-    if (SWR_val_temp > 5.0)
-        SWR_val_temp = 5.0;       
-    // Actual trip point is set by pot on Amp Control board reading DAC voltage
-    SWR_analog_value = SWR_val_temp * (255/5);  // Convert to 0-4.0 range (DAC value 0-255).
-    if (SWR_analog_value < 0)
-        SWR_analog_value = 0;
-    if (SWR_analog_value > 255)
-        SWR_analog_value = 255;                
-    analogWrite(A11, SWR_analog_value);     // Dummy call for now until Band ecoder and DAC outputs are sorted after port from PSoC5 code.
-#endif
-    SWR_Serial_Val = SWRVal;
-    FwdPwr_last = FwdPwr;  // update memory to minimize screen update and flicker on digital number
-    sendSerialData();   // send this data to the serial port for remote monitoring
-}
+    float hv_read(void)
+    { return 0.0; } 
 
-float readChannel(ADS1115_MUX channel) {
-  float voltage = 0.0;
-  adc.setCompareChannels(channel);
-  adc.startSingleMeasurement();
-  while(adc.isBusy()){}
-  voltage = adc.getResult_V(); // alternative: getResult_mV for Millivolt
-  return voltage;
-}
+    float v14_read(void)
+    { return 0.0; } 
+
+    float curr_read(void)
+    { return 0.0; } 
+    
+    float temp_read(void)
+    { return 0.0; } 
+#endif // ADS1115_ADC
 
 #ifdef TEENSY4_OTRSP_CW_PTT
-// N1MM CW and PTT and AUX message handling
-// look for DTR and RTS for N1MM control of CW and PTT. 
-// Can only happen on USB serial since the external USB UART has only TX and RX lines connected to CPU
+    // N1MM CW and PTT and AUX message handling
+    // look for DTR and RTS for N1MM control of CW and PTT. 
+    // Can only happen on USB serial since the external USB UART has only TX and RX lines connected to CPU
 
-// CW Key Out pin from OTRSP
-void CW_KEY_OUT_OTRSP(void)
-{
-    // Check state of USB Serial Port DTR register for N1MM CW keying state
-    if (OTRSP_Serial.dtr())                    
-    {   
-        digitalWrite(CW_KEY_OUT, HIGH);
-        CW_KEY_OUT_state = 1;
-    }          
-    else
+    // CW Key Out pin from OTRSP
+    void CW_KEY_OUT_OTRSP(void)
     {
-       digitalWrite(CW_KEY_OUT, LOW);     // follow DTR state. The Arduino IDE Serial Monitor will raise DTR when open (on the Serial port, not this one.)                       
-       CW_KEY_OUT_state = 0;
+        // Check state of USB Serial Port DTR register for N1MM CW keying state
+        if (OTRSP_Serial.dtr())                    
+        {   
+            digitalWrite(CW_KEY_OUT, HIGH);
+            CW_KEY_OUT_state = 1;
+        }          
+        else
+        {
+        digitalWrite(CW_KEY_OUT, LOW);     // follow DTR state. The Arduino IDE Serial Monitor will raise DTR when open (on the Serial port, not this one.)                       
+        CW_KEY_OUT_state = 0;
+        }
     }
-}
 
-// PTT Input pin from OTRSP Serial port
-void PTT_OTRSP(void)
-{
-    //Check state of USB Serial Port RTS register for N1MM PTT state
-    if (OTRSP_Serial.rts())     
+    // PTT Input pin from OTRSP Serial port
+    void PTT_OTRSP(void)
     {
-        PTT_IN_handler(HIGH);
-        PTT_OUT_Handler();      
+        //Check state of USB Serial Port RTS register for N1MM PTT state
+        if (OTRSP_Serial.rts())     
+        {
+            PTT_IN_handler(HIGH);
+            PTT_OUT_Handler();      
+        }
+        else
+        {
+            PTT_IN_handler(LOW);
+            PTT_OUT_Handler();       
+        }
     }
-    else
-    {
-        PTT_IN_handler(LOW);
-        PTT_OUT_Handler();       
-    }
-}
 #endif
 
 void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PTT signal
@@ -1966,29 +1986,34 @@ uint16_t serial_usb_read(void)
 */
 void sendSerialData()
 {
+    
     Timer_X00ms_InterruptCnt = millis();
-    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PWR > PWR_MSG_DELAY)
-    {          
-        Timer_X00ms_Last_USB_PWR = Timer_X00ms_InterruptCnt;       
-        sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
-        if (ser_data_out)
-            RFWM_Serial.print((char*) tx_buffer);  //, tx_count); 
-        #ifdef ENET
-        if (enet_data_out)
-            enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
-        #endif    
-    }
-    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_VOLTS > VOLTS_MSG_DELAY)
-    {        
-        Timer_X00ms_Last_USB_VOLTS = Timer_X00ms_InterruptCnt;   
-        sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
-        if (ser_data_out)
-            RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
-        #ifdef ENET            
-        if (enet_data_out)
-            enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
-        #endif
-    }
+    
+    #ifdef ADS1115_ADC
+        if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PWR > PWR_MSG_DELAY)
+        {          
+            Timer_X00ms_Last_USB_PWR = Timer_X00ms_InterruptCnt;       
+            sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
+            if (ser_data_out)
+                RFWM_Serial.print((char*) tx_buffer);  //, tx_count); 
+            #ifdef ENET
+            if (enet_data_out)
+                enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
+            #endif    
+        }
+        if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_VOLTS > VOLTS_MSG_DELAY)
+        {        
+            Timer_X00ms_Last_USB_VOLTS = Timer_X00ms_InterruptCnt;   
+            sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
+            if (ser_data_out)
+                RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
+            #ifdef ENET            
+            if (enet_data_out)
+                enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
+            #endif
+        }
+    #endif
+
     if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PTT > PTT_MSG_DELAY)
     {          
         Timer_X00ms_Last_USB_PTT = Timer_X00ms_InterruptCnt;       
@@ -2030,65 +2055,68 @@ void serial_usb_write(void)
     }
 }
 
-float hv_read(void)
-{
-    uint32_t ad_counts=0;
-    
-    // Read voltage by ADC via MUX (If connected)
-    delay(0);
-    ad_counts = analogRead(ADC_HV);  // single read but has locked up with N1MM commands
-    return ad_counts;
-}
-
-float v14_read(void)
-{
-    uint32_t ad_counts=0;
-    
-    // Read voltage by ADC via MUX (If connected)
-    delay(0);
-    ad_counts = analogRead(ADC_14V);  // single read but has locked up with N1MM commands
-    return ad_counts;
-}
-
-float curr_read(void)
-{
-    uint32_t ad_counts=0;
-    
-    // Read ADC via MUX (If connected)
-    delay(0);
-    ad_counts = analogRead(ADC_CURR);  // single read but has locked up with N1MM commands
-    return ad_counts;
-}
-
-float temp_read(void)
-{
-#ifdef DETECTOR_TEMP_CONNECTED
-  float tmp;
-    // Read detector temperature (If connected)
-    #if defined ADS1115_ADC && defined ADS1115_ADC_TEMPERATURE  // Use external ADC
-        #ifdef ADS1115_SINGLE_MODE
-            tmp = readChannel(ADC_TEMP);   
-        #else 
-            adc.setCompareChannels(ADC_TEMP); //comment line/change parameter to change channel  
-            delay(20);// continuous mode locks up without 20ms+ delay           
-            tmp = adc.getResult_V();    // for ADS1115 module 
-        #endif 
-    #else  // use internal ADC
+#ifdef ADS1115_ADC
+    float hv_read(void)
+    {
         uint32_t ad_counts=0;
-        ad_counts = analogRead(ADC_TEMP);               // single read but has locked up with N1MM commands   
-        tmp = ADC_RF_Power_CountsTo_Volts(ad_counts);   // store the detector temp reading for cal optimization if desired.  For now jsut display it on the screen
-    #endif
-    tmp -= 1.36;                                    // ADL5519 is 4.48mV/C at 27C which is typically 1.36VDC.  Convert to F.  
-    tmp /= 0.00448;                                 // mV/C
-    tmp += 27;                                      //1.36V at 27C (80.6F)
-    tmp *= 9;
-    tmp /= 5;                                       // convert to F
-    tmp += 32;    
-    TempVal = tmp;  
-    return TempVal;
-#endif 
-    return 0;   // if not temp connected just return 0;
-}
+        
+        // Read voltage by ADC via MUX (If connected)
+        delay(0);
+        ad_counts = analogRead(ADC_HV);  // single read but has locked up with N1MM commands
+        return ad_counts;
+    }
+
+    float v14_read(void)
+    {
+        uint32_t ad_counts=0;
+        
+        // Read voltage by ADC via MUX (If connected)
+        delay(0);
+        ad_counts = analogRead(ADC_14V);  // single read but has locked up with N1MM commands
+        return ad_counts;
+    }
+
+    float curr_read(void)
+    {
+        uint32_t ad_counts=0;
+        
+        // Read ADC via MUX (If connected)
+        delay(0);
+        ad_counts = analogRead(ADC_CURR);  // single read but has locked up with N1MM commands
+        return ad_counts;
+    }
+
+    float temp_read(void)
+    {
+    #ifdef DETECTOR_TEMP_CONNECTED
+    float tmp;
+        // Read detector temperature (If connected)
+        #if defined ADS1115_ADC && defined ADS1115_ADC_TEMPERATURE  // Use external ADC
+            #ifdef ADS1115_SINGLE_MODE
+                tmp = readChannel(ADC_TEMP);   
+            #else 
+                adc.setCompareChannels(ADC_TEMP); //comment line/change parameter to change channel  
+                delay(20);// continuous mode locks up without 20ms+ delay           
+                tmp = adc.getResult_V();    // for ADS1115 module 
+            #endif 
+        #else  // use internal ADC
+            uint32_t ad_counts=0;
+            ad_counts = analogRead(ADC_TEMP);               // single read but has locked up with N1MM commands   
+            tmp = ADC_RF_Power_CountsTo_Volts(ad_counts);   // store the detector temp reading for cal optimization if desired.  For now jsut display it on the screen
+        #endif
+        tmp -= 1.36;                                    // ADL5519 is 4.48mV/C at 27C which is typically 1.36VDC.  Convert to F.  
+        tmp /= 0.00448;                                 // mV/C
+        tmp += 27;                                      //1.36V at 27C (80.6F)
+        tmp *= 9;
+        tmp /= 5;                                       // convert to F
+        tmp += 32;    
+        TempVal = tmp;  
+        return TempVal;
+    #endif 
+        return 0;   // if not temp connected just return 0;
+    }
+
+#endif // ADS1115_ADC
 
 void get_remote_cmd()
 {
@@ -2697,7 +2725,7 @@ void print_cal_table()
     // #150 for msg_type field to signal this is data dump, not power levels or other type messages.
     // meterid with msg_type = 150 to signal different data set than the normal output. 120 inbound cmd, 170, power out
     for (i=0; i < NUM_SETS; i++) {        
-        sprintf((char *) tx_buffer, "%d,%s,%s,%.1f,%.5f,%.5f,%.1f,%.5f,%.5f\r\n", METERID, "150", Band_Cal_Table[i].BandName, Band_Cal_Table[i].Cpl_Fwd, Band_Cal_Table[i].Slope_F, Band_Cal_Table[i].Offset_F, Band_Cal_Table[i].Cpl_Ref, Band_Cal_Table[i].Slope_R, Band_Cal_Table[i].Offset_R);
+        sprintf((char *) tx_buffer, "%d,%3s,%12.0s,%3.1f,%3.5f,%3.5f,%3.1f,%3.5f,%3.5f\r\n", METERID, "150", Band_Cal_Table[i].BandName, Band_Cal_Table[i].Cpl_Fwd, Band_Cal_Table[i].Slope_F, Band_Cal_Table[i].Offset_F, Band_Cal_Table[i].Cpl_Ref, Band_Cal_Table[i].Slope_R, Band_Cal_Table[i].Offset_R);
         tx_count = strlen((char *) tx_buffer);   
         DBG_Serial.println((char  *) tx_buffer);
         serial_usb_write();   // Output table text to serial port              
@@ -3728,164 +3756,164 @@ void Band_Decode_C_Output(uint8_t pattern)
 }
 
 #ifdef ENET
-void teensyMAC(uint8_t *mac) 
-{
-  static char teensyMac[23];
-  
-  #if defined (HW_OCOTP_MAC1) && defined(HW_OCOTP_MAC0)
-    Serial.println("using HW_OCOTP_MAC* - see https://forum.pjrc.com/threads/57595-Serial-amp-MAC-Address-Teensy-4-0");
-    for(uint8_t by=0; by<2; by++) mac[by]=(HW_OCOTP_MAC1 >> ((1-by)*8)) & 0xFF;
-    for(uint8_t by=0; by<4; by++) mac[by+2]=(HW_OCOTP_MAC0 >> ((3-by)*8)) & 0xFF;
-
-    #define MAC_OK
-
-  #else
-    
-    mac[0] = 0x04;
-    mac[1] = 0xE9;
-    mac[2] = 0xE5;
-
-    uint32_t SN=0;
-    __disable_irq();
-    
-    #if defined(HAS_KINETIS_FLASH_FTFA) || defined(HAS_KINETIS_FLASH_FTFL)
-      Serial.println("using FTFL_FSTAT_FTFA - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
-      
-      FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
-      FTFL_FCCOB0 = 0x41;
-      FTFL_FCCOB1 = 15;
-      FTFL_FSTAT = FTFL_FSTAT_CCIF;
-      while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
-      SN = *(uint32_t *)&FTFL_FCCOB7;
-
-      #define MAC_OK
-      
-    #elif defined(HAS_KINETIS_FLASH_FTFE)
-      Serial.println("using FTFL_FSTAT_FTFE - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
-      
-      kinetis_hsrun_disable();
-      FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
-      *(uint32_t *)&FTFL_FCCOB3 = 0x41070000;
-      FTFL_FSTAT = FTFL_FSTAT_CCIF;
-      while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
-      SN = *(uint32_t *)&FTFL_FCCOBB;
-      kinetis_hsrun_enable();
-
-      #define MAC_OK
-      
-    #endif
-    
-    __enable_irq();
-
-    for(uint8_t by=0; by<3; by++) mac[by+3]=(SN >> ((2-by)*8)) & 0xFF;
-
-  #endif
-
-  #ifdef MAC_OK
-    sprintf(teensyMac, "MAC: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    Serial.println(teensyMac);
-  #else
-    Serial.println("ERROR: could not get MAC");
-  #endif
-}
-
-uint8_t enet_read(void)
-{
-  //  experiment with this -->   udp.listen( true );           // and wait for incoming message
-
-     if (!enet_ready)   // skip if no enet connection
-         return 0;
-     
-     rx_count = 0;
-     int count = 0; 
-
-     // if there's data available, read a packet
-     count = Udp.parsePacket();      
-     rx_buffer[0] = _NULL;
-     if (count > 0)
-     {
-          Udp.read(rx_buffer, Serial_USB_BUFFER_SIZE);
-          rx_buffer[count] = '\0';
-          rx_count = count;          
-          DBG_Serial.println(rx_count);
-          DBG_Serial.println((char *) rx_buffer);
-          
-          // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData         
-          memcpy(pSdata2, rx_buffer, rx_count+1);   // append the new buffer data to current end marked by pointer 2        
-          pSdata2 += rx_count;                      // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
-          rx_count = pSdata2 - pSdata1;             // update count for total unread chars. 
-          //DBG_Serial.println(rx_count);  
-     }
-     rx_buffer[0] = '\0';
-     return rx_count;
-}
-
-uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
-{   
-    IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
-
-    if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+    void teensyMAC(uint8_t *mac) 
     {
-        //DBG_Serial.print("ENET Write: ");
-        //DBG_Serial.println((char *) tx_buffer);
-        Udp.beginPacket(HostIP, remoteport);
-        Udp.write((char *) tx_buffer);
-        if (Udp.endPacket())
-        {
-          return 1;
-        }
-        else
-          DBG_Serial.println("ENET Write Failed");
-    }
-    return 0;
-} 
+    static char teensyMac[23];
+    
+    #if defined (HW_OCOTP_MAC1) && defined(HW_OCOTP_MAC0)
+        Serial.println("using HW_OCOTP_MAC* - see https://forum.pjrc.com/threads/57595-Serial-amp-MAC-Address-Teensy-4-0");
+        for(uint8_t by=0; by<2; by++) mac[by]=(HW_OCOTP_MAC1 >> ((1-by)*8)) & 0xFF;
+        for(uint8_t by=0; by<4; by++) mac[by+2]=(HW_OCOTP_MAC0 >> ((3-by)*8)) & 0xFF;
 
-void enet_start(void)
-{
-    uint8_t mac[6];
+        #define MAC_OK
 
-    // Ensure EEPROM is read first
-    IPAddress ip(192, 168, ip_adr1, my_ip_adr0); // use EEPROM stored values
+    #else
+        
+        mac[0] = 0x04;
+        mac[1] = 0xE9;
+        mac[2] = 0xE5;
 
-    teensyMAC(mac);   
-    delay(1000);
-    // start the Ethernet  
-    // If using DHCP (leave off the ip arg) works but more difficult to configure the desktop and remote touchscreen clients
-    Ethernet.begin(mac, ip);
-    // Check for Ethernet hardware present
-    enet_ready = 0;
-    if (Ethernet.hardwareStatus() == EthernetNoHardware) 
-    {
-        Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
-        //while (true) {
-        //  delay(1); // do nothing, no point running without Ethernet hardware
-        //}
-        enet_ready = 0;  // shut down usage of enet
-    }
-    else
-    {
-        delay(1000);
-        Serial.print("Ethernet Address = ");
-        Serial.println(Ethernet.localIP());
-        delay(5000);
-        if (Ethernet.linkStatus() == LinkOFF) 
-        {
-        Serial.println("Ethernet cable is not connected.");
-        enet_ready = 0;
-        }
-        else
-        {  
-        enet_ready = 1;
-        delay(100);
-        Serial.println("Ethernet cable connected.");
-        // start UDP
-        Udp.begin(localPort);
-        #ifdef Nex_UDP
-            //Udp_Nex.begin(localPort+2);
+        uint32_t SN=0;
+        __disable_irq();
+        
+        #if defined(HAS_KINETIS_FLASH_FTFA) || defined(HAS_KINETIS_FLASH_FTFL)
+        Serial.println("using FTFL_FSTAT_FTFA - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+        
+        FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
+        FTFL_FCCOB0 = 0x41;
+        FTFL_FCCOB1 = 15;
+        FTFL_FSTAT = FTFL_FSTAT_CCIF;
+        while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
+        SN = *(uint32_t *)&FTFL_FCCOB7;
+
+        #define MAC_OK
+        
+        #elif defined(HAS_KINETIS_FLASH_FTFE)
+        Serial.println("using FTFL_FSTAT_FTFE - vis teensyID.h - see https://github.com/sstaub/TeensyID/blob/master/TeensyID.h");
+        
+        kinetis_hsrun_disable();
+        FTFL_FSTAT = FTFL_FSTAT_RDCOLERR | FTFL_FSTAT_ACCERR | FTFL_FSTAT_FPVIOL;
+        *(uint32_t *)&FTFL_FCCOB3 = 0x41070000;
+        FTFL_FSTAT = FTFL_FSTAT_CCIF;
+        while (!(FTFL_FSTAT & FTFL_FSTAT_CCIF)) ; // wait
+        SN = *(uint32_t *)&FTFL_FCCOBB;
+        kinetis_hsrun_enable();
+
+        #define MAC_OK
+        
         #endif
+        
+        __enable_irq();
+
+        for(uint8_t by=0; by<3; by++) mac[by+3]=(SN >> ((2-by)*8)) & 0xFF;
+
+    #endif
+
+    #ifdef MAC_OK
+        sprintf(teensyMac, "MAC: %02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        Serial.println(teensyMac);
+    #else
+        Serial.println("ERROR: could not get MAC");
+    #endif
+    }
+
+    uint8_t enet_read(void)
+    {
+    //  experiment with this -->   udp.listen( true );           // and wait for incoming message
+
+        if (!enet_ready)   // skip if no enet connection
+            return 0;
+        
+        rx_count = 0;
+        int count = 0; 
+
+        // if there's data available, read a packet
+        count = Udp.parsePacket();      
+        rx_buffer[0] = _NULL;
+        if (count > 0)
+        {
+            Udp.read(rx_buffer, Serial_USB_BUFFER_SIZE);
+            rx_buffer[count] = '\0';
+            rx_count = count;          
+            DBG_Serial.println(rx_count);
+            DBG_Serial.println((char *) rx_buffer);
+            
+            // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData         
+            memcpy(pSdata2, rx_buffer, rx_count+1);   // append the new buffer data to current end marked by pointer 2        
+            pSdata2 += rx_count;                      // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
+            rx_count = pSdata2 - pSdata1;             // update count for total unread chars. 
+            //DBG_Serial.println(rx_count);  
+        }
+        rx_buffer[0] = '\0';
+        return rx_count;
+    }
+
+    uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
+    {   
+        IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
+
+        if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+        {
+            //DBG_Serial.print("ENET Write: ");
+            //DBG_Serial.println((char *) tx_buffer);
+            Udp.beginPacket(HostIP, remoteport);
+            Udp.write((char *) tx_buffer);
+            if (Udp.endPacket())
+            {
+            return 1;
+            }
+            else
+            DBG_Serial.println("ENET Write Failed");
+        }
+        return 0;
+    } 
+
+    void enet_start(void)
+    {
+        uint8_t mac[6];
+
+        // Ensure EEPROM is read first
+        IPAddress ip(192, 168, ip_adr1, my_ip_adr0); // use EEPROM stored values
+
+        teensyMAC(mac);   
+        delay(1000);
+        // start the Ethernet  
+        // If using DHCP (leave off the ip arg) works but more difficult to configure the desktop and remote touchscreen clients
+        Ethernet.begin(mac, ip);
+        // Check for Ethernet hardware present
+        enet_ready = 0;
+        if (Ethernet.hardwareStatus() == EthernetNoHardware) 
+        {
+            Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+            //while (true) {
+            //  delay(1); // do nothing, no point running without Ethernet hardware
+            //}
+            enet_ready = 0;  // shut down usage of enet
+        }
+        else
+        {
+            delay(1000);
+            Serial.print("Ethernet Address = ");
+            Serial.println(Ethernet.localIP());
+            delay(5000);
+            if (Ethernet.linkStatus() == LinkOFF) 
+            {
+            Serial.println("Ethernet cable is not connected.");
+            enet_ready = 0;
+            }
+            else
+            {  
+            enet_ready = 1;
+            delay(100);
+            Serial.println("Ethernet cable connected.");
+            // start UDP
+            Udp.begin(localPort);
+            #ifdef Nex_UDP
+                //Udp_Nex.begin(localPort+2);
+            #endif
+            }
         }
     }
-}
 
 /*  Mod required for NativeEthernet.cpp file in Ethernet.begin class.  
  *   At end of the function is a statement that hangs if no ethernet cable is connected.  
@@ -3911,341 +3939,341 @@ void enet_start(void)
 
 #if defined(ICOM_CIV) || defined(ICOM_CIV_OUT)
 
-void FrequencyRequest(){
-  #if defined(REQUEST)
-  if(REQUEST > 0 && (millis() - RequestTimeout[0] > RequestTimeout[1])){
+    void FrequencyRequest(){
+    #if defined(REQUEST)
+    if(REQUEST > 0 && (millis() - RequestTimeout[0] > RequestTimeout[1])){
 
-    #if defined(ICOM_CIV)
-      txCIV(3, 0, CIV_ADRESS);  // ([command], [freq]) 3=read
-    #endif
-
-    RequestTimeout[0]=millis();
-  }
-  #endif
-}
-
-//-------------------------------------------------------------------------------------------------------
-
-unsigned char hexToDecBy4bit(unsigned char hex)
-// convert a character representation of a hexidecimal digit into the actual hexidecimal value
-{
-  if(hex > 0x39) hex -= 7; // adjust for hex letters upper or lower case
-  return(hex & 0xf);
-}
-//-------------------------------------------------------------------------------------------------------
-float volt(int raw, float divider) {
-  // float voltage = (raw * 5.0) / 1024.0 * ResistorCoeficient;
-  float voltage = float(raw) * ArefVoltage * divider / 1023.0;
-  #if defined(SERIAL_debug)
-    Serial.print(F("Voltage "));
-    Serial.println(voltage);
-  #endif
-  return voltage;
-}
-
-//-------------------------------------------------------------------------------------------------------
-
-void BandDecoderOutput()
-{
-  //=====[ Output Icom CIV ]=======================
-  #if defined(ICOM_CIV_OUT)
-      if(freq!= freqPrev1){                    // if change
-          txCIV(0, freq, CIV_ADR_OUT);         // 0 - set freq
-          freqPrev1 = freq;
-      }
-  #endif
-}
-//---------------------------------------------------------------------------------------------------------
-
-
-void ICOM_Decoder(void)
-{
-  //----------------------------------- Icom ACC
-  #if defined(ICOM_ACC)
-    AccVoltage = volt(analogRead(ADPin), 1.0);
-    if (counter == 5) {
-        // AccVoltage = float(AccVoltage) * ArefVoltage * Divider / 1023.0;
-
-        //=====[ Icom ACC voltage range ]===========================================================
-        if (AccVoltage > 0.73 && AccVoltage < 1.00 ) {BAND=10;}  //   6m   * * * * * * * * * * * * * * * *
-        if (AccVoltage > 1.00 && AccVoltage < 1.09 ) {BAND=9;}   //  10m   *           Need              *
-        if (AccVoltage > 1.09 && AccVoltage < 1.32 ) {BAND=8;}   //  12m   *    calibrated to your       *
-        if (AccVoltage > 1.32 && AccVoltage < 1.55 ) {BAND=7;}   //  15m   *         own ICOM            *
-        if (AccVoltage > 1.55 && AccVoltage < 1.77 ) {BAND=6;}   //  17m   *     ----------------        *
-        if (AccVoltage > 1.77 && AccVoltage < 2.24 ) {BAND=5;}   //  20m   *    (These values have       *
-        if (AccVoltage > 0.10 && AccVoltage < 0.50 ) {BAND=4;}   //  30m   *   been measured by any)     *
-        if (AccVoltage > 2.24 && AccVoltage < 2.73 ) {BAND=3;}   //  40m   *          ic-746             *
-        if (AccVoltage > 2.73 && AccVoltage < 2.99 ) {BAND=2;}   //  80m   *                             *
-        if (AccVoltage > 2.99 && AccVoltage < 4.00 ) {BAND=1;}   // 160m   * * * * * * * * * * * * * * * *
-        if (AccVoltage > 0.00 && AccVoltage < 0.10 ) {BAND=0;}   // parking
-
-        //==========================================================================================
-
-        //bandSET();                                // set outputs
-        delay (20);
-    }else{
-        if (abs(prevAccVoltage-AccVoltage)>10) {            // average
-            //means change or spurious number
-            prevAccVoltage=AccVoltage;
-        }else {
-            counter++;
-            prevAccVoltage=AccVoltage;
-        }
-    }
-    #if defined(SERIAL_echo)
-        serialEcho();
-        Serial.print(AccVoltage);
-        Serial.println(F(" V"));
-        Serial.flush();
-    #endif
-
-    delay(500);                                   // refresh time
-  #endif
-
-  //----------------------------------- Icom CIV
-  #if defined(ICOM_CIV)
-    if (Serial.available() > 0) {
-        incomingByte = Serial.read();
-        #if defined(DEBUG)
-          Serial.print(incomingByte);
-          Serial.print(F("|"));
-          Serial.println(incomingByte, HEX);
+        #if defined(ICOM_CIV)
+        txCIV(3, 0, CIV_ADRESS);  // ([command], [freq]) 3=read
         #endif
-        icomSM(incomingByte);
-        rdIS="";
-        // if(rdI[10]==0xFD){    // state machine end
-        if(StateMachineEnd == true){    // state machine end
-          StateMachineEnd = false;
-          for (int i=9; i>=5; i-- ){
-              if (rdI[i] < 10) {            // leading zero
-                  rdIS = rdIS + 0;
-              }
-              rdIS = rdIS + String(rdI[i], HEX);  // append BCD digit from HEX variable to string
-          }
-          freq = rdIS.toInt();
-          // Serial.println(freq);
-          // Serial.println("-------");
-          FreqToBandRules();
-          //bandSET();
 
-          #if defined(SERIAL_echo)
-              serialEcho();
-          #endif
-          RequestTimeout[0]=millis();
+        RequestTimeout[0]=millis();
+    }
+    #endif
+    }
+
+    //-------------------------------------------------------------------------------------------------------
+
+    unsigned char hexToDecBy4bit(unsigned char hex)
+    // convert a character representation of a hexidecimal digit into the actual hexidecimal value
+    {
+    if(hex > 0x39) hex -= 7; // adjust for hex letters upper or lower case
+    return(hex & 0xf);
+    }
+    //-------------------------------------------------------------------------------------------------------
+    float volt(int raw, float divider) {
+    // float voltage = (raw * 5.0) / 1024.0 * ResistorCoeficient;
+    float voltage = float(raw) * ArefVoltage * divider / 1023.0;
+    #if defined(SERIAL_debug)
+        Serial.print(F("Voltage "));
+        Serial.println(voltage);
+    #endif
+    return voltage;
+    }
+
+    //-------------------------------------------------------------------------------------------------------
+
+    void BandDecoderOutput()
+    {
+    //=====[ Output Icom CIV ]=======================
+    #if defined(ICOM_CIV_OUT)
+        if(freq!= freqPrev1){                    // if change
+            txCIV(0, freq, CIV_ADR_OUT);         // 0 - set freq
+            freqPrev1 = freq;
+        }
+    #endif
+    }
+    //---------------------------------------------------------------------------------------------------------
+
+
+    void ICOM_Decoder(void)
+    {
+    //----------------------------------- Icom ACC
+    #if defined(ICOM_ACC)
+        AccVoltage = volt(analogRead(ADPin), 1.0);
+        if (counter == 5) {
+            // AccVoltage = float(AccVoltage) * ArefVoltage * Divider / 1023.0;
+
+            //=====[ Icom ACC voltage range ]===========================================================
+            if (AccVoltage > 0.73 && AccVoltage < 1.00 ) {BAND=10;}  //   6m   * * * * * * * * * * * * * * * *
+            if (AccVoltage > 1.00 && AccVoltage < 1.09 ) {BAND=9;}   //  10m   *           Need              *
+            if (AccVoltage > 1.09 && AccVoltage < 1.32 ) {BAND=8;}   //  12m   *    calibrated to your       *
+            if (AccVoltage > 1.32 && AccVoltage < 1.55 ) {BAND=7;}   //  15m   *         own ICOM            *
+            if (AccVoltage > 1.55 && AccVoltage < 1.77 ) {BAND=6;}   //  17m   *     ----------------        *
+            if (AccVoltage > 1.77 && AccVoltage < 2.24 ) {BAND=5;}   //  20m   *    (These values have       *
+            if (AccVoltage > 0.10 && AccVoltage < 0.50 ) {BAND=4;}   //  30m   *   been measured by any)     *
+            if (AccVoltage > 2.24 && AccVoltage < 2.73 ) {BAND=3;}   //  40m   *          ic-746             *
+            if (AccVoltage > 2.73 && AccVoltage < 2.99 ) {BAND=2;}   //  80m   *                             *
+            if (AccVoltage > 2.99 && AccVoltage < 4.00 ) {BAND=1;}   // 160m   * * * * * * * * * * * * * * * *
+            if (AccVoltage > 0.00 && AccVoltage < 0.10 ) {BAND=0;}   // parking
+
+            //==========================================================================================
+
+            //bandSET();                                // set outputs
+            delay (20);
+        }else{
+            if (abs(prevAccVoltage-AccVoltage)>10) {            // average
+                //means change or spurious number
+                prevAccVoltage=AccVoltage;
+            }else {
+                counter++;
+                prevAccVoltage=AccVoltage;
+            }
+        }
+        #if defined(SERIAL_echo)
+            serialEcho();
+            Serial.print(AccVoltage);
+            Serial.println(F(" V"));
+            Serial.flush();
+        #endif
+
+        delay(500);                                   // refresh time
+    #endif
+
+    //----------------------------------- Icom CIV
+    #if defined(ICOM_CIV)
+        if (Serial.available() > 0) {
+            incomingByte = Serial.read();
+            #if defined(DEBUG)
+            Serial.print(incomingByte);
+            Serial.print(F("|"));
+            Serial.println(incomingByte, HEX);
+            #endif
+            icomSM(incomingByte);
+            rdIS="";
+            // if(rdI[10]==0xFD){    // state machine end
+            if(StateMachineEnd == true){    // state machine end
+            StateMachineEnd = false;
+            for (int i=9; i>=5; i-- ){
+                if (rdI[i] < 10) {            // leading zero
+                    rdIS = rdIS + 0;
+                }
+                rdIS = rdIS + String(rdI[i], HEX);  // append BCD digit from HEX variable to string
+            }
+            freq = rdIS.toInt();
+            // Serial.println(freq);
+            // Serial.println("-------");
+            FreqToBandRules();
+            //bandSET();
+
+            #if defined(SERIAL_echo)
+                serialEcho();
+            #endif
+            RequestTimeout[0]=millis();
+            }
+        }
+    #endif
+    }
+
+    void CIV_BandDecoderOutput(){
+    //=====[ Output Icom CIV ]=======================
+    #if defined(ICOM_CIV_OUT)
+        if(freq!= freqPrev1)
+        {                    // if change
+            txCIV(0, freq, CIV_ADR_OUT);         // 0 - set freq
+            freqPrev1 = freq;
+        }
+    #endif
+    } 
+
+    /*
+    FE|FE|0|56|0|70|99|99|52|0|FD
+    FE|FE|0|56|0|30| 0| 0|53|0|FD
+    */
+    void icomSM(byte b){      // state machine
+        // This filter solves read from 0x00 0x05 0x03 commands and 00 E0 F1 address used by software
+        // Serial.print(b, HEX);
+        // Serial.print(" | ");
+        // Serial.println(state);
+        switch (state) {
+            case 1: if( b == 0xFE ){ state = 2; rdI[0]=b; rdI[10]=0x00; }; break;
+            case 2: if( b == 0xFE ){ state = 3; rdI[1]=b; }else{ state = 1;}; break;
+            // addresses that use different software 00-trx, e0-pc-ale, winlinkRMS, f1-winlink trimode
+            case 3: if( b == 0x00 || b == 0xE0 || b == 0x0E || b == 0xF1 ){ state = 4; rdI[2]=b;                       // choose command $03
+            }else if( b == CIV_ADRESS ){ state = 6; rdI[2]=b;
+                    }else if( b == 0xFE ){ state = 3; rdI[1]=b;      // FE (3x reduce to 2x)
+                    }else{ state = 1;}; break;                       // or $05
+    
+            case 4: if( b == CIV_ADRESS ){ state = 5; rdI[3]=b; }else{ state = 1;}; break;                      // select command $03
+            case 5: if( b == 0x00 || b == 0x03 ){state = 8; rdI[4]=b;  // freq
+                    }else if( b == 0x04 ){state = 14; rdI[4]=b;        // mode
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;        // FE
+                    }else{ state = 1;}; break;
+    
+            case 6: if( b == 0x00 || b == 0xE0 || b == 0xF1 ){ state = 7; rdI[3]=b; }else{ state = 1;}; break;  // select command $05
+            case 7: if( b == 0x00 || b == 0x05 ){ state = 8; rdI[4]=b; }else{ state = 1;}; break;
+    
+            case 8: if( b <= 0x99 ){state = 9; rdI[5]=b;             // 10Hz 1Hz
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1;}; break;
+            case 9: if( b <= 0x99 ){state = 10; rdI[6]=b;            // 1kHz 100Hz
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1;}; break;
+        case 10: if( b <= 0x99 ){state = 11; rdI[7]=b;            // 100kHz 10kHz
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1;}; break;
+        case 11: if( b <= 0x52 ){state = 12; rdI[8]=b;            // 10MHz 1Mhz
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1;}; break;
+        case 12: if( b <= 0x01 || b == 0x04){state = 13; rdI[9]=b; // 1GHz 100MHz  <-- 1xx/4xx MHz limit
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1;}; break;
+        case 13: if( b == 0xFD ){state = 1; rdI[10]=b; StateMachineEnd = true;
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1; rdI[10] = 0x00;}; break;
+    
+        case 14: if( b <= 0x12 ){state = 15; rdI[5]=b;
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1;}; break;   // Mode
+        case 15: if( b <= 0x03 ){state = 16; rdI[6]=b;
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1;}; break;   // Filter
+        case 16: if( b == 0xFD ){state = 1; rdI[7]=b;
+                    }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
+                    }else{state = 1; rdI[7] = 0;}; break;
         }
     }
-  #endif
-}
 
-void CIV_BandDecoderOutput(){
-  //=====[ Output Icom CIV ]=======================
-  #if defined(ICOM_CIV_OUT)
-    if(freq!= freqPrev1)
-    {                    // if change
-        txCIV(0, freq, CIV_ADR_OUT);         // 0 - set freq
-        freqPrev1 = freq;
-    }
-  #endif
-} 
-
-/*
-FE|FE|0|56|0|70|99|99|52|0|FD
-FE|FE|0|56|0|30| 0| 0|53|0|FD
-*/
-void icomSM(byte b){      // state machine
-    // This filter solves read from 0x00 0x05 0x03 commands and 00 E0 F1 address used by software
-    // Serial.print(b, HEX);
-    // Serial.print(" | ");
-    // Serial.println(state);
-    switch (state) {
-        case 1: if( b == 0xFE ){ state = 2; rdI[0]=b; rdI[10]=0x00; }; break;
-        case 2: if( b == 0xFE ){ state = 3; rdI[1]=b; }else{ state = 1;}; break;
-        // addresses that use different software 00-trx, e0-pc-ale, winlinkRMS, f1-winlink trimode
-        case 3: if( b == 0x00 || b == 0xE0 || b == 0x0E || b == 0xF1 ){ state = 4; rdI[2]=b;                       // choose command $03
-        }else if( b == CIV_ADRESS ){ state = 6; rdI[2]=b;
-                }else if( b == 0xFE ){ state = 3; rdI[1]=b;      // FE (3x reduce to 2x)
-                }else{ state = 1;}; break;                       // or $05
-  
-        case 4: if( b == CIV_ADRESS ){ state = 5; rdI[3]=b; }else{ state = 1;}; break;                      // select command $03
-        case 5: if( b == 0x00 || b == 0x03 ){state = 8; rdI[4]=b;  // freq
-                }else if( b == 0x04 ){state = 14; rdI[4]=b;        // mode
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;        // FE
-                }else{ state = 1;}; break;
-  
-        case 6: if( b == 0x00 || b == 0xE0 || b == 0xF1 ){ state = 7; rdI[3]=b; }else{ state = 1;}; break;  // select command $05
-        case 7: if( b == 0x00 || b == 0x05 ){ state = 8; rdI[4]=b; }else{ state = 1;}; break;
-  
-        case 8: if( b <= 0x99 ){state = 9; rdI[5]=b;             // 10Hz 1Hz
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1;}; break;
-        case 9: if( b <= 0x99 ){state = 10; rdI[6]=b;            // 1kHz 100Hz
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1;}; break;
-       case 10: if( b <= 0x99 ){state = 11; rdI[7]=b;            // 100kHz 10kHz
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1;}; break;
-       case 11: if( b <= 0x52 ){state = 12; rdI[8]=b;            // 10MHz 1Mhz
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1;}; break;
-       case 12: if( b <= 0x01 || b == 0x04){state = 13; rdI[9]=b; // 1GHz 100MHz  <-- 1xx/4xx MHz limit
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1;}; break;
-       case 13: if( b == 0xFD ){state = 1; rdI[10]=b; StateMachineEnd = true;
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1; rdI[10] = 0x00;}; break;
-  
-       case 14: if( b <= 0x12 ){state = 15; rdI[5]=b;
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1;}; break;   // Mode
-       case 15: if( b <= 0x03 ){state = 16; rdI[6]=b;
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1;}; break;   // Filter
-       case 16: if( b == 0xFD ){state = 1; rdI[7]=b;
-                }else if( b == 0xFE ){ state = 2; rdI[0]=b;      // FE
-                }else{state = 1; rdI[7] = 0;}; break;
-    }
-}
-
-//---------------------------------------------------------------------------------------------------------
-bool CheckPartFreqInRange(byte FRQ, int PART){
-  bool result=false;
-  for (int i=0; i<16; i++){
-    if( PartFreqToByte(Freq2Band[i][0],PART)<FRQ && FRQ<PartFreqToByte(Freq2Band[i][1],PART)){
-      result=true;
-    }
-  }
-  return result;
-}
-//---------------------------------------------------------------------------------------------------------
-byte PartFreqToByte(long FREQ, int PART)
-{
-  String StrFreq=String(FREQ);
-  StrFreq.reserve(10);
-  while (StrFreq.length() < 10){                 // leding zeros
-    StrFreq = 0 + StrFreq;
-  }
-  StrFreq=StrFreq.substring(PART*2,PART*2+2);
-  byte PartFreq = StrFreq.toInt();
-  return PartFreq;
-}
-//---------------------------------------------------------------------------------------------------------
-
-int txCIV(int commandCIV, long dataCIVtx, int toAddress) 
-{
-    //Serial.flush();
-    Serial.write(254);                                    // FE
-    Serial.write(254);                                    // FE
-    Serial.write(toAddress);                              // to adress
-    Serial.write(fromAdress);                             // from OE
-    Serial.write(commandCIV);                             // data
-    if (dataCIVtx != 0){
-        String freqCIVtx = String(dataCIVtx);             // to string
-        freqCIVtx.reserve(11);
-        String freqCIVtxPart;
-        freqCIVtxPart.reserve(11);
-        while (freqCIVtx.length() < 10) {                 // leding zeros
-            freqCIVtx = 0 + freqCIVtx;
-        }
-        for (int x=8; x>=0; x=x-2){                       // loop for 5x2 char [xx xx xx xx xx]
-            freqCIVtxPart = freqCIVtx.substring(x,x+2);   // cut freq to five part
-                Serial.write(hexToDec(freqCIVtxPart));    // HEX to DEC, because write as DEC format from HEX variable
+    //---------------------------------------------------------------------------------------------------------
+    bool CheckPartFreqInRange(byte FRQ, int PART){
+    bool result=false;
+    for (int i=0; i<16; i++){
+        if( PartFreqToByte(Freq2Band[i][0],PART)<FRQ && FRQ<PartFreqToByte(Freq2Band[i][1],PART)){
+        result=true;
         }
     }
-    Serial.write(253);                                    // FD
-    // Serial.flush();
-    while(Serial.available()){        // clear buffer
-      Serial.read();
+    return result;
     }
-}
-  
-//---------------------------------------------------------------------------------------------------------
-
-unsigned int hexToDec(String hexString) 
-{
-    hexString.reserve(2);
-    unsigned int decValue = 0;
-    int nextInt;
-    for (int i = 0; i < hexString.length(); i++) {
-        nextInt = int(hexString.charAt(i));
-        if (nextInt >= 48 && nextInt <= 57) nextInt = map(nextInt, 48, 57, 0, 9);
-        if (nextInt >= 65 && nextInt <= 70) nextInt = map(nextInt, 65, 70, 10, 15);
-        if (nextInt >= 97 && nextInt <= 102) nextInt = map(nextInt, 97, 102, 10, 15);
-        nextInt = constrain(nextInt, 0, 15);
-        decValue = (decValue * 16) + nextInt;
+    //---------------------------------------------------------------------------------------------------------
+    byte PartFreqToByte(long FREQ, int PART)
+    {
+    String StrFreq=String(FREQ);
+    StrFreq.reserve(10);
+    while (StrFreq.length() < 10){                 // leding zeros
+        StrFreq = 0 + StrFreq;
     }
-    return decValue;
-}
+    StrFreq=StrFreq.substring(PART*2,PART*2+2);
+    byte PartFreq = StrFreq.toInt();
+    return PartFreq;
+    }
+    //---------------------------------------------------------------------------------------------------------
 
-//---------------------------------------------------------------------------------------------------------
+    int txCIV(int commandCIV, long dataCIVtx, int toAddress) 
+    {
+        //Serial.flush();
+        Serial.write(254);                                    // FE
+        Serial.write(254);                                    // FE
+        Serial.write(toAddress);                              // to adress
+        Serial.write(fromAdress);                             // from OE
+        Serial.write(commandCIV);                             // data
+        if (dataCIVtx != 0){
+            String freqCIVtx = String(dataCIVtx);             // to string
+            freqCIVtx.reserve(11);
+            String freqCIVtxPart;
+            freqCIVtxPart.reserve(11);
+            while (freqCIVtx.length() < 10) {                 // leding zeros
+                freqCIVtx = 0 + freqCIVtx;
+            }
+            for (int x=8; x>=0; x=x-2){                       // loop for 5x2 char [xx xx xx xx xx]
+                freqCIVtxPart = freqCIVtx.substring(x,x+2);   // cut freq to five part
+                    Serial.write(hexToDec(freqCIVtxPart));    // HEX to DEC, because write as DEC format from HEX variable
+            }
+        }
+        Serial.write(253);                                    // FD
+        // Serial.flush();
+        while(Serial.available()){        // clear buffer
+        Serial.read();
+        }
+    }
+    
+    //---------------------------------------------------------------------------------------------------------
 
-void FreqToBandRules(){
-         if (freq >=Freq2Band[0][0] && freq <=Freq2Band[0][1] )  {BAND=1;}  // 160m
-    else if (freq >=Freq2Band[1][0] && freq <=Freq2Band[1][1] )  {BAND=2;}  //  80m
-    else if (freq >=Freq2Band[2][0] && freq <=Freq2Band[2][1] )  {BAND=3;}  //  40m
-    else if (freq >=Freq2Band[3][0] && freq <=Freq2Band[3][1] )  {BAND=4;}  //  30m
-    else if (freq >=Freq2Band[4][0] && freq <=Freq2Band[4][1] )  {BAND=5;}  //  20m
-    else if (freq >=Freq2Band[5][0] && freq <=Freq2Band[5][1] )  {BAND=6;}  //  17m
-    else if (freq >=Freq2Band[6][0] && freq <=Freq2Band[6][1] )  {BAND=7;}  //  15m
-    else if (freq >=Freq2Band[7][0] && freq <=Freq2Band[7][1] )  {BAND=8;}  //  12m
-    else if (freq >=Freq2Band[8][0] && freq <=Freq2Band[8][1] )  {BAND=9;}  //  10m
-    else if (freq >=Freq2Band[9][0] && freq <=Freq2Band[9][1] ) {BAND=10;}  //   6m
-    else if (freq >=Freq2Band[10][0] && freq <=Freq2Band[10][1] ) {BAND=11;}  // 2m
-    else if (freq >=Freq2Band[11][0] && freq <=Freq2Band[11][1] ) {BAND=12;}  // 70cm
-    else {BAND=0;}                                                // out of range
-}
+    unsigned int hexToDec(String hexString) 
+    {
+        hexString.reserve(2);
+        unsigned int decValue = 0;
+        int nextInt;
+        for (int i = 0; i < hexString.length(); i++) {
+            nextInt = int(hexString.charAt(i));
+            if (nextInt >= 48 && nextInt <= 57) nextInt = map(nextInt, 48, 57, 0, 9);
+            if (nextInt >= 65 && nextInt <= 70) nextInt = map(nextInt, 65, 70, 10, 15);
+            if (nextInt >= 97 && nextInt <= 102) nextInt = map(nextInt, 97, 102, 10, 15);
+            nextInt = constrain(nextInt, 0, 15);
+            decValue = (decValue * 16) + nextInt;
+        }
+        return decValue;
+    }
+
+    //---------------------------------------------------------------------------------------------------------
+
+    void FreqToBandRules(){
+            if (freq >=Freq2Band[0][0] && freq <=Freq2Band[0][1] )  {BAND=1;}  // 160m
+        else if (freq >=Freq2Band[1][0] && freq <=Freq2Band[1][1] )  {BAND=2;}  //  80m
+        else if (freq >=Freq2Band[2][0] && freq <=Freq2Band[2][1] )  {BAND=3;}  //  40m
+        else if (freq >=Freq2Band[3][0] && freq <=Freq2Band[3][1] )  {BAND=4;}  //  30m
+        else if (freq >=Freq2Band[4][0] && freq <=Freq2Band[4][1] )  {BAND=5;}  //  20m
+        else if (freq >=Freq2Band[5][0] && freq <=Freq2Band[5][1] )  {BAND=6;}  //  17m
+        else if (freq >=Freq2Band[6][0] && freq <=Freq2Band[6][1] )  {BAND=7;}  //  15m
+        else if (freq >=Freq2Band[7][0] && freq <=Freq2Band[7][1] )  {BAND=8;}  //  12m
+        else if (freq >=Freq2Band[8][0] && freq <=Freq2Band[8][1] )  {BAND=9;}  //  10m
+        else if (freq >=Freq2Band[9][0] && freq <=Freq2Band[9][1] ) {BAND=10;}  //   6m
+        else if (freq >=Freq2Band[10][0] && freq <=Freq2Band[10][1] ) {BAND=11;}  // 2m
+        else if (freq >=Freq2Band[11][0] && freq <=Freq2Band[11][1] ) {BAND=12;}  // 70cm
+        else {BAND=0;}                                                // out of range
+    }
 #endif
 
 #ifdef Nex_UDP
-// pass through Nextion serial port commands to UDP fore remote display
-void Nex_Redirect_to_UDP(uint8_t *nex_cmd)
-{
-  Serial.println("Data to Nextion");
-  Nex_enet_write(nex_cmd);
-}
-
-// pass through responses from Nextion serial port to UDP
-unsigned int Nex_Redirect_from_UDP(char * rx_string, uint8_t len)
-{
-  Serial.println("Data From Remote Nextion Display over UDP");
-   int packetSize = Udp_Nex.parsePacket();
-  if (packetSize) 
-  {
-    Serial.print("#1 Received packet of size ");
-    Serial.println(packetSize);
-    Serial.print("From ");
-    IPAddress remote = Udp.remoteIP();
-    for (int i=0; i < 4; i++) {
-      Serial.print(remote[i], DEC);
-      if (i < 3) {
-        Serial.print(".");
-      }
-    }
-    Serial.print(", port ");
-    Serial.println(Udp.remotePort());
-    
-    // read the packet into packetBufffer
-    Udp_Nex.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
-    //Serial.println("Contents:");
-    Serial.println(packetBuffer);
-    return 1;
-  }  
-  return 0;
-}
-
-uint8_t Nex_enet_write(uint8_t *tx_buffer)
-{  
-    IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
-
-    if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+    // pass through Nextion serial port commands to UDP fore remote display
+    void Nex_Redirect_to_UDP(uint8_t *nex_cmd)
     {
-        DBG_Serial.print("Data to Remote Nextion Display via UDP: ");
-        DBG_Serial.println((char *) tx_buffer);
-        Udp_Nex.beginPacket(remote_ip, remoteport_Nex);
-        Udp_Nex.write((char *) tx_buffer);
-        Udp_Nex.endPacket();
-        return 1;
+    Serial.println("Data to Nextion");
+    Nex_enet_write(nex_cmd);
     }
+
+    // pass through responses from Nextion serial port to UDP
+    unsigned int Nex_Redirect_from_UDP(char * rx_string, uint8_t len)
+    {
+    Serial.println("Data From Remote Nextion Display over UDP");
+    int packetSize = Udp_Nex.parsePacket();
+    if (packetSize) 
+    {
+        Serial.print("#1 Received packet of size ");
+        Serial.println(packetSize);
+        Serial.print("From ");
+        IPAddress remote = Udp.remoteIP();
+        for (int i=0; i < 4; i++) {
+        Serial.print(remote[i], DEC);
+        if (i < 3) {
+            Serial.print(".");
+        }
+        }
+        Serial.print(", port ");
+        Serial.println(Udp.remotePort());
+        
+        // read the packet into packetBufffer
+        Udp_Nex.read(packetBuffer, UDP_TX_PACKET_MAX_SIZE);
+        //Serial.println("Contents:");
+        Serial.println(packetBuffer);
+        return 1;
+    }  
     return 0;
-}
+    }
+
+    uint8_t Nex_enet_write(uint8_t *tx_buffer)
+    {  
+        IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
+
+        if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
+        {
+            DBG_Serial.print("Data to Remote Nextion Display via UDP: ");
+            DBG_Serial.println((char *) tx_buffer);
+            Udp_Nex.beginPacket(remote_ip, remoteport_Nex);
+            Udp_Nex.write((char *) tx_buffer);
+            Udp_Nex.endPacket();
+            return 1;
+        }
+        return 0;
+    }
 #endif
 /* [] END OF FILE */

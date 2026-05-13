@@ -165,7 +165,7 @@ myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 #myRig_meter_ID = "105"    # Change to match your power meter ID.
 
 # addressing information of target
-HIDE_POWER_INFO = 1   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
+HIDE_POWER_INFO = 2   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
 ROTOR_ENABLE = 0  # 1 is ENABLED, any other value or commented out is DISABLED
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
