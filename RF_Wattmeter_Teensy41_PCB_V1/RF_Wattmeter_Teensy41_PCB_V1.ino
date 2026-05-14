@@ -2729,7 +2729,7 @@ void print_cal_table()
     // #150 for msg_type field to signal this is data dump, not power levels or other type messages.
     // meterid with msg_type = 150 to signal different data set than the normal output. 120 inbound cmd, 170, power out
     for (i=0; i < NUM_SETS; i++) {        
-        sprintf((char *) tx_buffer, "%d,%3s,%12.0s,%3.1f,%3.5f,%3.5f,%3.1f,%3.5f,%3.5f\r\n", METERID, "150", Band_Cal_Table[i].BandName, Band_Cal_Table[i].Cpl_Fwd, Band_Cal_Table[i].Slope_F, Band_Cal_Table[i].Offset_F, Band_Cal_Table[i].Cpl_Ref, Band_Cal_Table[i].Slope_R, Band_Cal_Table[i].Offset_R);
+        sprintf((char *) tx_buffer, "%d,%3s,%s,%3.1f,%3.5f,%3.5f,%3.1f,%3.5f,%3.5f\r\n", METERID, "150", Band_Cal_Table[i].BandName, Band_Cal_Table[i].Cpl_Fwd, Band_Cal_Table[i].Slope_F, Band_Cal_Table[i].Offset_F, Band_Cal_Table[i].Cpl_Ref, Band_Cal_Table[i].Slope_R, Band_Cal_Table[i].Offset_R);
         tx_count = strlen((char *) tx_buffer);   
         DBG_Serial.println((char  *) tx_buffer);
         serial_usb_write();   // Output table text to serial port              
