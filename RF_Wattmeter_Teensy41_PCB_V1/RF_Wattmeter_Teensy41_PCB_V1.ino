@@ -144,242 +144,242 @@ WDT_T4<WDT1> wdt;   // internal watchdog functionality.
 
 void setup(void) 
 { 
-  // Set up our input pins
-  //#ifndef ADS1115_ADC
-  //pinMode(ADC_FWD,INPUT);
-  //pinMode(ADC_REF,INPUT);
-  //pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP will pin them to Vcc and prevent floating around.
-  //#endif
-  #ifdef ADS1115_ADC
-    pinMode(ADC_CURR,INPUT_PULLUP);
-    pinMode(ADC_14V,INPUT);
-    pinMode(ADC_HV,INPUT_PULLUP);
-    pinMode(ADC_SPARE_A6,INPUT_PULLUP);
-  #endif
-  pinMode(BAND_DEC_IN_0, INPUT_PULLUP);
-  pinMode(BAND_DEC_IN_1, INPUT_PULLUP);
-  pinMode(BAND_DEC_IN_2, INPUT_PULLUP);
-  pinMode(BAND_DEC_IN_3, INPUT_PULLUP);
-  pinMode(BAND_DEC_IN_4, INPUT_PULLUP);
-  pinMode(BAND_DEC_IN_5, INPUT_PULLUP);
-  
-  pinMode(BAND_DEC_PTT_IN, INPUT_PULLUP);   // Interrupt handler setup for PTT input
-  PTT_IN_state = 0;   // 0 is RX mode, 1 is TX mode
-  PTT_IN_state_last = 0;
+    // Set up our input pins
+    //#ifndef ADS1115_ADC
+    //pinMode(ADC_FWD,INPUT);
+    //pinMode(ADC_REF,INPUT);
+    //pinMode(ADC_TEMP,INPUT);   // If nothing is connected to these pins then setting to INPUT_PULLUP will pin them to Vcc and prevent floating around.
+    //#endif
+    #ifdef ADS1115_ADC
+        pinMode(ADC_CURR,INPUT_PULLUP);
+        pinMode(ADC_14V,INPUT);
+        pinMode(ADC_HV,INPUT_PULLUP);
+        pinMode(ADC_SPARE_A6,INPUT_PULLUP);
+    #endif
+    pinMode(BAND_DEC_IN_0, INPUT_PULLUP);
+    pinMode(BAND_DEC_IN_1, INPUT_PULLUP);
+    pinMode(BAND_DEC_IN_2, INPUT_PULLUP);
+    pinMode(BAND_DEC_IN_3, INPUT_PULLUP);
+    pinMode(BAND_DEC_IN_4, INPUT_PULLUP);
+    pinMode(BAND_DEC_IN_5, INPUT_PULLUP);
+    
+    pinMode(BAND_DEC_PTT_IN, INPUT_PULLUP);   // Interrupt handler setup for PTT input
+    PTT_IN_state = 0;   // 0 is RX mode, 1 is TX mode
+    PTT_IN_state_last = 0;
 
-// For the PCB version all opto-couplers are connected such that grounding the input turns ON the
-//    output transistor connecting the output to ground. For ouputs controlling relays this is normal (active LOW control).
-// In the off and power up state this usually works best since the powered off state and CPU startup states will
-//    not cuse the output transistors to turn on causing unwanted external relays activation before full program control
+    // For the PCB version all opto-couplers are connected such that grounding the input turns ON the
+    //    output transistor connecting the output to ground. For ouputs controlling relays this is normal (active LOW control).
+    // In the off and power up state this usually works best since the powered off state and CPU startup states will
+    //    not cuse the output transistors to turn on causing unwanted external relays activation before full program control
   
-  // Set up our output pins, starting with initializing the CW and PTT control pins
-  #ifdef TEENSY4_CW_PTT
-      pinMode(CW_KEY_OUT, OUTPUT);
-      CW_KEY_OUT_state = 0; 
-      CW_KEY_OUT_state_last = 200;
-      digitalWrite(CW_KEY_OUT, HIGH);    // need to initialize these according to polarity config
-  #endif  
+    // Set up our output pins, starting with initializing the CW and PTT control pins
+    #ifdef TEENSY4_CW_PTT
+        pinMode(CW_KEY_OUT, OUTPUT);
+        CW_KEY_OUT_state = 0; 
+        CW_KEY_OUT_state_last = 200;
+        digitalWrite(CW_KEY_OUT, HIGH);    // need to initialize these according to polarity config
+    #endif  
      
-      pinMode(PTT_OUT, OUTPUT);
-      PTT_OUT_state = 0;
-      PTT_OUT_state_last = 200;
-      digitalWrite(PTT_OUT, HIGH);    // need to initialize these according to polarity config but set to a OFF state here for optocouplers.
-      pinMode(PTT_OUT2, OUTPUT);
-      digitalWrite(PTT_OUT2, HIGH);    // need to initialize these according to polarity config but set to a OFF state here for optocouplers.
+    pinMode(PTT_OUT, OUTPUT);
+    PTT_OUT_state = 0;
+    PTT_OUT_state_last = 200;
+    digitalWrite(PTT_OUT, HIGH);    // need to initialize these according to polarity config but set to a OFF state here for optocouplers.
+    pinMode(PTT_OUT2, OUTPUT);
+    digitalWrite(PTT_OUT2, HIGH);    // need to initialize these according to polarity config but set to a OFF state here for optocouplers.
  
-  // now our other IO pins
-  pinMode(BAND_DEC_A_0, OUTPUT);   // Band Decoder bank A pin (bit) 0
-  digitalWrite(BAND_DEC_A_0, HIGH);
-  pinMode(BAND_DEC_A_1, OUTPUT);   // Band Decoder bank A pin (bit) 1
-  digitalWrite(BAND_DEC_A_1, HIGH);
-  pinMode(BAND_DEC_A_2, OUTPUT);
-  digitalWrite(BAND_DEC_A_2, HIGH);
-  pinMode(BAND_DEC_A_3, OUTPUT);
-  digitalWrite(BAND_DEC_A_3, HIGH);
-  pinMode(BAND_DEC_A_4, OUTPUT);
-  digitalWrite(BAND_DEC_A_4, HIGH);
-  pinMode(BAND_DEC_A_5, OUTPUT);
-  digitalWrite(BAND_DEC_A_5, HIGH);
-  pinMode(BAND_DEC_A_6, OUTPUT);
-  digitalWrite(BAND_DEC_A_6, HIGH);
-  pinMode(BAND_DEC_A_7, OUTPUT);
-  digitalWrite(BAND_DEC_A_7, HIGH);
+    // now our other IO pins
+    pinMode(BAND_DEC_A_0, OUTPUT);   // Band Decoder bank A pin (bit) 0
+    digitalWrite(BAND_DEC_A_0, HIGH);
+    pinMode(BAND_DEC_A_1, OUTPUT);   // Band Decoder bank A pin (bit) 1
+    digitalWrite(BAND_DEC_A_1, HIGH);
+    pinMode(BAND_DEC_A_2, OUTPUT);
+    digitalWrite(BAND_DEC_A_2, HIGH);
+    pinMode(BAND_DEC_A_3, OUTPUT);
+    digitalWrite(BAND_DEC_A_3, HIGH);
+    pinMode(BAND_DEC_A_4, OUTPUT);
+    digitalWrite(BAND_DEC_A_4, HIGH);
+    pinMode(BAND_DEC_A_5, OUTPUT);
+    digitalWrite(BAND_DEC_A_5, HIGH);
+    pinMode(BAND_DEC_A_6, OUTPUT);
+    digitalWrite(BAND_DEC_A_6, HIGH);
+    pinMode(BAND_DEC_A_7, OUTPUT);
+    digitalWrite(BAND_DEC_A_7, HIGH);
 
-  pinMode(BAND_DEC_B_0, OUTPUT);   // Band Decoder bank B pin (bit) 0
-  digitalWrite(BAND_DEC_B_0, HIGH);
-  pinMode(BAND_DEC_B_1, OUTPUT);
-  digitalWrite(BAND_DEC_B_1, HIGH);
-  pinMode(BAND_DEC_B_2, OUTPUT);
-  digitalWrite(BAND_DEC_B_2, HIGH);
-  pinMode(BAND_DEC_B_3, OUTPUT);
-  digitalWrite(BAND_DEC_B_3, HIGH);
-  pinMode(BAND_DEC_B_4, OUTPUT);
-  digitalWrite(BAND_DEC_B_4, HIGH);
-  pinMode(BAND_DEC_B_5, OUTPUT);
-  digitalWrite(BAND_DEC_B_5, HIGH);
-  pinMode(BAND_DEC_B_6, OUTPUT);
-  digitalWrite(BAND_DEC_B_6, HIGH);
-  pinMode(BAND_DEC_B_7, OUTPUT);
-  digitalWrite(BAND_DEC_B_7, HIGH);
-  
-  pinMode(BAND_DEC_C_0, OUTPUT);  // Band Decoder bank C pin (bit) 0
-  digitalWrite(BAND_DEC_C_0, HIGH);
-  pinMode(BAND_DEC_C_1, OUTPUT); 
-  digitalWrite(BAND_DEC_C_1, HIGH);
-  pinMode(BAND_DEC_C_2, OUTPUT);
-  digitalWrite(BAND_DEC_C_2, HIGH);
-  
-  // Remaining not used on the PCB version, at least not for "port C" usage.
-  //pinMode(BAND_DEC_C_3, OUTPUT); 
-  //digitalWrite(BAND_DEC_C_3, HIGH);
-  //pinMode(BAND_DEC_C_4, OUTPUT); 
-  //digitalWrite(BAND_DEC_C_4, HIGH);
-  //pinMode(BAND_DEC_C_5, OUTPUT); 
-  //digitalWrite(BAND_DEC_C_5, HIGH);
-  //pinMode(BAND_DEC_C_6, OUTPUT); 
-  //digitalWrite(BAND_DEC_C_6, HIGH);
-  //pinMode(BAND_DEC_C_7, OUTPUT);
-  //digitalWrite(BAND_DEC_C_7, HIGH);
+    pinMode(BAND_DEC_B_0, OUTPUT);   // Band Decoder bank B pin (bit) 0
+    digitalWrite(BAND_DEC_B_0, HIGH);
+    pinMode(BAND_DEC_B_1, OUTPUT);
+    digitalWrite(BAND_DEC_B_1, HIGH);
+    pinMode(BAND_DEC_B_2, OUTPUT);
+    digitalWrite(BAND_DEC_B_2, HIGH);
+    pinMode(BAND_DEC_B_3, OUTPUT);
+    digitalWrite(BAND_DEC_B_3, HIGH);
+    pinMode(BAND_DEC_B_4, OUTPUT);
+    digitalWrite(BAND_DEC_B_4, HIGH);
+    pinMode(BAND_DEC_B_5, OUTPUT);
+    digitalWrite(BAND_DEC_B_5, HIGH);
+    pinMode(BAND_DEC_B_6, OUTPUT);
+    digitalWrite(BAND_DEC_B_6, HIGH);
+    pinMode(BAND_DEC_B_7, OUTPUT);
+    digitalWrite(BAND_DEC_B_7, HIGH);
+    
+    pinMode(BAND_DEC_C_0, OUTPUT);  // Band Decoder bank C pin (bit) 0
+    digitalWrite(BAND_DEC_C_0, HIGH);
+    pinMode(BAND_DEC_C_1, OUTPUT); 
+    digitalWrite(BAND_DEC_C_1, HIGH);
+    pinMode(BAND_DEC_C_2, OUTPUT);
+    digitalWrite(BAND_DEC_C_2, HIGH);
+    
+    // Remaining not used on the PCB version, at least not for "port C" usage.
+    //pinMode(BAND_DEC_C_3, OUTPUT); 
+    //digitalWrite(BAND_DEC_C_3, HIGH);
+    //pinMode(BAND_DEC_C_4, OUTPUT); 
+    //digitalWrite(BAND_DEC_C_4, HIGH);
+    //pinMode(BAND_DEC_C_5, OUTPUT); 
+    //digitalWrite(BAND_DEC_C_5, HIGH);
+    //pinMode(BAND_DEC_C_6, OUTPUT); 
+    //digitalWrite(BAND_DEC_C_6, HIGH);
+    //pinMode(BAND_DEC_C_7, OUTPUT);
+    //digitalWrite(BAND_DEC_C_7, HIGH);
 
-  // Initial our serial ports
-#ifdef NEXTION
-  pinMode(SERIAL1_RX_PIN, INPUT);   // initializing for Nextion or other usage
-  pinMode(SERIAL1_TX_PIN, OUTPUT);
-#endif  
-#ifdef OTRSP_Serial
-  OTRSP_Serial.begin(9600);  // open port for OTRSP serial port command input    
-#endif
-  RFWM_Serial.begin(115200); // For debug or data output
-  RFWM_Serial.println(" ");   // Clear our output text from CPU init text
+    // Initial our serial ports
+    #ifdef NEXTION
+        pinMode(SERIAL1_RX_PIN, INPUT);   // initializing for Nextion or other usage
+        pinMode(SERIAL1_TX_PIN, OUTPUT);
+    #endif  
+    #ifdef OTRSP_Serial
+        OTRSP_Serial.begin(9600);  // open port for OTRSP serial port command input    
+    #endif
+    RFWM_Serial.begin(115200); // For debug or data output
+    RFWM_Serial.println(" ");   // Clear our output text from CPU init text
 
- #if defined(ICOM_ACC)
-    pinMode(ADPin, INPUT);
-#endif
+    #if defined(ICOM_ACC)
+        pinMode(ADPin, INPUT);
+    #endif
 
-#ifdef ADS1115_ADC
-  #ifdef USE_WIRE1
-    Wire1.begin();   // Note Wire1. is used instead of Wire. to use teh Teensy alternate I2C bus port pins.
-    Wire1.setClock(400000);
-  #else
-    Wire.begin();   // Teensy I2C bus port pins.
-    Wire.setClock(400000);
-  #endif
-    if(!adc.init()){
-        RFWM_Serial.println("ADS1115 not connected!");
-    }
-    else 
-    {
-        //uint8_t success = 1;
-        //success = Wire1.endTransmission();
-        RFWM_Serial.print("ADS1115 board found at I2C address: ");
-        RFWM_Serial.println(I2C_ADDRESS, HEX);
-    }
-  /* Set the voltage range of the ADC to adjust the gain
-   * Please note that you must not apply more than VDD + 0.3V to the input pins!
-   * 
-   * ADS1115_RANGE_6144  ->  +/- 6144 mV
-   * ADS1115_RANGE_4096  ->  +/- 4096 mV
-   * ADS1115_RANGE_2048  ->  +/- 2048 mV (default)
-   * ADS1115_RANGE_1024  ->  +/- 1024 mV
-   * ADS1115_RANGE_0512  ->  +/- 512 mV
-   * ADS1115_RANGE_0256  ->  +/- 256 mV
-   */
-  adc.setVoltageRange_mV(ADS1115_RANGE_4096); //comment line/change parameter to change range
+    #ifdef ADS1115_ADC
+        #ifdef USE_WIRE1
+            Wire1.begin();   // Note Wire1. is used instead of Wire. to use teh Teensy alternate I2C bus port pins.
+            Wire1.setClock(400000);
+        #else
+            Wire.begin();   // Teensy I2C bus port pins.
+            Wire.setClock(400000);
+        #endif
+        if(!adc.init()){
+            RFWM_Serial.println("ADS1115 not connected!");
+        }
+        else 
+        {
+            //uint8_t success = 1;
+            //success = Wire1.endTransmission();
+            RFWM_Serial.print("ADS1115 board found at I2C address: ");
+            RFWM_Serial.println(I2C_ADDRESS, HEX);
+        }
+        /* Set the voltage range of the ADC to adjust the gain
+        * Please note that you must not apply more than VDD + 0.3V to the input pins!
+        * 
+        * ADS1115_RANGE_6144  ->  +/- 6144 mV
+        * ADS1115_RANGE_4096  ->  +/- 4096 mV
+        * ADS1115_RANGE_2048  ->  +/- 2048 mV (default)
+        * ADS1115_RANGE_1024  ->  +/- 1024 mV
+        * ADS1115_RANGE_0512  ->  +/- 512 mV
+        * ADS1115_RANGE_0256  ->  +/- 256 mV
+        */
+        adc.setVoltageRange_mV(ADS1115_RANGE_4096); //comment line/change parameter to change range
 
-  /* Set the inputs to be compared
-   *  
-   *  ADS1115_COMP_0_1    ->  compares 0 with 1 (default)
-   *  ADS1115_COMP_0_3    ->  compares 0 with 3
-   *  ADS1115_COMP_1_3    ->  compares 1 with 3
-   *  ADS1115_COMP_2_3    ->  compares 2 with 3
-   *  ADS1115_COMP_0_GND  ->  compares 0 with GND
-   *  ADS1115_COMP_1_GND  ->  compares 1 with GND
-   *  ADS1115_COMP_2_GND  ->  compares 2 with GND
-   *  ADS1115_COMP_3_GND  ->  compares 3 with GND
-   */
-  //adc.setCompareChannels(ADS1115_COMP_0_GND); //comment line/change parameter to change channel
+    /* Set the inputs to be compared
+    *  
+    *  ADS1115_COMP_0_1    ->  compares 0 with 1 (default)
+    *  ADS1115_COMP_0_3    ->  compares 0 with 3
+    *  ADS1115_COMP_1_3    ->  compares 1 with 3
+    *  ADS1115_COMP_2_3    ->  compares 2 with 3
+    *  ADS1115_COMP_0_GND  ->  compares 0 with GND
+    *  ADS1115_COMP_1_GND  ->  compares 1 with GND
+    *  ADS1115_COMP_2_GND  ->  compares 2 with GND
+    *  ADS1115_COMP_3_GND  ->  compares 3 with GND
+    */
+    //adc.setCompareChannels(ADS1115_COMP_0_GND); //comment line/change parameter to change channel
 
-  /* Set number of conversions after which the alert pin will be active
-   * - or you can disable the alert 
-   *  
-   *  ADS1115_ASSERT_AFTER_1  -> after 1 conversion
-   *  ADS1115_ASSERT_AFTER_2  -> after 2 conversions
-   *  ADS1115_ASSERT_AFTER_4  -> after 4 conversions
-   *  ADS1115_DISABLE_ALERT   -> disable comparator / alert pin (default) 
-   */
-  //adc.setAlertPinMode(ADS1115_DISABLE_ALERT); //uncomment if you want to change the default
+    /* Set number of conversions after which the alert pin will be active
+    * - or you can disable the alert 
+    *  
+    *  ADS1115_ASSERT_AFTER_1  -> after 1 conversion
+    *  ADS1115_ASSERT_AFTER_2  -> after 2 conversions
+    *  ADS1115_ASSERT_AFTER_4  -> after 4 conversions
+    *  ADS1115_DISABLE_ALERT   -> disable comparator / alert pin (default) 
+    */
+    //adc.setAlertPinMode(ADS1115_DISABLE_ALERT); //uncomment if you want to change the default
 
-  /* Set the conversion rate in SPS (samples per second)
-   * Options should be self-explaining: 
-   * 
-   *  ADS1115_8_SPS 
-   *  ADS1115_16_SPS  
-   *  ADS1115_32_SPS 
-   *  ADS1115_64_SPS  
-   *  ADS1115_128_SPS (default)
-   *  ADS1115_250_SPS 
-   *  ADS1115_475_SPS 
-   *  ADS1115_860_SPS 
-   */
-  // adc.setConvRate(ADS1115_64_SPS); //uncomment if you want to change the default
+    /* Set the conversion rate in SPS (samples per second)
+    * Options should be self-explaining: 
+    * 
+    *  ADS1115_8_SPS 
+    *  ADS1115_16_SPS  
+    *  ADS1115_32_SPS 
+    *  ADS1115_64_SPS  
+    *  ADS1115_128_SPS (default)
+    *  ADS1115_250_SPS 
+    *  ADS1115_475_SPS 
+    *  ADS1115_860_SPS 
+    */
+    // adc.setConvRate(ADS1115_64_SPS); //uncomment if you want to change the default
 
-  /* Set continuous or single shot mode:
-   * 
-   *  ADS1115_CONTINUOUS  ->  continuous mode
-   *  ADS1115_SINGLE     ->  single shot mode (default)
-   */
-  #ifdef ADS1115_SINGLE_MODE
-      adc.setMeasureMode(ADS1115_SINGLE); //comment line/change parameter to change mode
-  #else
-      adc.setMeasureMode(ADS1115_CONTINUOUS); //comment line/change parameter to change mode
-  #endif
-   /* Choose maximum limit or maximum and minimum alert limit (window)in Volt - alert pin will 
-   *  be active when measured values are beyond the maximum limit or outside the window 
-   *  Upper limit first: setAlertLimit_V(MODE, maximum, minimum)
-   *  In max limit mode the minimum value is the limit where the alert pin will be deactivated (if 
-   *  not latched)  
-   * 
-   *  ADS1115_MAX_LIMIT
-   *  ADS1115_WINDOW
-   * 
-   */
-  //adc.setAlertModeAndLimit_V(ADS1115_MAX_LIMIT, 3.0, 1.5); //uncomment if you want to change the default
-  
-  /* Enable or disable latch. If latch is enabled the alarm pin will be active until the
-   * conversion register is read (getResult functions). If disabled the alarm pin will be
-   * deactivated with next value within limits. 
-   *  
-   *  ADS1115_LATCH_DISABLED (default)
-   *  ADS1115_LATCH_ENABLED
-   */
-  //adc.setAlertLatch(ADS1115_LATCH_ENABLED); //uncomment if you want to change the default
+    /* Set continuous or single shot mode:
+    * 
+    *  ADS1115_CONTINUOUS  ->  continuous mode
+    *  ADS1115_SINGLE     ->  single shot mode (default)
+    */
+    #ifdef ADS1115_SINGLE_MODE
+        adc.setMeasureMode(ADS1115_SINGLE); //comment line/change parameter to change mode
+    #else
+        adc.setMeasureMode(ADS1115_CONTINUOUS); //comment line/change parameter to change mode
+    #endif
+    /* Choose maximum limit or maximum and minimum alert limit (window)in Volt - alert pin will 
+    *  be active when measured values are beyond the maximum limit or outside the window 
+    *  Upper limit first: setAlertLimit_V(MODE, maximum, minimum)
+    *  In max limit mode the minimum value is the limit where the alert pin will be deactivated (if 
+    *  not latched)  
+    * 
+    *  ADS1115_MAX_LIMIT
+    *  ADS1115_WINDOW
+    * 
+    */
+    //adc.setAlertModeAndLimit_V(ADS1115_MAX_LIMIT, 3.0, 1.5); //uncomment if you want to change the default
+    
+    /* Enable or disable latch. If latch is enabled the alarm pin will be active until the
+    * conversion register is read (getResult functions). If disabled the alarm pin will be
+    * deactivated with next value within limits. 
+    *  
+    *  ADS1115_LATCH_DISABLED (default)
+    *  ADS1115_LATCH_ENABLED
+    */
+    //adc.setAlertLatch(ADS1115_LATCH_ENABLED); //uncomment if you want to change the default
 
-  /* Sets the alert pin polarity if active:
-   *  
-   * Enable or disable latch. If latch is enabled the alarm pin will be active until the
-   * conversion register is read (getResult functions). If disabled the alarm pin will be
-   * deactivated with next value within limits. 
-   *  
-   * ADS1115_ACT_LOW  ->  active low (default)   
-   * ADS1115_ACT_HIGH ->  active high
-   */
-  //adc.setAlertPol(ADS1115_ACT_LOW); //uncomment if you want to change the default
- 
-  /* With this function the alert pin will be active, when a conversion is ready.
-   * In order to deactivate, use the setAlertLimit_V function  
-   */
-  //adc.setAlertPinToConversionReady(); //uncomment if you want to change the default
-  #ifdef ADS1115_SINGLE_MODE
-      RefVal = readChannel(ADS1115_COMP_2_GND);        
-      RFWM_Serial.print("ADS1115 Running in Single Mode, ADC Ch2 Voltage = ");
-  #else   // continuous mode locks up without 20ms+ delay
-      adc.setCompareChannels(ADS1115_COMP_2_GND); //comment line/change parameter to change channel           
-      delay(20);
-      RefVal = adc.getResult_V();    // for ADS1115 module  
-      RFWM_Serial.print("ADS1115 Running in Continuous Mode, ADC Ch2 Voltage = ");      
-  #endif
+    /* Sets the alert pin polarity if active:
+    *  
+    * Enable or disable latch. If latch is enabled the alarm pin will be active until the
+    * conversion register is read (getResult functions). If disabled the alarm pin will be
+    * deactivated with next value within limits. 
+    *  
+    * ADS1115_ACT_LOW  ->  active low (default)   
+    * ADS1115_ACT_HIGH ->  active high
+    */
+    //adc.setAlertPol(ADS1115_ACT_LOW); //uncomment if you want to change the default
+    
+    /* With this function the alert pin will be active, when a conversion is ready.
+    * In order to deactivate, use the setAlertLimit_V function  
+    */
+    //adc.setAlertPinToConversionReady(); //uncomment if you want to change the default
+    #ifdef ADS1115_SINGLE_MODE
+        RefVal = readChannel(ADS1115_COMP_2_GND);        
+        RFWM_Serial.print("ADS1115 Running in Single Mode, ADC Ch2 Voltage = ");
+    #else   // continuous mode locks up without 20ms+ delay
+        adc.setCompareChannels(ADS1115_COMP_2_GND); //comment line/change parameter to change channel           
+        delay(20);
+        RefVal = adc.getResult_V();    // for ADS1115 module  
+        RFWM_Serial.print("ADS1115 Running in Continuous Mode, ADC Ch2 Voltage = ");      
+    #endif
 
-  RFWM_Serial.println(RefVal); 
+    RFWM_Serial.println(RefVal); 
 #endif
 
 #ifdef SSD1306_OLED
@@ -565,6 +565,8 @@ void loop()
                     DBG_Serial.println("> OTRSP sourced band changes are Disabled");
             }
         }  
+        PTT_OTRSP();
+        CW_KEY_OUT_OTRSP();
     #endif // OTRSP   
 
     #ifdef ENET     // remove this code if no ethernet usage intended
@@ -582,6 +584,8 @@ void loop()
         }
     #endif
     
+    sendSerialData();   // send this data to the serial port for remote monitoring
+
     if (Band_Decoder() && PTT_IN_state != TX)       // Process any radio band decoder changes. 
     {                                                    // if in transmit, skip.  Don't want RFI or band change operating relays hot.    
         Button_B = YES;
@@ -643,7 +647,7 @@ void loop()
     {
         if (((millis() - PTT_IN_debounce_timestamp) > 3) && PTT_IN_changed == 0)
         {   // change the state of the T/R status
-            DBG_Serial.print(">\n>PTT input IO pin hardware state = ");DBG_Serial.println(PTT_IN_pin);
+            //DBG_Serial.print(">\n>PTT input IO pin hardware state = ");DBG_Serial.println(PTT_IN_pin);
             PTT_IN_changed = 1;   // reset changed flag
             PTT_IN_handler(PTT_IN_pin);  // Set RX or TX state corrected for configured polarity
             PTT_OUT_handler();   // Set PTT Output state corrected for polarity and set PTT ouput pins
@@ -947,12 +951,12 @@ void loop()
         if (OTRSP_Serial.rts())     
         {
             PTT_IN_handler(HIGH);
-            PTT_OUT_Handler();      
+            PTT_OUT_handler();      
         }
         else
         {
             PTT_IN_handler(LOW);
-            PTT_OUT_Handler();       
+            PTT_OUT_handler();       
         }
     }
 #endif
@@ -962,24 +966,24 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
     uint8_t polarity ;
 
     polarity = EEPROM.read(PTT_IN_POLARITY);
-    DBG_Serial.print(">Input PTT Polarity is ");
+    //DBG_Serial.print(">Input PTT Polarity is ");
     if (polarity)
-        DBG_Serial.println("HIGH");
+        ;//DBG_Serial.println("HIGH");
     else
-        DBG_Serial.println("LOW");
-    DBG_Serial.println(">If Polarity = Hardware IO pin state then we are in TX Mode");
+        ;//DBG_Serial.println("LOW");
+    //DBG_Serial.println(">If Polarity = Hardware IO pin state then we are in TX Mode");
 
     if (pin_state == LOW)
     {
         if (polarity == LOW)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         {
             PTT_IN_state = TX;   // Set to TX
-            DBG_Serial.println(">PTT Input = TX"); 
+            //DBG_Serial.println(">PTT Input = TX"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            DBG_Serial.println(">PTT Input = RX"); 
+            //DBG_Serial.println(">PTT Input = RX"); 
         }
     }
     else
@@ -1011,7 +1015,7 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
     if (Band_Dec_In_Byte == 0x3F || Band_Dec_In_Byte == 0x30 || Band_Dec_In_Byte == 0x00 || Band_Dec_In_Byte == 0xFF)
     {
       block_PTT = 1;
-      DBG_Serial.print("PTT Blocked - TX not permitted on Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
+      //DBG_Serial.print("PTT Blocked - TX not permitted on Band: ");DBG_Serial.println(Band_Dec_In_Byte, HEX);
       // In most cases the opto-coupler outputs will be turned on to pull a load to ground to activate it, such as a relay.
       // With that assumption will force all outpout portst to OFF state when an invalid band is received.
       // Was using a unused band as a workaround but that wasted 1 or 2 bands (HF and 6M in my test config).
@@ -1019,11 +1023,11 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
       Band_Decode_A_Output(255);   // set all opto outputs OFF on PCB.
       Band_Decode_B_Output(255);
       Band_Decode_C_Output(255);
-      DBG_Serial.print("All outputs forced to OFF");
+      //DBG_Serial.print("All outputs forced to OFF");
       return;
     }
     block_PTT = 0;
-    DBG_Serial.println(">All outputs returned to normal");
+    //DBG_Serial.println(">All outputs returned to normal");
     if (PTT_IN_state == TX)   // We are in TX Mode
     {
         // Block PTT for invalid bands.  This is intended to cover the observation that when the K3 is turned off then back on, 
@@ -1045,7 +1049,7 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT, LOW);     // TX is on, TX is ACTIVE LOW so send out a 0 to PTT OUT pin(now Xvtr)
             PTT_OUT_state = LOW;            // this is used when calling Port (A,B,C) update functions in case they follow PTT
-            DBG_Serial.println(">In TX Mode: PTT Output Polarity is LOW");
+            //DBG_Serial.println(">In TX Mode: PTT Output Polarity is LOW");
         }
         else
         {        
@@ -1053,9 +1057,9 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT, HIGH);    // TX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Now Xvtr)
             PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT            
-            DBG_Serial.println(">In TX Mode: PTT Output Polarity is HIGH");
+            //DBG_Serial.println(">In TX Mode: PTT Output Polarity is HIGH");
         }
-        DBG_Serial.print(">In TX Mode: PTT Output ON - IO Pin is ");  DBG_Serial.println(PTT_OUT_state); 
+        //DBG_Serial.print(">In TX Mode: PTT Output ON - IO Pin is ");  DBG_Serial.println(PTT_OUT_state); 
     }
     else   // We are in RX mode
     {
@@ -1065,7 +1069,7 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
             PTT_OUT_state = HIGH;           // this is used when calling Port (A,B,C) update functions in case they follow PTT
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT2, HIGH);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (Now amps)
-            DBG_Serial.println(">In RX Mode: PTT Output Polarity is LOW");
+            //DBG_Serial.println(">In RX Mode: PTT Output Polarity is LOW");
         }
         else
         {
@@ -1073,9 +1077,9 @@ void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT
             PTT_OUT_state = LOW;            // this is used when calling Port (A,B,C) update functions in case they follow PTT_OUT_state
             delay(SEQ_Delay);
             digitalWrite(PTT_OUT2, LOW);    // RX is on, TX is ACTIVE LOW so send out a 1 to PTT OUT pin (now Amps)
-            DBG_Serial.println(">In RX Mode: PTT Output Polarity is HIGH");
+            //DBG_Serial.println(">In RX Mode: PTT Output Polarity is HIGH");
         }
-        DBG_Serial.print(">PTT Output OFF - IO Pin is ");  DBG_Serial.println(PTT_OUT_state); 
+        //DBG_Serial.print(">PTT Output OFF - IO Pin is ");  DBG_Serial.println(PTT_OUT_state); 
     }
         
     // If any of the output ports (ABC, others) are configured to follow PTT then we need to update those ports now.
@@ -1965,16 +1969,16 @@ uint16_t serial_usb_read(void)
               rx_buffer[i] = '\0';
           }
           rx_count = i;   
-          DBG_Serial.print(">RX Count = ");       
-          DBG_Serial.println(rx_count);
-          DBG_Serial.print(">RX Buffer = ");       
-          DBG_Serial.println((char *) rx_buffer);
+          //DBG_Serial.print(">RX Count = ");       
+          //DBG_Serial.println(rx_count);
+          //DBG_Serial.print(">RX Buffer = ");       
+          //DBG_Serial.println((char *) rx_buffer);
           
           // initially p1 = p2.  parser will move p1 up to p2 and when they are equal, buffer is empty, parser will reset p1 and p2 back to start of sData         
           memcpy(pSdata2, rx_buffer, rx_count+1);   // append the new buffer data to current end marked by pointer 2        
           pSdata2 += rx_count;                      // Update the end pointer position. The function processing chars will update the p1 and p2 pointer             
           rx_count = pSdata2 - pSdata1;             // update count for total unread chars. 
-          DBG_Serial.print(">RX Count after adding to buffer ring = "); 
+          //DBG_Serial.print(">RX Count after adding to buffer ring = "); 
           //DBG_Serial.println(rx_count);  
      }
      rx_buffer[0] = '\0';
@@ -1989,30 +1993,29 @@ void sendSerialData()
     
     Timer_X00ms_InterruptCnt = millis();
     
-    #ifdef ADS1115_ADC
-        if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PWR > PWR_MSG_DELAY)
-        {          
-            Timer_X00ms_Last_USB_PWR = Timer_X00ms_InterruptCnt;       
-            sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
-            if (ser_data_out)
-                RFWM_Serial.print((char*) tx_buffer);  //, tx_count); 
-            #ifdef ENET
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PWR > PWR_MSG_DELAY)
+    {          
+        Timer_X00ms_Last_USB_PWR = Timer_X00ms_InterruptCnt;       
+        sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
+        if (ser_data_out)
+            RFWM_Serial.print((char*) tx_buffer);  //, tx_count); 
+        #ifdef ENET
             if (enet_data_out)
                 enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
-            #endif    
-        }
-        if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_VOLTS > VOLTS_MSG_DELAY)
-        {        
-            Timer_X00ms_Last_USB_VOLTS = Timer_X00ms_InterruptCnt;   
-            sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
-            if (ser_data_out)
-                RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
-            #ifdef ENET            
-            if (enet_data_out)
-                enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
-            #endif
-        }
-    #endif
+        #endif    
+    }
+
+    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_VOLTS > VOLTS_MSG_DELAY)
+    {        
+        Timer_X00ms_Last_USB_VOLTS = Timer_X00ms_InterruptCnt;   
+        sprintf((char *) tx_buffer,"%d,%s,%.1f,%.1f,%.1f,%.1f\r\n%c", METERID, "171", (hv_read()*hv_cal_factor), (v14_read()*v14_cal_factor), ((curr_read()-curr_zero_offset)*curr_cal_factor), (temp_read()*temp_cal_factor), '\0');       
+        if (ser_data_out)
+            RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
+        #ifdef ENET            
+        if (enet_data_out)
+            enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
+        #endif
+    }
 
     if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PTT > PTT_MSG_DELAY)
     {          
@@ -2021,8 +2024,8 @@ void sendSerialData()
         if (ser_data_out)
             RFWM_Serial.print((char *) tx_buffer);   //, tx_count); 
         #ifdef ENET            
-        if (enet_data_out)
-            enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
+            if (enet_data_out)
+                enet_write(tx_buffer, tx_count);   // mirror out to the ethernet connection
         #endif
     }
 }
@@ -2721,6 +2724,7 @@ void print_cal_table()
 {
     uint8_t   i;
 
+    DBG_Serial.println("Dump Cal Table");
     // example output format : "101,150,TEXT,55.4,35.4,3.3,2.2"
     // #150 for msg_type field to signal this is data dump, not power levels or other type messages.
     // meterid with msg_type = 150 to signal different data set than the normal output. 120 inbound cmd, 170, power out
@@ -2772,7 +2776,7 @@ void read_Arduino_EEPROM()
     char  setpoint_buf[SETPOINT_LEN+1];
     int   len_ee;
    
-    DBG_Serial.println(">read_Cal_Table_from_EEPROM - Start");
+    //DBG_Serial.println(">read_Cal_Table_from_EEPROM - Start");
 
     for(j=0; j<EEADDR; j++)
         {              
@@ -2817,7 +2821,7 @@ void read_Arduino_EEPROM()
         curr_cal_factor = atof(setpoint_buf)/100;                                   // convert ascii to float         
         
         memcpy(setpoint_buf,&eepromArray[TEMP_CAL_OFFSET],SETPOINT_LEN);        // byte 8 to 0B of 0-15
-        DBG_Serial.println();
+        //DBG_Serial.println();
         setpoint_buf[SETPOINT_LEN] = '\0';                                      // null terminate string
         temp_cal_factor = atof(setpoint_buf)/1000;                                   // convert ascii to float 
         
@@ -2854,8 +2858,8 @@ void read_Arduino_EEPROM()
    }
    if (len_ee > EEPROM.length())  //EEPROM_SIZE)
    {       
-     DBG_Serial.print(">ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
-     DBG_Serial.println(len_ee);
+        DBG_Serial.print(">ERROR! - Exceed EEPROM Storage limit - Bytes used = ");
+        DBG_Serial.println(len_ee);
    }   
    DBG_Serial.print(">EEPROM Max Size is : ");
    DBG_Serial.print(EEPROM.length());    //EEPROM_SIZE);
@@ -3254,10 +3258,9 @@ uint8_t OTRSP(void)
         c = OTRSP_Serial.read();  // Accept AUXyZZ where y is 1 or 2 and ZZ is 00-FF.
         buf[i] = c;
         buf[i+1] = '\0';
-        //DBG_Serial.print(">buf char added = ");
-        DBG_Serial.print(c);   //echo input chars
+        //DBG_Serial.print(">buf char added = "); DBG_Serial.print(c);   //echo input chars
         if (c=='\r')
-          DBG_Serial.print('\n');
+          ;//DBG_Serial.print('\n');
         if (i >= 19)
               i = 0;  // prevent buffer overrun
         if (c == '\r' && i > 5)  // look for end of string then look back 6 chars for string parse
@@ -3607,9 +3610,9 @@ void Band_Decode_A_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }
-    DBG_Serial.print(">Port_A pattern = 0x"); DBG_Serial.print(pattern, HEX); 
-    DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN); 
-    DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);
+    //DBG_Serial.print(">Port_A pattern = 0x"); DBG_Serial.print(pattern, HEX); 
+    //DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN); 
+    //DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);
     PortA_state = pattern;
     digitalWrite(BAND_DEC_A_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_A_1, bitRead(pattern, 1));
@@ -3665,7 +3668,7 @@ void Band_Decode_B_Output(uint8_t pattern)
     // If PortX is set to Active LOW then high pins in pattern var are toggled to follow PTT and are set to LOW.  In RX all pins or HIGH (aka low side drive, Ground to operate)
     if (EEPROM.read(PORTB_IS_PTT) > 0)   // Look to see if this port is operating as PTT. 
     {                                    // Each port has it's own polarity.  Mode 1 is TX = ACTIVE LOW, Mode 2 is TX = ACTIVE HIGH. Mode 0 is Ignore (not in PTT mode)
-        DBG_Serial.print("> Port_B pattern var before PTT Mode conversion = ");
+        //DBG_Serial.print("> Port_B pattern var before PTT Mode conversion = ");
         DBG_Serial.println(pattern, BIN);
         if (EEPROM.read(PORTB_IS_PTT) == 1) // All pins at 1 in RX, high pins in pattern go LOW in TX only
         {            
@@ -3680,9 +3683,9 @@ void Band_Decode_B_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }     
-    DBG_Serial.print(">Port_B pattern = 0x"); DBG_Serial.print(pattern, HEX); 
-    DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN);
-    DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);
+    //DBG_Serial.print(">Port_B pattern = 0x"); DBG_Serial.print(pattern, HEX); 
+    //DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN);
+    //DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);
     PortB_state = pattern;
     digitalWrite(BAND_DEC_B_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_B_1, bitRead(pattern, 1));
@@ -3726,8 +3729,8 @@ void Band_Decode_C_Output(uint8_t pattern)
     // If PortX is set to Active LOW then high pins in pattern var are toggled to follow PTT and are set to LOW.  In RX all pins or HIGH (aka low side drive, Ground to operate)
     if (EEPROM.read(PORTC_IS_PTT) > 0 && trans_c < 3)   // Look to see if this port is operating as PTT. 
     {                                    // Each port has it's own polarity.  Mode 1 is TX = ACTIVE LOW, Mode 2 is TX = ACTIVE HIGH. Mode 0 is Ignore (not in PTT mode)
-        DBG_Serial.print("> Port C pattern var before PTT Mode conversion = ");
-        DBG_Serial.println(pattern, BIN);
+        //DBG_Serial.print("> Port C pattern var before PTT Mode conversion = ");
+        //DBG_Serial.println(pattern, BIN);
         if (EEPROM.read(PORTC_IS_PTT) == 1) // All pins at 1 in RX, high pins in pattern go LOW in TX only
         {            
             if (PTT_IN_state == RX)    // PTT_IN_state is RX or TX virtual state set by the Band Decode PTT Input pin or OTRSP
@@ -3741,9 +3744,9 @@ void Band_Decode_C_Output(uint8_t pattern)
                 pattern = 0;          // PTT_IN_state is the state of RX or TX.                
         }
     }   
-    DBG_Serial.print(">Port_C pattern = 0x"); DBG_Serial.print(pattern, HEX);
-    DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN);
-    DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);DBG_Serial.println("");
+    //DBG_Serial.print(">Port_C pattern = 0x"); DBG_Serial.print(pattern, HEX);
+    //DBG_Serial.print("  b");DBG_Serial.print(pattern, BIN);
+    //DBG_Serial.print("  d");DBG_Serial.println(pattern, DEC);DBG_Serial.println("");
     PortC_state = pattern;
     digitalWrite(BAND_DEC_C_0, bitRead(pattern, 0));
     digitalWrite(BAND_DEC_C_1, bitRead(pattern, 1));

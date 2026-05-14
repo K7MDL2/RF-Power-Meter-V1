@@ -22,13 +22,13 @@
 ///#define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
-//#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
+#define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
 //#define ENET              // Include support for ethernet
 // Icom Analog (ACC) and C-IV Serial 
 //#define ICOM_ACC             // voltage 0-8V on pin4 ACC(2) connector - need calibrate table
 //#define ICOM_CIV             // read frequency from CIV
-///#define ADS1115_ADC     // uncomment this line to enable external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
-///#define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
+//#define ADS1115_ADC     // uncomment this line to enable external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
+//#define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
 // Below choose single mode. Continuous mode hangs unless needs 20ms delay between mux channel and reads.  Test program does not need this delay (or very little)
 #define ADS1115_SINGLE_MODE  //uncomment this line to operate in single mode capture vs continuous mode
 //#define Nex_UDP
@@ -67,10 +67,6 @@
     uint8_t dest_ip_adr0  = DEF_DEST_IP_ADR0;
     char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
 
-    // delay between serial and ethernet packet send to remote
-    #define PWR_MSG_DELAY    280   // This delay governs how fast the remote can update power and SWR
-    #define VOLTS_MSG_DELAY  5030  // HV, 28V, Curr and Temp do nto need rapid updates 
-
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0);    // Our static IP address.  Could use DHCP but preferring static address.
     unsigned int localPort = 7941;     // local port to LISTEN from the remote display/Desktop app
@@ -95,6 +91,9 @@
 #endif
 
 #define PTT_MSG_DELAY    105   // Nice to have PTT reflected on the remote scxreen closer to real time
+// delay between serial and ethernet packet send to remote
+#define PWR_MSG_DELAY    280   // This delay governs how fast the remote can update power and SWR
+#define VOLTS_MSG_DELAY  5030  // HV, 28V, Curr and Temp do nto need rapid updates 
 
 #ifdef NEXTION
     //#define nexSerial Serial1   // defined in NexConfig.h
@@ -319,7 +318,7 @@ uint8_t SEQ_Delay = 2; //25;         // milliseconds delay between PTT Out 1 and
 //char* parity[] = {"None", "Odd", "Even", "Mark", "Space"};
 //char* stop[]   = {"1", "1.5", "2"};
 float Vref = 5.0;        // 3.3VDC for Nano and ESP32 (M5stack uses ESP32)  ESP32 also has calibrated Vref curve
-uint8_t METERID = 101;    // tracks current Meter ID number   Resets to default_METERID.
+uint8_t METERID = default_METERID;    // tracks current Meter ID number   Resets to default_METERID.
 uint8_t CouplerSetNum = 0;   // 0 is the default set on power up.  
 uint8_t ser_data_out = 0;
 uint8_t enet_data_out = 0;
@@ -499,6 +498,8 @@ void Band_Decode_B_Output(uint8_t pattern);
 void Band_Decode_C_Output(uint8_t pattern);
 void PTT_IN_handler(uint8_t pin_state);
 void PTT_OUT_handler(void);
+void PTT_OTRSP(void);
+void CW_KEY_OUT_OTRSP(void);
 
 #ifdef SWR_ANALOG  // Update SWR Analog output for Amplifier protection when using KitProg board in an amplifier
 float SWR_Fail(void);

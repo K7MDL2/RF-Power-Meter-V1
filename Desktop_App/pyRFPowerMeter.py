@@ -144,11 +144,11 @@ myTitle = ("K7MDL Remote Power Meter " + PowerMeterVersionNum)      # Windows Ti
 
 # edit these to match your meter ID and Rig/Location text for this meter instance
 myRig = "Cabinet"       # Rig name and location - about 10 characters max
-myRig_meter_ID = "100"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
+myRig_meter_ID = "101"                 #  Change to set your default meter ID.  Overridden on cmd line or config file
                            # --> Always 3 digits, 100 to 119 only allowed.  
 #myWSJTX_ID = "WSJT-X-None"     # "WSJT-X" default as of WSJT-X version V2.1.   Change this to match your WSJT-X instance name. See below.
 #myWSJTX_ID = "WSJT-X - K3-VHF"      #  Personalized example - Change this to match your WSJT-X instance name. 
-myWSJTX_ID = "NONE"  # Ignore WSJTX comms
+myWSJTX_ID = "WA9BTV"  # Ignore WSJTX comms
 # Can name your WSJT-X instance on startup with command line -r <rigname> in a desktop shortcut
 
 # examples to inspire ....
@@ -166,7 +166,7 @@ myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 
 # addressing information of target
 HIDE_POWER_INFO = 2   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
-ROTOR_ENABLE = 1  # 1 is ENABLED, any other value or commented out is DISABLED
+ROTOR_ENABLE = 0  # 1 is ENABLED, any other value or commented out is DISABLED
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
 PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
