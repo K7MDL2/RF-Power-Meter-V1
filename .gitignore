@@ -13,3 +13,5 @@ build/libraries.cache
 */html/*
 */latex/*
 *.vscode/*
+RF_Wattmeter_Teensy41_PCB_V1/.vscode/RF_Wattmeter_Teensy41_PCB_V1/RF_Wattmeter_Teensy41_PCB_V1.h
+RF_Wattmeter_Teensy41_PCB_V1/.vscode/RF_Wattmeter_Teensy41_PCB_V1/RF_Wattmeter_Teensy41_PCB_V1.ino
