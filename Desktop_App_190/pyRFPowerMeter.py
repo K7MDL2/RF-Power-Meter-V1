@@ -3357,7 +3357,6 @@ if __name__ == '__main__':
             if not 0 <= index < len(ports):
                 sys.stderr.write('--- Invalid index!\n')
                 return None   #continue
-            #print(ports)
             port_name = ports[index]
             comms = False
             return port_name

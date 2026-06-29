@@ -167,6 +167,7 @@ myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 # addressing information of target
 HIDE_POWER_INFO = 2   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
 ROTOR_ENABLE = 1  # 1 is ENABLED, any other value or commented out is DISABLED
+myRotator_meter_ID = "100"        #  Change to match the meterIS in your rotator.
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
 PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
@@ -309,7 +310,7 @@ class UDP_Rotor(Thread):
         global rotor_cmd
         global rotor_cmd_data   # UI buttons for rotator commands will set flag true and populate rotor_cmd and rotor_cmd_data
         global send_rotor_cmd_flag
-        global myRig_meter_ID
+        global myRotator_meter_ID
        
         if (send_rotor_cmd_flag == True and ROTOR_ENABLE == 1):  
             print("Send UDP Rotor Commands")
@@ -320,7 +321,7 @@ class UDP_Rotor(Thread):
             t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
                 # send the command
-                m = "{},120,{},{},{}" .format(myRig_meter_ID,rotor_cmd,rotor_cmd_data,'\n').encode()
+                m = "{},120,{},{},{}" .format(myRotator_meter_ID,rotor_cmd,rotor_cmd_data,'\n').encode()
                 t.sendto(m, (IPADDR_OF_ROTOR, PORTNUM_OF_ROTOR_SENDTO))
                 print("TX to Rotator Controller Msg = {}" .format(m).encode) 
             except:
@@ -1551,7 +1552,7 @@ class App(tk.Frame):
             #pass 
         else:
             print("Serial thread not started")
-            #pass    
+            #pass
         # Start the WSJTX thread in any case.
         #print(" WSJT-X thread started in comms function
         #self.wsjtx_decode = WSJTX_Decode()      # Start the WSJTx UDP Thread - runs always for now.
@@ -3197,20 +3198,36 @@ if __name__ == '__main__':
     # Several support functions
     def validate_provided_port_name(port_name):
         #  List available ports for info
-        print("Scanning for USB serial device matching cmd line provided port name {} (if any)" .format(port_name))    
+        print("Scanning for USB serial device matching cmd line provided port name {} (if any)\n" .format(port_name))    
         initial_serial_devices = set()
         #result = {"state":"stable","port_id":[]}
         try:    
             ports = cports.comports()
+            print("Listing all serial devices found, looking for a USB port\n")  #print all ports, we only want a USB one though
             for port in ports:
+                port_to_use = str(port[0])   #  get 1st substring before space delim                                
                 print("Port found: " + str(port))  #print all ports, we only want a USB one though
-                if (port_name == str(port[0])) and ("USB" in port[1]): #check 'USB' string in device description
-                    if str(port[0]) not in initial_serial_devices:
-                        initial_serial_devices.add(str(port[0]))
-                    print("Found a USB Port Match: " + str(port))
-                    return 1
+                if port_name == port_to_use:
+                    # check 'USB' string in device description for Windows
+                    # check /dev/tty prefix for Linux
+                    # ToDo - Do test if Linux port is actually a USB or not
+                    if port_to_use[:8] != "/dev/tty":   # Windows ports, filter for USB ports
+                        if "USB" in port[1]:
+                            if port_to_use not in initial_serial_devices:
+                                initial_serial_devices.add(port_to_use)  # add to list of USB devices
+                                print("Found a USB Port Match: " + str(port))
+                                return 1
+                        else:
+                            print("Error: {} is not a USB Port" .format(port))
+                    elif (port_to_use[:8] == "/dev/tty"):   # Linux ports - ToDo filter for USB devices if possible
+                        if port_to_use not in initial_serial_devices:
+                            initial_serial_devices.add(port_to_use)  # add to list of USB devices
+                            print("Found a LINUX Port Match: " + str(port))
+                            return 1  
+                        else:
+                            print("Not a Valid Port: " + str(port))                       
             else:
-                print("\r\nNo valid matching USB serial port on command line (use format \'COMX\')")
+                print("\r\nCommand line supplied COM Port is not a valid USB serial port (format \'COMX\' or \'/dev/ttyXX\') - See list below\n")
                 return 0
         except Exception as e:
             print("Error getting serial ports list: " + str(e))
@@ -3248,8 +3265,8 @@ if __name__ == '__main__':
 
         dialog = tk.Tk()
         dialog.title("RF Wattmeter Remote")         
-        width = 420
-        height = 150
+        width = 400
+        height = 170
         x = 400
         y = 100
         dialog.geometry('%dx%d+%d+%d' % (width, height, x, y))     
@@ -3258,7 +3275,7 @@ if __name__ == '__main__':
 
         meterid_label = tk.Label(dialog, text='Meter ID: {}' .format(myRig_meter_ID), font=('Helvetica',12), padx=0, pady=6)
         meterid_label.place(x=180, y=0)                
-        meterid_listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2)   
+        meterid_listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=6, borderwidth=2)   
         m = 0   
         for m in range(100,120):
             meterid_listbox.insert(END, m) 
@@ -3268,42 +3285,43 @@ if __name__ == '__main__':
             meterid_listscroll = Scrollbar(dialog, orient= VERTICAL)            
             meterid_listbox.config(yscrollcommand = meterid_listscroll.set)
             meterid_listscroll.config(command=meterid_listbox.yview) 
-            meterid_listscroll.place(x=276, y=55)       
+            meterid_listscroll.place(x=240, y=40, height=100) # Meter ID scroll bar size and place  
 
-        # defining a function that will get the comp port choice and print it on the screen  
+        # defining a function that will get the comp port choice and print it on the screen  (GUI List box)
         listbox_label = tk.Label(dialog, text='USB Port: {}' .format(com_port_var.get()), font=('Helvetica',12), padx=0, pady=6)
         listbox_label.place(x=20, y=0)  
-        listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2) 
+        listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=12, borderwidth=2) 
 
         ports = []
         i = 0
         ports.append("UDP") 
         i = 1
-        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our CPU Target
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):
+            port_to_use = str(port)
+            if (port_to_use[:8] != "/dev/tty" and ("USB" or "UDP") in desc) or port_to_use[:8] == "/dev/tty":   #  Only expecting USB serial ports for our CPU Target
                 i += n
                 if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
                 ports.append(port)
-                #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
+                sys.stderr.write('*--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         for p in ports:
             listbox.insert(END, p)           
         if (len(ports) > 4):
             listscroll = Scrollbar(dialog, orient= VERTICAL)            
             listbox.config(yscrollcommand = listscroll.set)
             listscroll.config(command=listbox.yview) 
-            listscroll.place(x=101, y=40, height=80 ) 
+            listscroll.place(x=120, y=40, height=100) # USB comm port selector scroll bar size
         
         if (len(ports) > 0):
             com_port_var.set(ports[0])                    
         listbox_label.configure(text='USB Port: {}' .format(com_port_var.get()))        
         listbox.bind("<ButtonRelease-1>", ComPortSelect) 
         meterid_listbox.bind("<ButtonRelease-1>", MeterID_Select)
-        listbox.place(x=20, y=40)   #, width=80 ) 
-        meterid_listbox.place(x=180, y=40 ) 
+        listbox.place(x=20, y=40, height=100)   #, width=80 ) 
+        meterid_listbox.place(x=180, y=40, height=100) # meter ID listbox 
         listbox.selection_set(first=0)
 
         submit_btn = tk.Button(dialog, text='OK', font=16, command = Select_done) 
-        submit_btn.place(x=350, y=56, height=50, width=50)       
+        submit_btn.place(x=300, y=56, height=50, width=50)  # meter id and comm select OK button placement and size
         
         dialog.mainloop()
         port_name = com_port_var.get()
@@ -3323,14 +3341,14 @@ if __name__ == '__main__':
         ports.append("UDP") 
         sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(1, "UDP", "Use UDP over Ethernet"))
         i = 1
-        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our Arduino
-                #i = i + 1
-                i += n
-                if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
-                ports.append(port)           
-                sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):
+            port_to_use = str(port)
+            if (port_to_use[:8] != "/dev/tty" and ("USB" or "UDP") in desc) or port_to_use[:8] == "/dev/tty":   #  Only expecting USB serial ports for our Arduino
+                    i += n
+                    if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
+                    ports.append(port)           
+                    sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
+            
         #while True:  (for cmd line usage)
         #port = input('--- Enter port index number from list or any other key to continue without serial comms: ')       
         port = port_listbox        
