@@ -3206,10 +3206,10 @@ if __name__ == '__main__':
             for port in ports:
                 port_to_use = str(port[0])   #  get 1st substring before space delim                                
                 print("Port found: " + str(port))  #print all ports, we only want a USB one though
-                if (port_name == port_to_use):
-                     #check 'USB' string in device description for Windows
-                     # check /dev/tty prefix for Linux
-                     # ToDo - Do test if Linux port is actually a USB or not
+                if port_name == port_to_use:
+                    # check 'USB' string in device description for Windows
+                    # check /dev/tty prefix for Linux
+                    # ToDo - Do test if Linux port is actually a USB or not
                     if port_to_use[:8] != "/dev/tty":   # Windows ports, filter for USB ports
                         if "USB" in port[1]:
                             if port_to_use not in initial_serial_devices:
@@ -3221,7 +3221,7 @@ if __name__ == '__main__':
                     elif (port_to_use[:8] == "/dev/tty"):   # Linux ports - ToDo filter for USB devices if possible
                         if port_to_use not in initial_serial_devices:
                             initial_serial_devices.add(port_to_use)  # add to list of USB devices
-                            print("Found a Port Match: " + str(port))
+                            print("Found a LINUX Port Match: " + str(port))
                             return 1  
                         else:
                             print("Not a Valid Port: " + str(port))                       
@@ -3295,8 +3295,9 @@ if __name__ == '__main__':
         i = 0
         ports.append("UDP") 
         i = 1
-        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if ((port != "/dev/tty") and (("USB" or "UDP") in desc)):   #  Only expecting USB serial ports for our CPU Target
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):
+            port_to_use = str(port)
+            if (port_to_use[:8] != "/dev/tty" and ("USB" or "UDP") in desc) or port_to_use[:8] == "/dev/tty":   #  Only expecting USB serial ports for our CPU Target
                 i += n
                 if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
                 ports.append(port)
@@ -3340,9 +3341,8 @@ if __name__ == '__main__':
         sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(1, "UDP", "Use UDP over Ethernet"))
         i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):
-            if str(port[0][:8]) != "/dev/tty":
-                if ("USB" or "UDP") in desc:   #  Only expecting USB serial ports for our Arduino
-                    #i = i + 1
+            port_to_use = str(port)
+            if (port_to_use[:8] != "/dev/tty" and ("USB" or "UDP") in desc) or port_to_use[:8] == "/dev/tty":   #  Only expecting USB serial ports for our Arduino
                     i += n
                     if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
                     ports.append(port)           
