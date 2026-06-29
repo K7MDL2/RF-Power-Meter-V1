@@ -3197,20 +3197,36 @@ if __name__ == '__main__':
     # Several support functions
     def validate_provided_port_name(port_name):
         #  List available ports for info
-        print("Scanning for USB serial device matching cmd line provided port name {} (if any)" .format(port_name))    
+        print("Scanning for USB serial device matching cmd line provided port name {} (if any)\n" .format(port_name))    
         initial_serial_devices = set()
         #result = {"state":"stable","port_id":[]}
         try:    
             ports = cports.comports()
+            print("Listing all serial devices found, looking for a USB port\n")  #print all ports, we only want a USB one though
             for port in ports:
+                port_to_use = str(port[0])   #  get 1st substring before space delim                                
                 print("Port found: " + str(port))  #print all ports, we only want a USB one though
-                if (port_name == str(port[0])) and ("USB" in port[1]): #check 'USB' string in device description
-                    if str(port[0]) not in initial_serial_devices:
-                        initial_serial_devices.add(str(port[0]))
-                    print("Found a USB Port Match: " + str(port))
-                    return 1
+                if (port_name == port_to_use):
+                     #check 'USB' string in device description for Windows
+                     # check /dev/tty prefix for Linux
+                     # ToDo - Do test if Linux port is actually a USB or not
+                    if port_to_use[:8] != "/dev/tty":   # Windows ports, filter for USB ports
+                        if "USB" in port[1]:
+                            if port_to_use not in initial_serial_devices:
+                                initial_serial_devices.add(port_to_use)  # add to list of USB devices
+                                print("Found a USB Port Match: " + str(port))
+                                return 1
+                        else:
+                            print("Error: {} is not a USB Port" .format(port))
+                    elif (port_to_use[:8] == "/dev/tty"):   # Linux ports - ToDo filter for USB devices if possible
+                        if port_to_use not in initial_serial_devices:
+                            initial_serial_devices.add(port_to_use)  # add to list of USB devices
+                            print("Found a Port Match: " + str(port))
+                            return 1  
+                        else:
+                            print("Not a Valid Port: " + str(port))                       
             else:
-                print("\r\nNo valid matching USB serial port on command line (use format \'COMX\')")
+                print("\r\nCommand line supplied COM Port is not a valid USB serial port (format \'COMX\' or \'/dev/ttyXX\') - See list below\n")
                 return 0
         except Exception as e:
             print("Error getting serial ports list: " + str(e))
@@ -3280,11 +3296,11 @@ if __name__ == '__main__':
         ports.append("UDP") 
         i = 1
         for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our CPU Target
+            if ((port != "/dev/tty") and (("USB" or "UDP") in desc)):   #  Only expecting USB serial ports for our CPU Target
                 i += n
                 if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
                 ports.append(port)
-                #sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
+                sys.stderr.write('*--- {:2}: {:20} {!r}\n'.format(i, port, desc))
         for p in ports:
             listbox.insert(END, p)           
         if (len(ports) > 4):
@@ -3323,8 +3339,8 @@ if __name__ == '__main__':
         ports.append("UDP") 
         sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(1, "UDP", "Use UDP over Ethernet"))
         i = 1
-        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                        
-            if "USB" or "UDP" in desc:   #  Only expecting USB serial ports for our Arduino
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                     
+            if ("USB" or "UDP") in desc:   #  Only expecting USB serial ports for our Arduino
                 #i = i + 1
                 i += n
                 if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
@@ -3339,6 +3355,7 @@ if __name__ == '__main__':
             if not 0 <= index < len(ports):
                 sys.stderr.write('--- Invalid index!\n')
                 return None   #continue
+            #print(ports)
             port_name = ports[index]
             comms = False
             return port_name

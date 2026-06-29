@@ -12,3 +12,4 @@ build/libraries.cache
 */examples/*
 */html/*
 */latex/*
+*.vscode/*
