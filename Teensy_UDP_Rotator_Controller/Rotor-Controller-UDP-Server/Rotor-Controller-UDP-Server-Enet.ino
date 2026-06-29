@@ -51,7 +51,8 @@ uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
    {
        if (DBG==6) Serial.print("RTR1-ENET Write: ");
        if (DBG==6) Serial.println((char *) tx_buffer);
-       Udp.beginPacket(remote_ip, remoteport);
+       //Udp.beginPacket(remote_ip, remoteport);
+       Udp.beginPacket(Udp.remoteIP(), remoteport);  // respond to last client that gave a command
        Udp.write((char *) tx_buffer);
        Udp.endPacket();
        return 1;
