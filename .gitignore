@@ -15,3 +15,5 @@ build/libraries.cache
 *.vscode/*
 RF_Wattmeter_Teensy41_PCB_V1/.vscode/RF_Wattmeter_Teensy41_PCB_V1/RF_Wattmeter_Teensy41_PCB_V1.h
 RF_Wattmeter_Teensy41_PCB_V1/.vscode/RF_Wattmeter_Teensy41_PCB_V1/RF_Wattmeter_Teensy41_PCB_V1.ino
+Teensy_UDP_Rotator_Controller/Rotor-Controller-UDP-Server/.vscode/Rotor-Controller-UDP-Server/Rotor-Controller-UDP-Server.h
+Teensy_UDP_Rotator_Controller/Rotor-Controller-UDP-Server/.vscode/Rotor-Controller-UDP-Server/Rotor-Controller-UDP-Server.ino

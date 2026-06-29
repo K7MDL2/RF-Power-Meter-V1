@@ -166,7 +166,8 @@ myWSJTX_ID = "NONE"  # Ignore WSJTX comms
 
 # addressing information of target
 HIDE_POWER_INFO = 1   # set to 0 to show (normal) or 1 to hide Ref and SWR info only, 2 to hide all (Fwd, Ref and SWR)
-ROTOR_ENABLE = 0  # 1 is ENABLED, any other value or commented out is DISABLED
+ROTOR_ENABLE = 1  # 1 is ENABLED, any other value or commented out is DISABLED
+myRotator_meter_ID = "100"        #  Change to match the meterIS in your rotator.
 IPADDR_OF_ROTOR = '192.168.2.189'  # for rotator controller
 PORTNUM_OF_ROTOR_LISTEN = 7947     # for rotator controller
 PORTNUM_OF_ROTOR_SENDTO = 7946     # for rotator controller
@@ -309,7 +310,7 @@ class UDP_Rotor(Thread):
         global rotor_cmd
         global rotor_cmd_data   # UI buttons for rotator commands will set flag true and populate rotor_cmd and rotor_cmd_data
         global send_rotor_cmd_flag
-        global myRig_meter_ID
+        global myRotator_meter_ID
        
         if (send_rotor_cmd_flag == True and ROTOR_ENABLE == 1):  
             print("Send UDP Rotor Commands")
@@ -320,7 +321,7 @@ class UDP_Rotor(Thread):
             t = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             try:
                 # send the command
-                m = "{},120,{},{},{}" .format(myRig_meter_ID,rotor_cmd,rotor_cmd_data,'\n').encode()
+                m = "{},120,{},{},{}" .format(myRotator_meter_ID,rotor_cmd,rotor_cmd_data,'\n').encode()
                 t.sendto(m, (IPADDR_OF_ROTOR, PORTNUM_OF_ROTOR_SENDTO))
                 print("TX to Rotator Controller Msg = {}" .format(m).encode) 
             except:
