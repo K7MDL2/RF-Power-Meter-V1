@@ -65,7 +65,7 @@
     uint8_t ip_adr1       = DEF_SUBNET_IP_ADR1;   // set up defaults
     uint8_t my_ip_adr0    = DEF_MY_IP_ADR0;    
     uint8_t dest_ip_adr0  = DEF_DEST_IP_ADR0;
-    char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
+    //char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
 
     // delay between serial and ethernet packet send to remote
     #define PWR_MSG_DELAY    280   // This delay bgoverns how fast hte remote can update power and SWR

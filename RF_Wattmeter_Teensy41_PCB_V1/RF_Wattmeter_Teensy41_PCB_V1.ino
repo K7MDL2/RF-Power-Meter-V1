@@ -3828,7 +3828,8 @@ uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
     {
         //DBG_Serial.print("ENET Write: ");
         //DBG_Serial.println((char *) tx_buffer);
-        Udp.beginPacket(HostIP, remoteport);
+        //Udp.beginPacket(HostIP, remoteport);
+        Udp.beginPacket(Udp.remoteIP(), remoteport);
         Udp.write((char *) tx_buffer);
         if (Udp.endPacket())
         {
