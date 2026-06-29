@@ -1,5 +1,13 @@
 ## RF-Power-Meter
 
+### 6/28/2026 - Allow band decoder to accept cvonection from any IP address
+    1. Until now the decoder would only connect via UDP to a hard-coded client (aka Desktop) IP address.  It will now respond the last IP address it receives a remote command from.  If switching desktop machines, you can simply issue a Dump Cal table command which will then cause the responses to switch to the new machine.
+
+    2. Desktop App: 
+        a. Improve the command line and GUI list looks and contents to restrict options to valid USB serial ports (Windows).
+        b. Related to the above, it now accepts and uses a LINUX /dev/ttyXXX port. It does not yet know the difference between USB and hardware serial ports on LINUX.
+
+
 ### 5/13/2026 - Created Headless-Band-Decoder-Only branch to test a slimmed down image for basic band decoding only
     1. Keeps the remote Config capability via USB. Can re-enable features like Nextion, OLED, and/or ENET if desired using the #defines.  Changes are mostlly about deactivating code blocks with #ifdef ADS1115_ADC, ENET, NEXTION, SSD1306_OLED so there is no RF power, SWR, display or enet active.  Can still usethe desktop GUI over USB to conig, or enable the ENET for that path if you have the enet jack hardware.
     2. Intended for simple hardware build with a T4.0 or T4.1 and off-the-shelf IO modules such as a common 8-port opto module(s).

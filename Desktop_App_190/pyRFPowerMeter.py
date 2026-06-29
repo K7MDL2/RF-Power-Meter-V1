@@ -3264,8 +3264,8 @@ if __name__ == '__main__':
 
         dialog = tk.Tk()
         dialog.title("RF Wattmeter Remote")         
-        width = 420
-        height = 150
+        width = 400
+        height = 170
         x = 400
         y = 100
         dialog.geometry('%dx%d+%d+%d' % (width, height, x, y))     
@@ -3274,7 +3274,7 @@ if __name__ == '__main__':
 
         meterid_label = tk.Label(dialog, text='Meter ID: {}' .format(myRig_meter_ID), font=('Helvetica',12), padx=0, pady=6)
         meterid_label.place(x=180, y=0)                
-        meterid_listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2)   
+        meterid_listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=6, borderwidth=2)   
         m = 0   
         for m in range(100,120):
             meterid_listbox.insert(END, m) 
@@ -3284,12 +3284,12 @@ if __name__ == '__main__':
             meterid_listscroll = Scrollbar(dialog, orient= VERTICAL)            
             meterid_listbox.config(yscrollcommand = meterid_listscroll.set)
             meterid_listscroll.config(command=meterid_listbox.yview) 
-            meterid_listscroll.place(x=276, y=55)       
+            meterid_listscroll.place(x=240, y=40, height=100) # Meter ID scroll bar size and place  
 
-        # defining a function that will get the comp port choice and print it on the screen  
+        # defining a function that will get the comp port choice and print it on the screen  (GUI List box)
         listbox_label = tk.Label(dialog, text='USB Port: {}' .format(com_port_var.get()), font=('Helvetica',12), padx=0, pady=6)
         listbox_label.place(x=20, y=0)  
-        listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=10, borderwidth=2) 
+        listbox = Listbox(dialog, font=16, selectmode = SINGLE, height=4, width=12, borderwidth=2) 
 
         ports = []
         i = 0
@@ -3307,19 +3307,19 @@ if __name__ == '__main__':
             listscroll = Scrollbar(dialog, orient= VERTICAL)            
             listbox.config(yscrollcommand = listscroll.set)
             listscroll.config(command=listbox.yview) 
-            listscroll.place(x=101, y=40, height=80 ) 
+            listscroll.place(x=120, y=40, height=100) # USB comm port selector scroll bar size
         
         if (len(ports) > 0):
             com_port_var.set(ports[0])                    
         listbox_label.configure(text='USB Port: {}' .format(com_port_var.get()))        
         listbox.bind("<ButtonRelease-1>", ComPortSelect) 
         meterid_listbox.bind("<ButtonRelease-1>", MeterID_Select)
-        listbox.place(x=20, y=40)   #, width=80 ) 
-        meterid_listbox.place(x=180, y=40 ) 
+        listbox.place(x=20, y=40, height=100)   #, width=80 ) 
+        meterid_listbox.place(x=180, y=40, height=100) # meter ID listbox 
         listbox.selection_set(first=0)
 
         submit_btn = tk.Button(dialog, text='OK', font=16, command = Select_done) 
-        submit_btn.place(x=350, y=56, height=50, width=50)       
+        submit_btn.place(x=300, y=56, height=50, width=50)  # meter id and comm select OK button placement and size
         
         dialog.mainloop()
         port_name = com_port_var.get()
@@ -3339,14 +3339,15 @@ if __name__ == '__main__':
         ports.append("UDP") 
         sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(1, "UDP", "Use UDP over Ethernet"))
         i = 1
-        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):                     
-            if ("USB" or "UDP") in desc:   #  Only expecting USB serial ports for our Arduino
-                #i = i + 1
-                i += n
-                if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
-                ports.append(port)           
-                sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
-        
+        for n, (port, desc, hwid) in enumerate(sorted(cports.comports()), 1):
+            if str(port[0][:8]) != "/dev/tty":
+                if ("USB" or "UDP") in desc:   #  Only expecting USB serial ports for our Arduino
+                    #i = i + 1
+                    i += n
+                    if i > 1000: print(hwid)    # just gets rid of unused var error, does nothing for us here.
+                    ports.append(port)           
+                    sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(i, port, desc))
+            
         #while True:  (for cmd line usage)
         #port = input('--- Enter port index number from list or any other key to continue without serial comms: ')       
         port = port_listbox        
