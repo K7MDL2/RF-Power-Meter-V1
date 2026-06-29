@@ -18,17 +18,17 @@
 ******************************************************************************/
 //#define SSD1306_OLED   // local OLED display option - only uncomment if actually connected
 //#define OLED_COMBO_LAYOUT   // requires SSD1306 define active.  Used for band decoder on bottom line, Pwr on top line
-///#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
-///#define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
+#define NEXTION           // OK to run OLED at same time - only uncomment if actually connected
+#define DETECTOR_TEMP_CONNECTED     // Tested with the ADL5519 onboard temp output. 
 //#define SWR_ANALOG      // enables cal and SWR DAC output for embedded amplifier use, in this case a 1296 amp
 //#define AMP1296         // enables specific hard coded cal values for voltages for 1296 amp
 #define TEENSY4_OTRSP_CW_PTT   // Include the PTT and CW pin operation from OTRSP commands. Can comment out if not using OTRSP to prevent unused port event triggers.
-//#define ENET              // Include support for ethernet
+#define ENET              // Include support for ethernet
 // Icom Analog (ACC) and C-IV Serial 
 //#define ICOM_ACC             // voltage 0-8V on pin4 ACC(2) connector - need calibrate table
 //#define ICOM_CIV             // read frequency from CIV
-//#define ADS1115_ADC     // uncomment this line to enable external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
-//#define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
+#define ADS1115_ADC     // uncomment this line to enable external 4ch ADC with PGA.  Useful for Bird 43 meter reading since it is only 0.3V at 600W.
+#define ADS1115_ADC_TEMPERATURE  //uncomment this line to enable temperature reading to come from external ADC channel 4 (AIN3 ADS1115)
 // Below choose single mode. Continuous mode hangs unless needs 20ms delay between mux channel and reads.  Test program does not need this delay (or very little)
 #define ADS1115_SINGLE_MODE  //uncomment this line to operate in single mode capture vs continuous mode
 //#define Nex_UDP
@@ -65,7 +65,7 @@
     uint8_t ip_adr1       = DEF_SUBNET_IP_ADR1;   // set up defaults
     uint8_t my_ip_adr0    = DEF_MY_IP_ADR0;    
     uint8_t dest_ip_adr0  = DEF_DEST_IP_ADR0;
-    char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
+    #char HostIP[] = "192.168.2.62";   // this seems to work best for enet_write() function
 
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, ip_adr1, my_ip_adr0); // use EEPROM stored values
     //IPAddress ip(DEF_NET_IP_ADR1, DEF_NET_IP_ADR2, DEF_SUBNET_IP_ADR1, DEF_MY_IP_ADR0);    // Our static IP address.  Could use DHCP but preferring static address.

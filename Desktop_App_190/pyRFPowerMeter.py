@@ -797,13 +797,13 @@ class Send_Mtr_Cmds():
         #print("Meter Cmd Order is to " + str(cmd))
         send_meter_cmd_flag = True
         if direct_cmd == True:              
-            cmd = cmd_str           # now handle direct bands change commands
+            cmd = cmd_str               # now handle direct bands change commands
             cmd_data = cmd_data_str     # set data value if any. 
             #print(" ******> Direct cmd byte = " + str(cmd))
             print("meter cmd={} cmd2={}" .format(cmd, cmd_data))
         else:            
-            cmd_data = 0        # data value always zero for band change commands
-            band = int(cmd_str)           # non direct band change commands, usually from sources like WSJT-X where a frequency is provided rather than specific band info.
+            cmd_data = 0                # data value always zero for band change commands
+            band = int(cmd_str)         # non direct band change commands, usually from sources like WSJT-X where a frequency is provided rather than specific band info.
             if band < 4:
                 cmd = "230"
             elif 3 < band < 5:
@@ -1546,8 +1546,9 @@ class App(tk.Frame):
             meter_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
             meter_sock.bind(("", PORTNUM_OF_METER_LISTEN))
             meter_sock.settimeout(1.0)
-            meter_sock.setblocking(0)
+            meter_sock.setblocking(False)
             self.udp_meter.start()
+            self.get_cal_table()  #  send something to meter so it can get our IP address         
             #pass 
         else:
             print("Serial thread not started")
@@ -3202,11 +3203,13 @@ if __name__ == '__main__':
         #result = {"state":"stable","port_id":[]}
         try:    
             ports = cports.comports()
-            for port in ports:
+            for port in ports:                
                 print("Port found: " + str(port))  #print all ports, we only want a USB one though
-                if (port_name == str(port[0])) and ("USB" in port[1]): #check 'USB' string in device description
-                    if str(port[0]) not in initial_serial_devices:
-                        initial_serial_devices.add(str(port[0]))
+                port_to_use = str(port[0].split(' ',1)[-1])
+                if (port_name == port_to_use):
+                    # "USB" in port[1]): #check 'USB' string in device description
+                    if port_to_use not in initial_serial_devices:
+                        initial_serial_devices.add(port_to_use)
                     print("Found a USB Port Match: " + str(port))
                     return 1
             else:
