@@ -991,12 +991,12 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
         if (polarity == HIGH)   // 1 is Active HIGH, 0 is ACTIVE LOW.   IF a input pin is low and Polarity is 0, then we have TX.
         { 
             PTT_IN_state = TX;   // Set to TX
-            DBG_Serial.println(">PTT Input = TX"); 
+            //DBG_Serial.println(">PTT Input = TX"); 
         }
         else
         {
             PTT_IN_state = RX;   // Set to RX
-            DBG_Serial.println(">PTT Input = RX"); 
+            //DBG_Serial.println(">PTT Input = RX"); 
         }
     }    
     //if (PTT_IN_state == RX)
@@ -3853,13 +3853,16 @@ void Band_Decode_C_Output(uint8_t pattern)
 
     uint8_t enet_write(uint8_t *tx_buffer, uint8_t tx_count)
     {   
-        IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
+        //IPAddress remote_ip(192, 168, ip_adr1, dest_ip_adr0); // use EEPROM stored values
 
         if (enet_ready & EEPROM.read(ENET_ENABLE))   // skip if no enet connection
         {
             //DBG_Serial.print("ENET Write: ");
             //DBG_Serial.println((char *) tx_buffer);
-            Udp.beginPacket(HostIP, remoteport);
+            //DBG_Serial.println(Udp.remoteIP());
+            Udp.beginPacket(Udp.remoteIP(), remoteport);
+            //Udp.beginPacket(HostIP, remoteport);
+            //Udp.beginPacket(remote_ip, remoteport);
             Udp.write((char *) tx_buffer);
             if (Udp.endPacket())
             {
