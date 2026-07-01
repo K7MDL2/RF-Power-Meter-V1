@@ -1,7 +1,7 @@
 ## RF-Power-Meter
 
 ### 6/28/2026 - Allow band decoder to accept connection from any IP address, Improve Port Select GUI and support Linux serial devices
-    1. Until now the decoder would only connect via UDP to a hard-coded client (aka Desktop) IP address.  It will now respond the last IP address it receives a remote command from.  If switching desktop machines, you can simply issue a Dump Cal table command (which cahnges noting so it is harmless) which will then cause the the decoder responses to switch to the new machine ip address.
+    1. Until now the decoder would only connect via UDP to a hard-coded client (aka Desktop) IP address.  It will now respond the last IP address it receives a remote command from.  If switching desktop machines, you can simply issue a Dump Cal table command (changes nothing so it is harmless) which will then cause the the decoder responses to switch to the new machine ip address.
 
     2. Desktop App: 
         a. Improve the command line and GUI list looks and contents to restrict options to valid USB serial ports (Windows).
