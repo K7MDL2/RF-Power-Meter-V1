@@ -43,8 +43,8 @@ import simple_server
 import tkinter.messagebox
 import socket
 
-PowerMeterVersionNum = "2.8"
-version_string = "RF Wattmeter Remote\nby K7MDL\nV2.8 May 7, 2024"
+PowerMeterVersionNum = "2.8.1"
+version_string = "RF Wattmeter Remote\nby K7MDL\nV2.8.1 July 27, 2026"
 # pyRFPowerMeter  January 30, 2021
 # Author: M. Lewis K7MDL
 #
