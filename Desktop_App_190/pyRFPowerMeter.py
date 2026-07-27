@@ -304,7 +304,8 @@ class UDP_Rotor(Thread):
         # This will run when you call .start method
         while self.keep_running_UDP_Rotor:
             self.UDP_Rotor_Rx()
-            self.UDP_Rotor_Tx()   
+            self.UDP_Rotor_Tx()
+            time.sleep(0.05)
 
     def UDP_Rotor_Tx(self):
         global rotor_cmd
@@ -323,9 +324,9 @@ class UDP_Rotor(Thread):
                 # send the command
                 m = "{},120,{},{},{}" .format(myRotator_meter_ID,rotor_cmd,rotor_cmd_data,'\n').encode()
                 t.sendto(m, (IPADDR_OF_ROTOR, PORTNUM_OF_ROTOR_SENDTO))
-                print("TX to Rotator Controller Msg = {}" .format(m).encode) 
-            except:
-                print("TX to Rotator Controller FAILED Error = {}" .format(t).encode()) 
+                print("TX to Rotator Controller Msg = {}" .format(m)) 
+            except Exception as e:
+                print("TX to Rotator Controller FAILED Error = {}" .format(e)) 
                 #pass
             # close the socket
             t.close() 
@@ -407,6 +408,7 @@ class UDP_Meter(Thread):
         while self.keep_running_UDP:
             self.UDP_Rx()
             self.UDP_Tx()
+            time.sleep(0.05)
     
     def UDP_Tx(self):
         global send_meter_cmd_flag
@@ -426,9 +428,9 @@ class UDP_Meter(Thread):
                 # send the command
                 m = "{},120,{},{},{}" .format(myRig_meter_ID,cmd,cmd_data,'\n').encode()
                 t.sendto(m, (IPADDR_OF_METER, PORTNUM_OF_METER_SENDTO))
-                print("TX to CPU Msg = {}" .format(m).encode) 
-            except:
-                print("TX to CPU FAILED Error = {}" .format(t).encode()) 
+                print("TX to CPU Msg = {}" .format(m)) 
+            except Exception as e:
+                print("TX to CPU FAILED Error = {}" .format(e)) 
                 #pass
             # close the socket
             t.close() 
@@ -461,8 +463,8 @@ class UDP_Meter(Thread):
             except UnicodeDecodeError: # catch error and ignore it
                 print("Unicode decode error caught")  # will get this on CPU resets
             except socket.timeout:
-                #pass
-                print("Timeout on data received from UDP")
+                pass
+                #print("Timeout on data received from UDP")
             except socket.error:
                 #print("No data received from UDP")    
                 pass  
@@ -605,8 +607,13 @@ class Serial_RxTx(Thread):
             if restart_serial == 0:                             
                 if ser.isOpen():                                
                     try:                           
-                        out = ser.read(ser.inWaiting()).decode()                                             
-                        if len(out) < 1:                            
+                        waiting = ser.inWaiting()
+                        if waiting == 0:
+                            time.sleep(0.05)
+                            return
+                        out = ser.read(waiting).decode()
+                        if len(out) < 1:
+                            time.sleep(0.05)
                             return    
                         #print(out)
                         Power_Data.get_power_data(self, out)                                           
@@ -625,6 +632,7 @@ class Serial_RxTx(Thread):
                         #print(out)
                         pass
                 else:
+                    time.sleep(0.05)
                     pass
             else:
                 print("Cannot access serial port to read input data")
@@ -1547,7 +1555,6 @@ class App(tk.Frame):
             meter_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
             meter_sock.bind(("", PORTNUM_OF_METER_LISTEN))
             meter_sock.settimeout(1.0)
-            meter_sock.setblocking(0)
             self.udp_meter.start()
             #pass 
         else:
@@ -1568,7 +1575,6 @@ class App(tk.Frame):
         rotor_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  #UDP
         rotor_sock.bind(("", PORTNUM_OF_ROTOR_LISTEN))
         rotor_sock.settimeout(1.0)
-        rotor_sock.setblocking(0)
         self.udp_rotor.start()
 
     def NewFile(self):
