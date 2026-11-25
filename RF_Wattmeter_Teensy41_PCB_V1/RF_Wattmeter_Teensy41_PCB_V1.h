@@ -68,7 +68,6 @@
     //char HostIP[] = "192.168.2.65";   // this seems to work best for enet_write() function
 
     // delay between serial and ethernet packet send to remote
-    #define PWR_MSG_DELAY    280   // This delay bgoverns how fast hte remote can update power and SWR
     #define PTT_MSG_DELAY    105   // Nice to have PTT reflected on the remote scxreen closer to real time
     #define VOLTS_MSG_DELAY  5030  // HV, 28V, Curr and Temp do nto need rapid updates 
 
@@ -94,6 +93,11 @@
       EthernetUDP Udp_Nex;
     #endif
 #endif
+
+#define PWR_MSG_TX_DELAY    0u
+#define PWR_MSG_RX_DELAY    1000u
+#define NEX_POWER_TX_DELAY  100u
+#define NEX_POWER_RX_DELAY  1000u
 
 #ifdef NEXTION
     //#define nexSerial Serial1   // defined in NexConfig.h
@@ -347,7 +351,10 @@ float FwdPwr_last = 0;
 float Pwr_hi = 0, Pwr_lo = 0;
 float FwdVal_hi = 0, FwdVal_lo = 0; // used for auto cal
 float RefVal_hi = 0, RefVal_lo = 0; // used for auto cal
-float FwdPwr_Cutoff = 9.9;   // Set this closer to 10 for KW range.  0.2 for < 250W range
+bool Cal_hi_valid = false, Cal_lo_valid = false;
+uint8_t Cal_hi_band = 0, Cal_lo_band = 0;
+float FwdPwr_Cutoff = 9.9;   // Forward cutoff for reflected power and SWR
+#define FWD_DISPLAY_CUTOFF 1.0f
 #define NUMREADINGS 1   // adjust this for longer or shorter smooting period as AD noise requires
 float readings_Fwd[NUMREADINGS];      // the readings from the analog input
 float readings_Ref[NUMREADINGS];      // the readings from the analog input
@@ -355,6 +362,21 @@ uint8_t readIndex_Fwd = 0;              // the index of the current reading
 uint8_t readIndex_Ref = 0;              // the index of the current reading
 float total_Fwd = 0;                  // the running total
 float total_Ref = 0;                  // the running total
+
+// ---- Fwd/Ref/SWR display+ethernet smoothing ----
+// Forward display uses the highest sampled power; reflected power and SWR use averaged readings.
+#define FWD_PEAK_HOLD_MS   400u
+#define PWR_ATTACK_ALPHA   0.90f
+#define PWR_DECAY_ALPHA    0.12f   // 0..1 - slow fall so modulation gaps don't show as dropouts
+#define SWR_ATTACK_ALPHA   0.90f
+#define SWR_DECAY_ALPHA    0.12f
+#define PWR_ZERO_HOLDOFF_MS 150u
+// Guards against the momentary false-high-SWR glitch that can occur right at a PTT edge, where the
+// Fwd and Ref detectors settle at slightly different rates. Non-blocking: just holds the last good
+// SWR for a short window instead of the old blocking retry/delay loop.
+#define PTT_SWR_HOLDOFF_MS   (60u)
+#define PTT_SWR_SPIKE_DELTA  (1.5f)  // how far above the current filtered SWR counts as a suspect spike near an edge
+uint32_t PTT_State_Change_ms = 0;   // timestamp of last confirmed PTT_IN_state transition, set in PTT_IN_handler()
 uint8_t EE_PGM_Status = 0u;
 uint8_t EE_PGM_Failed;
 uint8_t rx_buffer[Serial_USB_BUFFER_SIZE];
@@ -469,11 +491,11 @@ Freq Hz from       to   Band number
 // Function declarations
 void toggle_ser_data_output(uint8_t);
 void setup(void);
-void adRead(void);
+void adRead(bool force = false);
 void read_Cal_Table_from_EEPROM(void);
 void sendSerialData(void);
 void print_cal_table(void);
-void print_Cal_Table_progress(uint8_t);
+void print_Cal_Table_progress(uint8_t, uint8_t command = 0);
 void print_Cmd_Progress(uint8_t);
 void Cal_Table();
 void Cal_Table_write(void);

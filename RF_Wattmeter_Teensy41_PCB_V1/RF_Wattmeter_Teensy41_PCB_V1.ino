@@ -319,7 +319,9 @@ void setup(void)
    *  ADS1115_475_SPS 
    *  ADS1115_860_SPS 
    */
-  // adc.setConvRate(ADS1115_64_SPS); //uncomment if you want to change the default
+  #ifdef ADS1115_SINGLE_MODE
+      adc.setConvRate(ADS1115_860_SPS);
+  #endif
 
   /* Set continuous or single shot mode:
    * 
@@ -595,6 +597,8 @@ void loop()
         }
         if (NewBand >= NUM_SETS)
             NewBand = NUM_SETS-1; // something wrong if you end up here
+        if (CouplerSetNum != NewBand)
+            Cal_hi_valid = Cal_lo_valid = false;
         CouplerSetNum = NewBand;    // set to commanded band.  If a Button B remote cmd, NewBand wil lbe incremented before here                            
         if (CouplerSetNum > NUM_SETS)
             CouplerSetNum = 0;                      
@@ -715,62 +719,129 @@ float ADC_RF_Power_CountsTo_Volts(uint32_t counts)
     return Volts;
 }
 
-void adRead(void)   // A/D converter read function.  Normalize the AD output to 100%.
+// Asymmetric peak-attack / slow-decay filter (PEP-meter style).
+// Rises quickly onto a higher reading (captures CW/SSB modulation peaks) and decays slowly on the way
+// down so gaps between CW elements or SSB syllables don't show up as flicker/dropouts on the display
+// or in the data sent to the remote machine.
+float PeakDecayFilter(float previous, float input, float attackAlpha, float decayAlpha)
+{
+    if (input >= previous)
+        return previous + attackAlpha * (input - previous);
+    else
+        return previous + decayAlpha * (input - previous);
+}
+
+bool PowerBelowCutoffExpired(float power, float cutoff, uint32_t now,
+                             uint32_t &start_ms, bool &pending)
+{
+    if (power >= cutoff)
+        pending = false;
+    else if (!pending)
+    {
+        pending = true;
+        start_ms = now;
+    }
+    else if (now - start_ms >= PWR_ZERO_HOLDOFF_MS)
+        return true;
+    return false;
+}
+
+void ApplyPowerZeroHoldoff(float rawForward, uint32_t now)
+{
+    static uint32_t fwd_start_ms, swr_start_ms;
+    static bool fwd_pending = false, swr_pending = false;
+    if (PowerBelowCutoffExpired(rawForward, FWD_DISPLAY_CUTOFF, now, fwd_start_ms, fwd_pending))
+        FwdPwr = 0.0f;
+    if (PowerBelowCutoffExpired(rawForward, FwdPwr_Cutoff, now, swr_start_ms, swr_pending))
+        RefPwr = SWRVal = 0.0f;
+}
+
+float ForwardPeakHoldFilter(float previous, float input, uint32_t now)
+{
+    static uint32_t peak_time_ms;
+    if (input >= previous)
+    {
+        peak_time_ms = now;
+        return input;
+    }
+    if (now - peak_time_ms < FWD_PEAK_HOLD_MS)
+        return previous;
+    return PeakDecayFilter(previous, input, 1.0f, PWR_DECAY_ALPHA);
+}
+
+bool PowerUpdateDue(float power, uint32_t now, uint32_t &last_ms, bool &last_active,
+                    uint32_t tx_interval, uint32_t rx_interval, bool force)
+{
+    // Power has already been gated by the forward cutoff and zero holdoff.
+    bool active = power > 0.0f;
+    if (!force && active == last_active &&
+        now - last_ms < (active ? tx_interval : rx_interval))
+        return false;
+    last_ms = now;
+    last_active = active;
+    return true;
+}
+
+void adRead(bool force)   // A/D converter read function.  Normalize the AD output to 100%.
 {
     float a;
     float b;
     uint16_t c;
-    float tmp, retry=0;
+    float tmp;
     uint16_t i;
+    float FwdPwr_now, RefPwr_now, SWRVal_now;   // this cycle's raw (unsmoothed) values before the display/ethernet filter
+    float FwdPeakVal, FwdPwr_peak, fwd_sum;
+    uint32_t since_ptt_edge;
 
     // Throttle the time the CPU spends here.   Offset the timing of the data acquired is just before it is sent out
     Timer_X00ms_InterruptCnt = millis(); 
-    if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 50)   // will use our own timestamp.
+    if (!force && (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_AD) < 50)
         return;   // skip out until greater than 25ms since our last visit here
     Timer_X00ms_Last_AD = Timer_X00ms_InterruptCnt;  // time stamp our visit here.  Do not want to come back too soon.  
 
-__reread:   // jump label to reread values in case of odd result or hi SWR
-
-// Get Reflected Power  
-// ____________________ Ref Power Capture ___________________________
-//   
-        total_Ref -= readings_Ref[readIndex_Ref];// subtract the last reading:    
-    c = 1; // read from the sensor:
+    // Alternate the channels so forward samples cover more of each acquisition cycle.
+    total_Ref -= readings_Ref[readIndex_Ref];
+    total_Fwd -= readings_Fwd[readIndex_Fwd];
+    #if defined(ADS1115_ADC) && defined(ADS1115_SINGLE_MODE)
+        c = 24;
+    #else
+        c = 4;
+    #endif
     a = 0;
+    fwd_sum = 0;
+    FwdPeakVal = 0;
     for (i = 0; i < c; ++i)  
     {
-        #ifdef ADS1115_ADC  
+        #ifdef ADS1115_ADC
             #ifdef ADS1115_SINGLE_MODE
-                RefVal = readChannel(ADC_REF);        
+                RefVal = readChannel(ADC_REF);
+                FwdVal = readChannel(ADC_FWD);
             #else   // continuous mode locks up without 20ms+ delay
-                adc.setCompareChannels(ADC_REF); //comment line/change parameter to change channel           
+                adc.setCompareChannels(ADC_REF);
                 delay(20);
-                RefVal = adc.getResult_V();    // for ADS1115 module        
+                RefVal = adc.getResult_V();
+                adc.setCompareChannels(ADC_FWD);
+                delay(20);
+                FwdVal = adc.getResult_V();
             #endif
-            //RefVal = constrain(RefVal, 0.000, 3300.0);
-        #else    // internal ADC           
-           uint32_t ad_counts=0;    
-           ad_counts = analogRead(ADC_REF);              
-           RefVal = ADC_RF_Power_CountsTo_Volts(ad_counts);         
-        #endif  
+        #else
+            RefVal = ADC_RF_Power_CountsTo_Volts(analogRead(ADC_REF));
+            FwdVal = ADC_RF_Power_CountsTo_Volts(analogRead(ADC_FWD));
+        #endif
         a += RefVal;
+        fwd_sum += FwdVal;
+        // Log detectors may have either polarity; keep the voltage representing the largest power.
+        if (i == 0 || (Slope_F < 0 ? FwdVal < FwdPeakVal : FwdVal > FwdPeakVal))
+            FwdPeakVal = FwdVal;
     }
     a /= c; // calculate the average then use result in a running average
     readings_Ref[readIndex_Ref] = a;   // get from the latest average above and track in this runnign average
     total_Ref += readings_Ref[readIndex_Ref];// add the reading to the total:
     readIndex_Ref += 1;       // advance to the next position in the array:
-    //if (NUMREADINGS >1)  // Average less than the Fwd readings to minimize chance of ref being higher than Fwd on transient downward.
-    //{
-    //    if (readIndex_Ref >= NUMREADINGS-1)  // if we're at the end of the array...        
-    //        readIndex_Ref = 0;// ...wrap around to the beginning:
-    //}
-    //else 
-    //{
         if (readIndex_Ref >= NUMREADINGS)  // if we're at the end of the array...        
             readIndex_Ref = 0;// ...wrap around to the beginning:
-    //}
     // caclulate dB value for digital display section
-    RefVal = b = total_Ref / NUMREADINGS;// calculate the average:        
+    RefVal = b = force ? a : total_Ref / NUMREADINGS;
     b -= Offset_R;   // adjust to 0V reference point
     b /= Slope_R;   // will be negative for detectors like AD8318
     b += CouplingFactor_Ref;
@@ -778,43 +849,20 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
 
     Ref_dBm = b;
     // 0dBm is max. = 1W fullscale on 1W scale.
-    RefPwr = pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference 
-    if (RefPwr > 999.9) 
-        RefPwr = 999.9999;
+    RefPwr_now = pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference
+    if (RefPwr_now > 999.9)
+        RefPwr_now = 999.9999;
         
 // ____________________ Fwd Power Capture ___________________________
 //
-// subtract the last reading for Fwd Power
-    total_Fwd -= readings_Fwd[readIndex_Fwd];
-    // read from the sensor:
-    c = 6;   // short term samples that feed into running average
-    a = 0;
-
-    for (int i = 0; i < c; ++i) 
-    {
-        #ifdef ADS1115_ADC   
-            #ifdef ADS1115_SINGLE_MODE
-                FwdVal = readChannel(ADC_FWD);   
-            #else   // continuous mode locks up without 20ms+ delay
-                adc.setCompareChannels(ADC_FWD); //comment line/change parameter to change channel
-                delay(20);           
-                FwdVal = adc.getResult_V();    // for ADS1115 module
-            #endif
-        #else
-            uint32_t ad_counts=0;
-            ad_counts = analogRead(ADC_FWD);  // single read               
-            FwdVal = ADC_RF_Power_CountsTo_Volts(ad_counts); 
-        #endif   
-        a += FwdVal;
-    }
-    a /= c; // calculate the average then use result in a running average
+    a = fwd_sum / c; // calculate the average then use result in a running average
     readings_Fwd[readIndex_Fwd] = a;   // get from the latest average above and track in this running average
     total_Fwd += readings_Fwd[readIndex_Fwd];    // add the reading to the total: 
     readIndex_Fwd += 1;     // advance to the next position in the array:
     if (readIndex_Fwd >= NUMREADINGS) {     // if we're at the end of the array...      
         readIndex_Fwd = 0;  // ...wrap around to the beginning:
     }     
-    FwdVal = b = (float) total_Fwd / NUMREADINGS;    // calculate the average:
+    FwdVal = b = force ? a : (float) total_Fwd / NUMREADINGS;
 
     // caclulate dB value for digital display section
     b -= Offset_F;   // adjusts to 0V reference point - calculated during cal
@@ -824,47 +872,69 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     Fwd_dBm = b;    // Now have calibrated Forward Value in dBm.   
     
     // 0dBm is max. = 1W fullscale on 1W scale for example
-    FwdPwr =  pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
+    FwdPwr_now =  pow(10.0,(b-30.0)/10.0);    // convert to linear value for meter using 1KW @ 0dBm as reference. Multiply by scale value.
+    b = ((force ? FwdVal : FwdPeakVal) - Offset_F) / Slope_F + CouplingFactor_Fwd;
+    FwdPwr_peak = pow(10.0, (b - 30.0) / 10.0);
+    if (FwdPwr_peak < FWD_DISPLAY_CUTOFF)
+        FwdPwr_peak = 0.0;
+    if (FwdPwr_peak > 9999.9)
+        FwdPwr_peak = 9999.9999;
     
     // When the measured range is larger than the log detector (<60dB), such as for 1KW range, can never get 0 Watts.  Filter out readings below X Watts
-    if (FwdPwr < FwdPwr_Cutoff)
+    if (FwdPwr_now < FwdPwr_Cutoff)
     {
-      FwdPwr = 0.0;
+      FwdPwr_now = 0.0;
       Fwd_dBm = 0.0;
       Ref_dBm = 0.0;
-      RefPwr = 0.0;
+      RefPwr_now = 0.0;
     }
 
-    if (FwdPwr > 9999.9)
-        FwdPwr = 9999.9999;    
+    if (FwdPwr_now > 9999.9)
+        FwdPwr_now = 9999.9999;
     
-    if (RefPwr < FwdPwr) 
-        tmp = sqrt(RefPwr/FwdPwr);
+    if (RefPwr_now < FwdPwr_now)
+        tmp = sqrt(RefPwr_now/FwdPwr_now);
     else 
-        tmp = sqrt(FwdPwr-0.1/FwdPwr);
+        tmp = sqrt(FwdPwr_now-0.1/FwdPwr_now);
         //tmp = .99999;   // if Ref > Fwd, then SWR is sky high, limit number range < 99
 
 //        
 // ------------------------ SWR -----------------------------------------------------------------------        
 //
-    SWRVal = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.  
-    if ((RefPwr > FwdPwr) && (FwdPwr < FwdPwr_Cutoff)) //  0.2 for <400W range.  Remove false SWR values if no Fwd Pwr such as TX turns off and Fwd goes to 0 before Ref.
-        SWRVal = 0;
-    else if ((RefPwr <= 0.00001) || (FwdPwr <= FwdPwr_Cutoff))  // Adjust this number. 3 to 5 good for 1KW ranges.  0.2 for <400W range. This is because the detector range is 55dB and 1KW is 60dB.  Will never hit true zero.
-        SWRVal = 0;   // remove misleading SWR numbers when input are floating around in RX mode.
-    else if (SWRVal > 9.9)
-        SWRVal = 10;
-    else if(SWRVal < 0)
-        SWRVal = 0;
- 
-    if (retry < 2 && SWRVal > 2.0) // if SWR is high re read to verify.  Getting occasional false trips when Ref is Higher than Fwd on TX turning off.
-    {
-        retry++;  // prevent endless loop in hi SWR scenario - we just want to wait out any transient such as transition for RX to TX and TX to RX.
-        delay(10);
-        //adRead();
-        goto __reread;        
-    }
-    retry = 0;
+    SWRVal_now = ((1 + tmp) / (1 - tmp));  // now have SWR in range of 1.0 to infinity.
+    if ((RefPwr_now > FwdPwr_now) && (FwdPwr_now < FwdPwr_Cutoff)) //  0.2 for <400W range.  Remove false SWR values if no Fwd Pwr such as TX turns off and Fwd goes to 0 before Ref.
+        SWRVal_now = 0;
+    else if ((RefPwr_now <= 0.00001) || (FwdPwr_now <= FwdPwr_Cutoff))  // Adjust this number. 3 to 5 good for 1KW ranges.  0.2 for <400W range. This is because the detector range is 55dB and 1KW is 60dB.  Will never hit true zero.
+        SWRVal_now = 0;   // remove misleading SWR numbers when input are floating around in RX mode.
+    else if (SWRVal_now > 9.9)
+        SWRVal_now = 10;
+    else if (SWRVal_now < 0)
+        SWRVal_now = 0;
+
+    // Guard against the momentary false-high-SWR glitch right at a PTT edge (Fwd and Ref detectors don't
+    // settle at exactly the same rate). Non-blocking: if we're within the holdoff window of a PTT transition
+    // and this reading spikes well above the current filtered SWR, just skip it this cycle instead of the
+    // old blocking retry/delay(10) loop - a real fault will still show up on the very next 50ms cycle.
+    since_ptt_edge = Timer_X00ms_InterruptCnt - PTT_State_Change_ms;
+    if ((since_ptt_edge < PTT_SWR_HOLDOFF_MS) && (SWRVal_now > (SWRVal + PTT_SWR_SPIKE_DELTA)))
+        SWRVal_now = SWRVal;   // hold last good value for this cycle only
+
+    // Smooth the Fwd/Ref power and SWR that get displayed and sent to the remote machine.  Fast attack
+    // tracks sampled peaks through CW keying and SSB syllables; slow decay keeps modulation gaps and the
+    // TX->RX transition from looking like a glitch/dropout instead of a clean, readable fall to zero.
+    FwdPwr = ForwardPeakHoldFilter(FwdPwr, FwdPwr_peak, millis());
+    if (FwdPwr < FWD_DISPLAY_CUTOFF)
+        FwdPwr = 0.0f;
+    RefPwr = PeakDecayFilter(RefPwr, RefPwr_now, PWR_ATTACK_ALPHA, PWR_DECAY_ALPHA);
+    SWRVal = PeakDecayFilter(SWRVal, SWRVal_now, SWR_ATTACK_ALPHA, SWR_DECAY_ALPHA);
+
+    // Keep short modulation gaps, but do not let an ended carrier decay indefinitely.
+    ApplyPowerZeroHoldoff(FwdPwr_peak, millis());
+
+    // Re-derive the displayed/sent dBm readouts from the smoothed Watts values so Fwd_dBm/Ref_dBm always
+    // agree with FwdPwr/RefPwr instead of jittering independently on their own unsmoothed dB math.
+    Fwd_dBm = (FwdPwr > 0.0) ? (10.0 * log10(FwdPwr) + 30.0) : 0.0;
+    Ref_dBm = (RefPwr > 0.0) ? (10.0 * log10(RefPwr) + 30.0) : 0.0;
     
 #ifdef SWR_ANALOG  // Update SWR Analog output for Amplifier protection when using KitProg board in an amplifier
     float SWR_val_temp = 0;
@@ -872,7 +942,7 @@ __reread:   // jump label to reread values in case of odd result or hi SWR
     
     // DAC is configured for 0-4.0VDC output.  Amp board will be adjusted to suit this.
     // SWR_Val should be 0-100 type of number.  We care about 0 to 5 since the amp trip point will be about 3.0/
-    SWR_val_temp = SWRVal;   // bounds check uing like size/type vars
+    SWR_val_temp = SWRVal_now;   // Use the raw (unsmoothed) value here so amplifier protection trips fast on a real fault.
     if (SWR_val_temp < 0.0)
         SWR_val_temp = 0.0;
     if (SWR_val_temp > 5.0)
@@ -940,6 +1010,7 @@ void PTT_OTRSP(void)
 void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PTT signal
 {    
     uint8_t polarity ;
+    uint8_t PTT_IN_state_prev = PTT_IN_state;   // used below to timestamp real TX/RX transitions for the SWR edge-glitch guard
 
     polarity = EEPROM.read(PTT_IN_POLARITY);
     DBG_Serial.print(">Input PTT Polarity is ");
@@ -980,6 +1051,8 @@ void PTT_IN_handler(uint8_t pin_state)   // Normally called from ISR or OTRSP PT
     //else
     //    DBG_Serial.println(">PTT ON (TX Mode)");    
     PTT_IN_state_last = PTT_IN_state;
+    if (PTT_IN_state != PTT_IN_state_prev)
+        PTT_State_Change_ms = millis();   // mark the edge so adRead() can briefly guard against Fwd/Ref detector settling glitches
 }
 
 void PTT_OUT_handler(void)   // Uses polarity corrected T/R state tracked in PTT_IN_state.  Set PTT Output to follow (observing it's own Polarity setting)
@@ -1196,26 +1269,94 @@ void BandSelect(uint8_t sband)   // Get var BandSel assigned by each band button
     update_Nextion(1);
 }
 
+bool MeasureCalibrationPoint(bool high, float target, bool watts)
+{
+    bool &valid = high ? Cal_hi_valid : Cal_lo_valid;
+    valid = false;
+    if (!isfinite(target) || (watts && target <= 0.0f))
+    {
+        sprintf((char *) tx_buffer, ">Calibration error: enter a finite power level; Watts must be positive.\r\n");
+        serial_usb_write();
+        return false;
+    }
+
+    float dbm = watts ? 10.0f * log10f(target) + 30.0f : target;
+    adRead(true);
+    if (!isfinite(FwdVal) || !isfinite(RefVal))
+    {
+        sprintf((char *) tx_buffer, ">Calibration error: invalid ADC reading.\r\n");
+        serial_usb_write();
+        return false;
+    }
+    if (high)
+    {
+        Pwr_hi = dbm;
+        FwdVal_hi = FwdVal;
+        RefVal_hi = RefVal;
+        Cal_hi_band = CouplerSetNum;
+    }
+    else
+    {
+        Pwr_lo = dbm;
+        FwdVal_lo = FwdVal;
+        RefVal_lo = RefVal;
+        Cal_lo_band = CouplerSetNum;
+    }
+    valid = true;
+    print_Cal_Table_progress(1, high ? (watts ? 79 : 78) : (watts ? 77 : 76));
+    return true;
+}
+
+bool CalculatePowerCalibration(bool forward)
+{
+    float hi = forward ? FwdVal_hi : RefVal_hi;
+    float lo = forward ? FwdVal_lo : RefVal_lo;
+    float coupling = forward ? CouplingFactor_Fwd : CouplingFactor_Ref;
+    if (!Cal_hi_valid || !Cal_lo_valid || Cal_hi_band != CouplerSetNum ||
+        Cal_lo_band != CouplerSetNum || Pwr_hi <= Pwr_lo ||
+        !isfinite(hi) || !isfinite(lo) || fabsf(hi - lo) < 0.000001f)
+    {
+        sprintf((char *) tx_buffer, ">Calibration error: measure distinct high and low points on the current band.\r\n");
+        serial_usb_write();
+        return false;
+    }
+    float slope = (hi - lo) / (Pwr_hi - Pwr_lo);
+    float offset = hi + (coupling - Pwr_hi) * slope;
+    if (!isfinite(slope) || slope == 0.0f || !isfinite(offset))
+    {
+        sprintf((char *) tx_buffer, ">Calibration error: invalid slope or offset.\r\n");
+        serial_usb_write();
+        return false;
+    }
+    if (forward)
+    {
+        Slope_F = slope;
+        Offset_F = offset;
+    }
+    else
+    {
+        Slope_R = slope;
+        Offset_R = offset;
+    }
+    Cal_Table_write();
+    Cal_Table();
+    print_Cal_Table_progress(0, forward ? 75 : 74);
+    return true;
+}
+
 void Measure_hi_pop_Callback(void *ptr)
 {   
     uint32_t number; 
 
     //NexButton_setText(&savecfg_button, "Saved Config");
     HPPwrTarget.getValue(&number);
-    Pwr_hi = number;
+    float target = number;
     Units.getValue(&number);
-    if (number==0)  // convert to dBm if in Watts (0 value)
+    if (MeasureCalibrationPoint(true, target, number == 0))
     {
-        // Get target lo power level from user in Watts, convert to dBm then measure and save ADC                                
-           Pwr_hi = 10 * log10(1000*(Pwr_hi/1));
-    }  
-    // Now value is in dBm proceed
-    adRead();  // update our high power readings for forward and reflected power for the current band
-    FwdVal_hi = FwdVal; // save for calc     
-    HP_F_VDC.setValue((int)(FwdVal_hi*100000));  // display ADC raw voltage on screen
-    RefVal_hi = RefVal;  // save for calc    
-    HP_R_VDC.setValue((int)(RefVal_hi*100000));
-    print_Cal_Table_progress(1);  // end of loop   
+        HP_F_VDC.setValue((int)(FwdVal_hi*100000));
+        HP_R_VDC.setValue((int)(RefVal_hi*100000));
+    }
 }
 
 void Measure_lo_pop_Callback(void *ptr)
@@ -1224,46 +1365,23 @@ void Measure_lo_pop_Callback(void *ptr)
 
     //NexButton_setText(&savecfg_button, "Saved Config");
     LPPwrTarget.getValue(&number);
-    Pwr_lo = number;        
+    float target = number;
     Units.getValue(&number);
-    if (number==0)
+    if (MeasureCalibrationPoint(false, target, number == 0))
     {
-        // Get target lo power level from user in Watts, convert to dBm then measure and save ADC                                
-           Pwr_lo = 10 * log10(1000*(Pwr_lo/1));
+        LP_F_VDC.setValue((int)(FwdVal_lo*100000));
+        LP_R_VDC.setValue((int)(RefVal_lo*100000));
     }
-    // Now value is in dBm proceed
-    adRead();  // update our high power readings for foprward and reflected power for the current band
-    FwdVal_lo = FwdVal; // save for calc  
-    LP_F_VDC.setValue((int)(FwdVal_lo*100000));
-    RefVal_lo = RefVal;  // save for calc    
-    LP_R_VDC.setValue((int)(RefVal_lo*100000));
-    print_Cal_Table_progress(1);  // end of loop
 }
 
 void CalcFwd_pop_Callback(void *ptr)
 {
-    if (Pwr_hi != 0) // ensure we have a valid high power number before calculating.
-    {                      
-        // Calculate Slope and Offset
-        Slope_F = (FwdVal_hi - FwdVal_lo)/(Pwr_hi - Pwr_lo);
-        Offset_F = FwdVal_hi + ((CouplingFactor_Fwd - Pwr_hi) * Slope_F);
-        Cal_Table_write();
-        Cal_Table();  // read back to be sure it save correctly                                
-        print_Cal_Table_progress(0);  // end of loop
-    }
+    CalculatePowerCalibration(true);
 }
 
 void CalcRef_pop_Callback(void *ptr)
 {
-    if (Pwr_hi != 0) // ensure we have a valid high power number before calculating.
-    {                             
-        // Calculate Slope and Offset
-        Slope_R = (RefVal_hi - RefVal_lo)/(Pwr_hi - Pwr_lo);
-        Offset_R = RefVal_hi + ((CouplingFactor_Ref - Pwr_hi) * Slope_R);
-        Cal_Table_write();
-        Cal_Table();  // read back to be sure it save correctly
-        print_Cal_Table_progress(0);  // end of loop
-    }
+    CalculatePowerCalibration(false);
 }
 
 void meterID_adj_pop_Callback(void *ptr)
@@ -1479,19 +1597,11 @@ uint8_t update_Nextion(uint8_t force_update)
     static uint8_t AuxNum1_old, AuxNum2_old, NewBand_old;
     static float set_curr_max_old, set_hv_max_old, set_v14_max_old;
     static uint8_t pg_last;
+    static bool last_power_active;
     
-    if (!force_update)
-    {
-        // throttle update rate
-        if ((Timer_X00ms_InterruptCnt - Timer_X00ms_Last_Nex) < 300)
-           return 0;   // skip out until greater than 100ms since our last visit here
-        Timer_X00ms_Last_Nex = Timer_X00ms_InterruptCnt;
-    }
-    else
-    {
-        // force all status tracking variables to 0 forcing them to update on this pass.
-        //FwdPwr_old=RefPwr_old=SWRVal_old=hv_value_old=V14_value_old=temp_value_old=curr_value_old=NewBand_old=0;
-    }
+    if (!PowerUpdateDue(FwdPwr, millis(), Timer_X00ms_Last_Nex, last_power_active,
+                        NEX_POWER_TX_DELAY, NEX_POWER_RX_DELAY, force_update != 0))
+        return 0;
    
     if (pg != pg_last)
     {
@@ -1666,25 +1776,12 @@ uint8_t update_Nextion(uint8_t force_update)
             sendCommand(cmd); 
         }              
              
-        if (force_update == 1)
-        {
-            sprintf(cmd, "band.txt=\"%s\"", Band_Cal_Table[NewBand].BandName);
-            sendCommand(cmd); 
-            
-            strcpy(cmd,Band_Cal_Table[NewBand].BandName);
-            Set1_Bandvar.setText(cmd);      
-        }
-        else
-        {
-            sprintf(cmd, "band.txt=\"%s\"", Band_Cal_Table[CouplerSetNum].BandName);
-            sendCommand(cmd); 
-            
-            strcpy(cmd,Band_Cal_Table[CouplerSetNum].BandName);
-            Set1_Bandvar.setText(cmd);      
-        }
-        
         if (NewBand_old != CouplerSetNum || force_update == 1)
         {
+            uint8_t displayBand = force_update == 1 ? NewBand : CouplerSetNum;
+            sprintf(cmd, "band.txt=\"%s\"", Band_Cal_Table[displayBand].BandName);
+            sendCommand(cmd);
+            Set1_Bandvar.setText(Band_Cal_Table[displayBand].BandName);
             NewBand_old = CouplerSetNum;            
             sprintf(cmd, "band.pco=65535");   // Flip value white
             sendCommand(cmd);            
@@ -1966,8 +2063,10 @@ uint16_t serial_usb_read(void)
 */
 void sendSerialData()
 {
+    static bool last_power_active;
     Timer_X00ms_InterruptCnt = millis();
-    if (Timer_X00ms_InterruptCnt - Timer_X00ms_Last_USB_PWR > PWR_MSG_DELAY)
+    if (PowerUpdateDue(FwdPwr, Timer_X00ms_InterruptCnt, Timer_X00ms_Last_USB_PWR,
+                       last_power_active, PWR_MSG_TX_DELAY, PWR_MSG_RX_DELAY, false))
     {          
         Timer_X00ms_Last_USB_PWR = Timer_X00ms_InterruptCnt;       
         sprintf((char *) tx_buffer,"%d,%s,%s,%.2f,%.2f,%.1f,%.1f,%.1f\r\n%c", METERID, "170", Band_Cal_Table[CouplerSetNum].BandName, Fwd_dBm, Ref_dBm, FwdPwr, RefPwr, SWR_Serial_Val, '\0');       
@@ -2094,6 +2193,7 @@ void get_remote_cmd()
 {
     uint8_t cmd1;
     float cmd2;
+    bool cmd2_valid = false;
     uint8_t cmd_str_len, i = 0, j = 0;
     char cmd_str[BUF_LEN] = {};
     
@@ -2159,7 +2259,11 @@ void get_remote_cmd()
                             cmd_str[j] = '\0';
                             //printf(" CMD2:  ");
                             //printf("%s",cmd_str);
-                            cmd2 = atof(cmd_str);
+                            char *end;
+                            cmd2 = strtof(cmd_str, &end);
+                            while (isspace((unsigned char)*end))
+                                ++end;
+                            cmd2_valid = end != cmd_str && *end == '\0' && isfinite(cmd2);
                         }
                         else 
                             cmd2 = 0.0;
@@ -2486,68 +2590,11 @@ void get_remote_cmd()
                             else
                                 temp_cal_factor = 1.0;  // a value of 0 is signal to reset to no correction factor
                         }  
-                        if (cmd1 == 79) 
-                        {    // Get target hi power level from user in Watts, convert to dBm then measure and save ADC                            
-                            Pwr_hi = cmd2;    
-                            Pwr_hi = 10 * log10(1000*(Pwr_hi/1));
-                            adRead();  // update our high power readings for foprward and reflected power for the current band
-                            FwdVal_hi = FwdVal; // save for calc                            
-                            RefVal_hi = RefVal;  // save for calc    
-                            print_Cal_Table_progress(1);  // end of loop
-                        }
-                        if (cmd1 == 78) 
-                        {    // Get target hi power level from user in dBm then measure and save ADC                            
-                            Pwr_hi = cmd2;                                
-                            adRead();  // update our high power readings for foprward and reflected power for the current band
-                            FwdVal_hi = FwdVal; // save for calc                            
-                            RefVal_hi = RefVal;  // save for calc    
-                            print_Cal_Table_progress(1);  // end of loop
-                        }
-                        if (cmd1 == 77) 
-                        {    // Get target lo power level from user in Watts, convert to dBm then measure and save ADC                            
-                            Pwr_lo = cmd2;    
-                            Pwr_lo = 10 * log10(1000*(Pwr_lo/1));
-                            adRead();  // update our high power readings for foprward and reflected power for the current band
-                            FwdVal_lo = FwdVal; // save for calc                            
-                            RefVal_lo = RefVal;  // save for calc    
-                            print_Cal_Table_progress(1);  // end of loop
-                        }
-                        if (cmd1 == 76) 
-                        {    // Get target power lo level from user in dBm then measure and save ADC                            
-                            Pwr_lo = cmd2;                            
-                            adRead();  // update our high power readings for foprward and reflected power for the current band
-                            FwdVal_lo = FwdVal; // save for calc                            
-                            RefVal_lo = RefVal;  // save for calc    
-                            print_Cal_Table_progress(1);  // end of loop
-                        }
-                        if (cmd1 == 75) // Fwd Direction Calc
-                        {   // Use stored values of Hi and lo power for Fwd direction
-                            if (Pwr_hi != 0) // ensure we have a valid high power number before calculating.
-                            {                      
-                                // Calculate Slope and Offset
-                                Slope_F = (FwdVal_hi - FwdVal_lo)/(Pwr_hi - Pwr_lo);
-                                Offset_F = FwdVal_hi + ((CouplingFactor_Fwd - Pwr_hi) * Slope_F);
-                                Cal_Table_write();
-                                //EEPROM_Init_Write();    // save to eeprom on changes.  
-                                //EEPROM_Init_Read();     // load the values into memory to check them
-                                Cal_Table();  // read back to be sure it save correctly                                
-                                print_Cal_Table_progress(0);  // end of loop
-                            }
-                        }
-                        if (cmd1 == 74) //Ref Direction Calc
-                        {    // Use stored values of Hi and lo power for Ref direction
-                            if (Pwr_hi != 0) // ensure we have a valid high power number before calculating.
-                            {                             
-                                // Calculate Slope and Offset
-                                Slope_R = (RefVal_hi - RefVal_lo)/(Pwr_hi - Pwr_lo);
-                                Offset_R = RefVal_hi + ((CouplingFactor_Ref - Pwr_hi) * Slope_R);
-                                Cal_Table_write();
-                                //EEPROM_Init_Write();    // save to eeprom on changes.  
-                                //EEPROM_Init_Read();     // load the values into memory to check them
-                                Cal_Table();  // read back to be sure it save correctly
-                                print_Cal_Table_progress(0);  // end of loop
-                            }
-                        }
+                        if (cmd1 >= 76 && cmd1 <= 79)
+                            MeasureCalibrationPoint(cmd1 >= 78, cmd2_valid ? cmd2 : NAN,
+                                                    cmd1 == 77 || cmd1 == 79);
+                        if (cmd1 == 75 || cmd1 == 74)
+                            CalculatePowerCalibration(cmd1 == 75);
                         if (cmd1 == 69) // Get Custom Band Decoder Input port pattern from user for current band 
                         {                              
                             Band_Cal_Table[CouplerSetNum].band_input_pattern = cmd2;
@@ -2708,13 +2755,13 @@ void print_cal_table()
 Start or end of cal message output to serial port.  1 is start, 0 is end.  Message type is 161 and 160.
  used to adjust dBm levels to match watts target using existing slope and offset.
 */
-void print_Cal_Table_progress(uint8_t flag)
+void print_Cal_Table_progress(uint8_t flag, uint8_t command)
 {   // uses current Offset and slope
     flag +=160;   // translate to start or end of cal procedure message type.   161 start, 160 end
     // example output format : "101,150,TEXT,55.4,35.4,3.3,2.2"
     // #161/160 for msg_type field to signal this is a cal calculation in progress
     //sprintf((char *) tx_buffer, "%d,%d,%s,%.2f,%.4f,%.2f,%.4f\r\n", METERID, flag, Band_Cal_Table[CouplerSetNum].BandName, CouplingFactor_Fwd, FwdVal, CouplingFactor_Ref, RefVal);        
-    sprintf((char *) tx_buffer, "%d,%d,%s,%.5f,%.5f,%.5f,%.5f\r\n", METERID, flag, Band_Cal_Table[CouplerSetNum].BandName, FwdVal_hi, FwdVal_lo, RefVal_hi, RefVal_lo);
+    sprintf((char *) tx_buffer, "%d,%d,%s,%.5f,%.5f,%.5f,%.5f,%u\r\n", METERID, flag, Band_Cal_Table[CouplerSetNum].BandName, FwdVal_hi, FwdVal_lo, RefVal_hi, RefVal_lo, command);
     tx_count = strlen((char *) tx_buffer);
     serial_usb_write();   // Output table text to serial port                  
 }

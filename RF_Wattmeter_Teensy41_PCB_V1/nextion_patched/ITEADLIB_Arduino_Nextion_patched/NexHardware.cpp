@@ -322,11 +322,14 @@ void nexLoop(NexTouch *nex_listen_list[])
     
     while (nexSerial.available() > 0)
     {   
-        delay(10);
         c = nexSerial.read();
         
         if (NEX_RET_EVENT_TOUCH_HEAD == c)
         {
+            if (nexSerial.available() < 6)
+            {
+                delay(10);
+            }
             if (nexSerial.available() >= 6)
             {
                 __buffer[0] = c;  

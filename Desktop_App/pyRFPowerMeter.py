@@ -2,6 +2,7 @@
 
 from threading import Thread, Timer
 import time
+import math
 import socket
 import select
 import serial
@@ -236,6 +237,7 @@ meter_data_fl  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] # stores the same inf
 meter_data2 = ["","","","","","","","","",""]
 meter_data_fl2  = [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0] # stores the same info in same psotion when possible as a float
 cal_flag = 0
+cal_response = (0, "", "", "", ())
 cmd_flag = 0
 FwdVal_Hi = ""
 FwdVal_Lo = ""
@@ -658,6 +660,7 @@ class Power_Data():
         global meter_data2
         global meter_data_fl2
         global cal_flag
+        global cal_response
         global cmd_flag
         global FwdVal_Hi
         global FwdVal_Lo
@@ -703,9 +706,15 @@ class Power_Data():
                             FwdVal_Lo = meter_data_tmp[4]
                             RefVal_Hi = meter_data_tmp[5]
                             RefVal_Lo = meter_data_tmp[6]  
+                            cal_response = (cal_response[0] + 1, "161", meter_data_tmp[2],
+                                            meter_data_tmp[7] if len(meter_data_tmp) > 7 else "",
+                                            tuple(meter_data_tmp[3:7]))
                             print("Voltages = ", meter_data_tmp)
                         elif meter_data_tmp[1] == "160":   # Cal progress message end
                             cal_flag = 0
+                            cal_response = (cal_response[0] + 1, "160", meter_data_tmp[2],
+                                            meter_data_tmp[7] if len(meter_data_tmp) > 7 else "",
+                                            tuple(meter_data_tmp[3:7]))
                         elif meter_data_tmp[1] == "163":   # Cmd progress message start
                             cmd_flag = 1       
                             print(" -------------cmd flag = 1 -------------")                            
@@ -804,7 +813,6 @@ class Send_Mtr_Cmds():
  
         # parse the frequency passed to call specific band command byte to be sent by another function
         #print("Meter Cmd Order is to " + str(cmd))
-        send_meter_cmd_flag = True
         if direct_cmd == True:              
             cmd = cmd_str           # now handle direct bands change commands
             cmd_data = cmd_data_str     # set data value if any. 
@@ -857,6 +865,7 @@ class Send_Mtr_Cmds():
                 cmd = "250"
             else: 
                 pass                    # in case we add more
+        send_meter_cmd_flag = True
         #time.sleep(0.0001)
 
 # # # _____________________Window Frame Handler for the GUI and managing starting and stopping._____________________________
@@ -1672,7 +1681,90 @@ class Cfg_Rtr(tk.Frame):
 #
 #---------------------------  Wattmeter and Band Decoder Configuration Table Editor Window----------------------------------------
 #
-class Table_Cfg_Mtr(tk.Frame):      
+class PowerCalibration:
+    def measure_power(self, high):
+        units = self.P_Units.get()
+        text = (self.Pwr_Hi if high else self.Pwr_Lo).get().strip()
+        try:
+            target = float(text)
+        except ValueError:
+            tkinter.messagebox.showerror("Calibration", "Enter a numeric power level.")
+            return
+        if not math.isfinite(target) or (units == "Watts" and target <= 0):
+            tkinter.messagebox.showerror("Calibration", "Enter a finite level; Watts must be positive.")
+            return
+        dbm = 10 * math.log10(target) + 30 if units == "Watts" else target
+        command = str((78 if high else 76) + (units == "Watts"))
+        band = meter_data[2]
+        if not band:
+            tkinter.messagebox.showerror("Calibration", "No current meter band is available.")
+            return
+        if self.cal_band != band:
+            self.cal_points.clear()
+            self.cal_band = band
+        self.cal_points.pop(high, None)
+        self._cal_command(command, str(target), band, (high, dbm))
+
+    def calculate_power(self, forward):
+        if self.cal_band != meter_data[2] or True not in self.cal_points or False not in self.cal_points:
+            tkinter.messagebox.showerror("Calibration", "Measure both points on the current band first.")
+            return
+        high, low = self.cal_points[True], self.cal_points[False]
+        if high[0] <= low[0] or abs(high[1 if forward else 2] - low[1 if forward else 2]) < 0.000001:
+            tkinter.messagebox.showerror("Calibration", "High power must exceed low power, with distinct detector voltages.")
+            return
+        self._cal_command("75" if forward else "74", "", self.cal_band, None)
+
+    def _cal_command(self, command, value, band, point):
+        self.Cal_Hi_btn.config(state='disabled')
+        self.Cal_Lo_btn.config(state='disabled')
+        self.Cal_Fwd_btn.config(state='disabled')
+        self.Cal_Ref_btn.config(state='disabled')
+        sequence = cal_response[0]
+        Send_Mtr_Cmds().send_meter_cmd(command, value, True)
+        deadline = time.monotonic() + 3.0
+        self._wait_for_cal(command, band, point, sequence, deadline)
+
+    def _wait_for_cal(self, command, band, point, sequence, deadline):
+        response = cal_response
+        expected = "161" if point is not None else "160"
+        if (response[0] > sequence and response[1] == expected and response[2] == band
+                and response[3] in ("", "0", command)):
+            if point is not None:
+                high, dbm = point
+                values = response[4]
+                fwd, ref = (values[0], values[2]) if high else (values[1], values[3])
+                self.cal_points[high] = (dbm, float(fwd), float(ref))
+                (self.Cal_HiV_F_Text if high else self.Cal_LoV_F_Text).config(text="F:" + fwd + "VDC")
+                (self.Cal_HiV_R_Text if high else self.Cal_LoV_R_Text).config(text="R:" + ref + "VDC")
+            self._enable_cal_buttons()
+        elif time.monotonic() >= deadline:
+            self._enable_cal_buttons()
+            tkinter.messagebox.showerror("Calibration", "Meter did not confirm calibration. Check the connection, band, and meter messages.")
+        else:
+            self.Cfg_Band_label.after(50, self._wait_for_cal, command, band, point, sequence, deadline)
+
+    def _enable_cal_buttons(self):
+        self.Cal_Hi_btn.config(state='normal')
+        self.Cal_Lo_btn.config(state='normal')
+        state = 'normal' if len(self.cal_points) == 2 and self.cal_band == meter_data[2] else 'disabled'
+        self.Cal_Fwd_btn.config(state=state)
+        self.Cal_Ref_btn.config(state=state)
+
+    def Cal_Hi(self):
+        self.measure_power(True)
+
+    def Cal_Lo(self):
+        self.measure_power(False)
+
+    def Cal_Fwd(self):
+        self.calculate_power(True)
+
+    def Cal_Ref(self):
+        self.calculate_power(False)
+
+
+class Table_Cfg_Mtr(PowerCalibration, tk.Frame):
     global update_table_cfg_win_callback
 #    def __init__(self):
         # Call superclass constructor
@@ -1683,6 +1775,8 @@ class Table_Cfg_Mtr(tk.Frame):
         self.Hi_Flag = 0
         self.Lo_Flag = 0
         self.Old_Band = 0
+        self.cal_band = None
+        self.cal_points = {}
         self.Table_Cfg_Window()
         self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
 
@@ -1731,48 +1825,6 @@ class Table_Cfg_Mtr(tk.Frame):
         m_cmd = Send_Mtr_Cmds()
         print("Cal No Load Current")
         m_cmd.send_meter_cmd("85",self.Curr0.get(), True)
-
-    def Cal_Hi(self):
-        m_cmd = Send_Mtr_Cmds()
-        print("Measure Fwd and Ref High Power ADC Voltage at {}{}" .format(self.Pwr_Hi.get(), self.P_Units.get()))        
-        if self.P_Units.get() == "dBm":
-            m_cmd.send_meter_cmd("78",self.Pwr_Hi.get(), True)
-        else:
-            m_cmd.send_meter_cmd("79",self.Pwr_Hi.get(), True)
-        time.sleep(2)
-        self.Cal_HiV_F_Text.config(text="F:"+FwdVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))   
-        self.Cal_HiV_R_Text.config(text="R:"+RefVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))        
-        if self.Lo_Flag == 1:
-            self.Cal_Fwd_btn.config(state='normal')
-            self.Cal_Ref_btn.config(state='normal')
-            print(RefVal_Hi+"    "+RefVal_Lo+"  "+FwdVal_Hi+"    "+FwdVal_Lo)                            
-        self.Hi_Flag = 1
-        
-    def Cal_Lo(self):
-        m_cmd = Send_Mtr_Cmds()
-        print("Measure Fwd and Ref Low Power ADC Voltage at {}{}" .format(self.Pwr_Lo.get(), self.P_Units.get()))                
-        if self.P_Units.get() == "dBm":
-            m_cmd.send_meter_cmd("76",self.Pwr_Lo.get(), True)
-        else:
-            m_cmd.send_meter_cmd("77",self.Pwr_Lo.get(), True)
-        time.sleep(2)
-        self.Cal_LoV_F_Text.config(text="F:"+FwdVal_Lo+"VDC", font=('Helvetica', 12, 'bold')) 
-        self.Cal_LoV_R_Text.config(text="R:"+RefVal_Lo+"VDC", font=('Helvetica', 12, 'bold'))  
-        if self.Hi_Flag == 1:
-            self.Cal_Fwd_btn.config(state='normal')
-            self.Cal_Ref_btn.config(state='normal')
-            print(RefVal_Hi+"    "+RefVal_Lo+"  "+FwdVal_Hi+"    "+FwdVal_Lo)    
-        self.Lo_Flag = 1
-
-    def Cal_Fwd(self):    # used measured hi and lo values sent to host earlier, now calculate
-        m_cmd = Send_Mtr_Cmds()
-        print("Calculate Fwd Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
-        m_cmd.send_meter_cmd("75","", True)        
-    
-    def Cal_Ref(self):
-        m_cmd = Send_Mtr_Cmds()
-        print("Calculate Ref Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
-        m_cmd.send_meter_cmd("74","", True)    
 
     def Set_B_Dec_In_Mode(self):
         m_cmd = Send_Mtr_Cmds()
@@ -2438,7 +2490,7 @@ class Table_Cfg_Mtr(tk.Frame):
 #
 #---------------------------  Wattmeter and Band Decoder Configuration Window ----------------------------------------
 #
-class Cfg_Mtr(tk.Frame):      
+class Cfg_Mtr(PowerCalibration, tk.Frame):
     global update_cfg_win_callback
 #    def __init__(self):
         # Call superclass constructor
@@ -2449,6 +2501,8 @@ class Cfg_Mtr(tk.Frame):
         self.Hi_Flag = 0
         self.Lo_Flag = 0
         self.Old_Band = 0
+        self.cal_band = None
+        self.cal_points = {}
         self.Cfg_Window()
         self.master.protocol("WM_DELETE_WINDOW", self.exit_protocol) 
 
@@ -2497,48 +2551,6 @@ class Cfg_Mtr(tk.Frame):
         m_cmd = Send_Mtr_Cmds()
         print("Cal No Load Current")
         m_cmd.send_meter_cmd("85",self.Curr0.get(), True)
-
-    def Cal_Hi(self):
-        m_cmd = Send_Mtr_Cmds()
-        print("Measure Fwd and Ref High Power ADC Voltage at {}{}" .format(self.Pwr_Hi.get(), self.P_Units.get()))        
-        if self.P_Units.get() == "dBm":
-            m_cmd.send_meter_cmd("78",self.Pwr_Hi.get(), True)
-        else:
-            m_cmd.send_meter_cmd("79",self.Pwr_Hi.get(), True)
-        time.sleep(2)
-        self.Cal_HiV_F_Text.config(text="F:"+FwdVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))   
-        self.Cal_HiV_R_Text.config(text="R:"+RefVal_Hi+"VDC", font=('Helvetica', 12, 'bold'))        
-        if self.Lo_Flag == 1:
-            self.Cal_Fwd_btn.config(state='normal')
-            self.Cal_Ref_btn.config(state='normal')
-            print(RefVal_Hi+"    "+RefVal_Lo+"  "+FwdVal_Hi+"    "+FwdVal_Lo)                            
-        self.Hi_Flag = 1
-        
-    def Cal_Lo(self):
-        m_cmd = Send_Mtr_Cmds()
-        print("Measure Fwd and Ref Low Power ADC Voltage at {}{}" .format(self.Pwr_Lo.get(), self.P_Units.get()))                
-        if self.P_Units.get() == "dBm":
-            m_cmd.send_meter_cmd("76",self.Pwr_Lo.get(), True)
-        else:
-            m_cmd.send_meter_cmd("77",self.Pwr_Lo.get(), True)
-        time.sleep(2)
-        self.Cal_LoV_F_Text.config(text="F:"+FwdVal_Lo+"VDC", font=('Helvetica', 12, 'bold')) 
-        self.Cal_LoV_R_Text.config(text="R:"+RefVal_Lo+"VDC", font=('Helvetica', 12, 'bold'))  
-        if self.Hi_Flag == 1:
-            self.Cal_Fwd_btn.config(state='normal')
-            self.Cal_Ref_btn.config(state='normal')
-            print(RefVal_Hi+"    "+RefVal_Lo+"  "+FwdVal_Hi+"    "+FwdVal_Lo)    
-        self.Lo_Flag = 1
-
-    def Cal_Fwd(self):    # used measured hi and lo values sent to host earlier, now calculate
-        m_cmd = Send_Mtr_Cmds()
-        print("Calculate Fwd Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
-        m_cmd.send_meter_cmd("75","", True)        
-    
-    def Cal_Ref(self):
-        m_cmd = Send_Mtr_Cmds()
-        print("Calculate Ref Cal using {}{} Hi and {}{} Lo".format(self.Pwr_Hi.get(), self.P_Units.get(), self.Pwr_Lo.get(), self.P_Units.get()))
-        m_cmd.send_meter_cmd("74","", True)    
 
     def Set_B_Dec_In_Mode(self):
         m_cmd = Send_Mtr_Cmds()

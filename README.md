@@ -357,3 +357,20 @@ The RF Remote Power Meter companion application is a small GUI display app that 
 One simple feature of the app is to turn the SWR value field background red for SWR value > 3.0 (or any number you want in the script). If using WSJT-X the app will automatically load the Power Meter’s calibration set to match the current radio frequency band. Otherwise there are manual band buttons in the app to change the meter’s current calibration set. The Python script code contains lots of usage and configuration details in the comments at top of the file.  The Nextion display, if used, also uses color on any of the voltages, temps, current and SWR to indicate maximum value exceeded.  
 
 A configuration edit screen is available in the menu.  It handles things like calibration, factory reset, and data dumps. It performs the detector calibration for forward and reflected power using a hi and a lo RF carrier of known power level to capture the ADC voltages and thgen calculates the Slope and Interncept point for each band and takes into account any detector output inversion such as from the AD8318 and ADL5519 detectors.
+
+The two desktop instances share the power-calibration workflow but retain these station-specific defaults:
+
+| Instance | Rig name | Meter ID | Meter IP | UDP listen/send | WSJT-X port | Power display | Sensor calibration controls |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Desktop_App` | Cabinet | 100 | 192.168.2.188 | 7942 / 7943 | 2238 | Hidden | Shown |
+| `Desktop_App_190` | K3 w/2M Amp | 101 | 192.168.2.190 | 7940 / 7941 | 2239 | Forward only | Hidden |
+
+Both instances enable the rotor and listen on UDP port 7947; running both on the same host can cause a port-binding conflict. Disable the rotor in one instance if it is not needed there.
+
+For the Teensy 4.1 PCB V1 and `Desktop_App_190`, select the band and measure a steady carrier at each known level; high must exceed low, and Watts must be positive. The desktop waits for each meter response before enabling calibration. Use Cal Fwd or Cal Ref for the detector being calibrated, then Save to Meter to store the result in EEPROM. The meter calculates slope as the voltage change divided by the power change in dBm; its offset includes the configured coupling factor. Repeat both measurements after changing bands. Identical detector voltages cannot produce a usable calibration.
+
+The Teensy display filter holds short gaps, then clears forward power after 150 ms below its 1 W display cutoff. Reflected power and SWR retain the separate 9.9 W forward cutoff. ADC, network and display update times add to that delay; verify the complete response and RX noise floor on each installed band and detector.
+
+On the Teensy 4.1 PCB V1, forward power displays the highest power sampled in each ADC read cycle, with a 400 ms peak hold; calibration and SWR use averaged detector voltages. Below-cutoff clearing still applies during the hold. In ADS1115 single-shot mode the ADC is set to 860 samples/s and takes 24 alternating forward and reflected readings per cycle. The sampled peak can miss short SSB peaks and is not a verified PEP measurement; sampling and protection response timing must be checked on the installed hardware.
+
+Power telemetry is sent after each acquisition while forward power is present and every second while it is zero. The Nextion target refresh interval is 100 ms with forward power and one second without. Both update immediately when the filtered power changes between zero and nonzero; actual intervals depend on ADC and display processing.
