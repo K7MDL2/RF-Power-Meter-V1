@@ -3,9 +3,14 @@
 
 ### 11/24/2026 - v2.8.2
 1. Several improvements around RF power measurement speed and accuracy
-2. Shifted to PEP style measurement and display.  Due to hardware limitations it is not true PEP but pretty close.
-3. Lowered Forward Power display threshold from 10W to 1W.  < 1W display will be 0 to block possible noise.
-4. Faster desktop and Nextion updates during TX, slower in RX to reduce CPU and network/USB data rate when idle.  Removed several speed bottlenecks.
+2. Improve forward and reflected power calibration and synchronize both desktop apps.
+3. Improve SSB peak sampling, power display response, and TX display update rates.
+4. Shifted to PEP style measurement and display.  Due to hardware limitations it is not true PEP but pretty close.
+5. Lowered Forward Power display threshold from 10W to 1W.  < 1W display will be 0 to block possible noise.
+6. Faster desktop and Nextion updates during TX, slower in RX to reduce CPU and network/USB data rate when idle.  Removed several speed bottlenecks.
+
+1. 
+2. 
    
 ### 7/27/2026 - v2.8.1
 1. Improve some output messages, remove some others.
